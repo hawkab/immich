@@ -110,14 +110,18 @@ ARG BUILD_SOURCE_REF
 ARG BUILD_SOURCE_COMMIT
 
 ENV IMMICH_BUILD=${BUILD_ID}
-ENV IMMICH_BUILD_URL=https://github.com/immich-app/immich/actions/runs/${BUILD_ID}
+ENV IMMICH_BUILD_URL=https://github.com/hawkab/immich/releases/tag/v3.4.1-partner-edit.1
 ENV IMMICH_BUILD_IMAGE=${BUILD_IMAGE}
-ENV IMMICH_BUILD_IMAGE_URL=https://github.com/immich-app/immich/pkgs/container/immich-server
-ENV IMMICH_REPOSITORY=immich-app/immich
-ENV IMMICH_REPOSITORY_URL=https://github.com/immich-app/immich
+ENV IMMICH_BUILD_IMAGE_URL=https://github.com/hawkab/immich/releases/tag/v3.4.1-partner-edit.1
+ENV IMMICH_REPOSITORY=hawkab/immich
+ENV IMMICH_REPOSITORY_URL=https://github.com/hawkab/immich
 ENV IMMICH_SOURCE_REF=${BUILD_SOURCE_REF}
 ENV IMMICH_SOURCE_COMMIT=${BUILD_SOURCE_COMMIT}
-ENV IMMICH_SOURCE_URL=https://github.com/immich-app/immich/commit/${BUILD_SOURCE_COMMIT}
+ENV IMMICH_SOURCE_URL=https://github.com/hawkab/immich/commit/${BUILD_SOURCE_COMMIT}
+
+LABEL org.opencontainers.image.source="https://github.com/hawkab/immich" \
+  org.opencontainers.image.revision="${BUILD_SOURCE_COMMIT}" \
+  org.opencontainers.image.version="v3.4.1-partner-edit.1"
 
 COPY --from=ghcr.io/futo-org/backups/restic-proxy:v1.11.2@sha256:a88252d884d22a55749f45dd39a2458c6391ca3e4d3b0d9e0c2246786cf923be /usr/local/bin/restic-proxy /usr/local/bin/restic-proxy
 COPY --from=ghcr.io/futo-org/restic:sha-1e904f0@sha256:501bb3e696bd78db0d89ae4e5c51b6993b9cb3f88e657020777dba49226169bc /usr/bin/restic /usr/local/bin/restic
