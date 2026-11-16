@@ -34,7 +34,7 @@ test('grants and revokes outgoing partner editing independently of incoming gran
     getClusterGroupRequests: () => ({ json: [] }),
     searchUsers: () => ({ json: [partner] }),
     getPartners: ({ params }) => ({
-      json: [{ ...partner, canEdit: params.direction === PartnerDirection.SharedBy ? canEdit : true }],
+      json: [{ ...partner, canEdit: params.direction !== PartnerDirection.SharedBy || canEdit }],
     }),
     updatePartnerPermissions: ({ body }) => {
       canEdit = body.canEdit;

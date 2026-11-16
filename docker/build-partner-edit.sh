@@ -4,19 +4,24 @@ cd "$(dirname "$0")/.."
 git diff --quiet
 git diff --cached --quiet
 git verify-commit HEAD
-git diff --quiet v3.4.1 -- package.json pnpm-lock.yaml pnpm-workspace.yaml .pnpmfile.cjs server/package.json packages/plugin-core packages/plugin-sdk
 source_commit=$(git rev-parse HEAD)
+recipe=server/Dockerfile
 base_image=${BASE_IMAGE:-ghcr.io/immich-app/immich-server@sha256:7c489add298fc2f92cda4c777de6462aa206877e04087b815f62c7664af0b53b}
-if ! docker image inspect "$base_image" >/dev/null 2>&1; then
-  docker image pull "$base_image"
+if git diff --quiet v3.4.1 -- package.json pnpm-lock.yaml pnpm-workspace.yaml .pnpmfile.cjs server/package.json packages/plugin-core packages/plugin-sdk; then
+  recipe=docker/Dockerfile.partner-edit
+  if ! docker image inspect "$base_image" >/dev/null 2>&1; then
+    docker image pull "$base_image"
+  fi
+  expected=0c994058ddf18432a03544be3c3bf79aa748a30a0a91d6d4f559335cedf13ef8
+  actual=$(docker image inspect --format '{{json .}}' "$base_image" | python3 docker/image-identity.py)
+  [[ "$actual" == "$expected" ]]
+  mise exec -- pnpm install --frozen-lockfile
+  mise //:plugins
+  mise //server:build
+  mise //web:build
 fi
-expected_id=sha256:4351dd621899ecc8ed317ae87cdcaeb968ec8ba4f9d8053d913a73eb6f6dd7c2
-[[ $(docker image inspect --format '{{.Id}}' "$base_image") == "$expected_id" ]]
-mise exec -- pnpm install --frozen-lockfile
-mise //:plugins
-mise //server:build
-mise //web:build
-DOCKER_BUILDKIT=1 docker build --file docker/Dockerfile.partner-edit \
+DOCKER_BUILDKIT=1 docker build --file "$recipe" \
   --build-arg BASE_IMAGE="$base_image" --build-arg BUILD_SOURCE_COMMIT="$source_commit" \
+  --build-arg BUILD_SOURCE_REF=v3.4.1-partner-edit.1 --build-arg BUILD_IMAGE=v3.4.1-partner-edit.1 \
   --tag ghcr.io/hawkab/immich-server:v3.4.1-partner-edit.1 .
-docker image inspect --format '{{.Id}}' ghcr.io/hawkab/immich-server:v3.4.1-partner-edit.1
+docker image inspect --format '{{json .}}' ghcr.io/hawkab/immich-server:v3.4.1-partner-edit.1 | python3 docker/image-identity.py
