@@ -1,7 +1,7 @@
 import { OpenQueryParam } from '#lib/constants.ts';
 import { Route } from '#lib/route.ts';
-import { test } from '#test/unit/fixtures.ts';
 import { factory } from '#test/unit/factories.ts';
+import { test } from '#test/unit/fixtures.ts';
 import { PartnerDirection } from '@immich/sdk';
 import { expect } from 'vitest';
 import { page } from 'vitest/browser';
@@ -19,8 +19,13 @@ test('links to the OAuth account management page', async ({ data, router, render
   await expect.element(app.settings.manageOauthAccountLink).toHaveAttribute('href', 'https://idp.example/account');
 });
 
-
-test('grants and revokes outgoing partner editing independently of incoming grants', async ({ data, router, render, settle, api }) => {
+test('grants and revokes outgoing partner editing independently of incoming grants', async ({
+  data,
+  router,
+  render,
+  settle,
+  api,
+}) => {
   const partner = factory.user({ name: 'Alice' });
   let canEdit = false;
   api.on({
@@ -28,7 +33,9 @@ test('grants and revokes outgoing partner editing independently of incoming gran
     getClusterGroupRequestsForGroup: () => ({ json: [] }),
     getClusterGroupRequests: () => ({ json: [] }),
     searchUsers: () => ({ json: [partner] }),
-    getPartners: ({ params }) => ({ json: [{ ...partner, canEdit: params.direction === PartnerDirection.SharedBy ? canEdit : true }] }),
+    getPartners: ({ params }) => ({
+      json: [{ ...partner, canEdit: params.direction === PartnerDirection.SharedBy ? canEdit : true }],
+    }),
     updatePartnerPermissions: ({ body }) => {
       canEdit = body.canEdit;
       return { json: { ...partner, canEdit } };
@@ -56,10 +63,14 @@ test('does not offer a grant to an incoming-only partner', async ({ data, router
     getClusterGroupRequestsForGroup: () => ({ json: [] }),
     getClusterGroupRequests: () => ({ json: [] }),
     searchUsers: () => ({ json: [partner] }),
-    getPartners: ({ params }) => ({ json: params.direction === PartnerDirection.SharedWith ? [{ ...partner, canEdit: true }] : [] }),
+    getPartners: ({ params }) => ({
+      json: params.direction === PartnerDirection.SharedWith ? [{ ...partner, canEdit: true }] : [],
+    }),
   });
   await router.goto(Route.userSettings({ isOpen: OpenQueryParam.SHARING }));
   await render(Page, load);
   await page.getByRole('button', { name: 'partners', exact: false }).click();
-  await expect.element(page.getByRole('switch', { name: 'partner_allow_editing', exact: true })).not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole('switch', { name: 'partner_allow_editing', exact: true }))
+    .not.toBeInTheDocument();
 });

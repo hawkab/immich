@@ -68,3 +68,7 @@ The new controls are available in the web client, including a mobile browser. Ex
 In order to remove a partner, you can go to `User > Account Settings > Sharing` and click on the X button.
 
 <img src={require('./img/partner-sharing-7.webp').default} width="70%" title='Remove Partner' />
+
+## Building This Fork
+
+This branch backports the permission to Immich 3.4.1. With Docker and the pinned mise tools installed, run `bash docker/build-partner-edit.sh` from a clean, signed checkout. The recipe verifies the official base image identity and unchanged runtime dependencies, builds the source with mise, and replaces the server and web assets. Existing native dependencies, plugins, CLI and machine-learning images remain from the official release. `BASE_IMAGE` may name a locally cached copy of the same verified base image.

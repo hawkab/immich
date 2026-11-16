@@ -1,0 +1,19 @@
+ARG BASE_IMAGE=ghcr.io/immich-app/immich-server@sha256:7c489add298fc2f92cda4c777de6462aa206877e04087b815f62c7664af0b53b
+FROM ${BASE_IMAGE}
+
+COPY server/dist/ /usr/src/app/server/dist/
+COPY web/build/ /build/www/
+
+ARG BUILD_SOURCE_COMMIT
+ENV IMMICH_REPOSITORY=hawkab/immich \
+    IMMICH_REPOSITORY_URL=https://github.com/hawkab/immich \
+    IMMICH_SOURCE_REF=v3.4.1-partner-edit.1 \
+    IMMICH_SOURCE_COMMIT=${BUILD_SOURCE_COMMIT} \
+    IMMICH_SOURCE_URL=https://github.com/hawkab/immich/commit/${BUILD_SOURCE_COMMIT} \
+    IMMICH_BUILD_IMAGE=v3.4.1-partner-edit.1 \
+    IMMICH_BUILD_URL=https://github.com/hawkab/immich/releases/tag/v3.4.1-partner-edit.1 \
+    IMMICH_BUILD_IMAGE_URL=https://github.com/hawkab/immich/releases/tag/v3.4.1-partner-edit.1
+LABEL org.opencontainers.image.source="https://github.com/hawkab/immich" \
+      org.opencontainers.image.revision="${BUILD_SOURCE_COMMIT}" \
+      org.opencontainers.image.version="v3.4.1-partner-edit.1" \
+      org.opencontainers.image.base.digest="sha256:7c489add298fc2f92cda4c777de6462aa206877e04087b815f62c7664af0b53b"
