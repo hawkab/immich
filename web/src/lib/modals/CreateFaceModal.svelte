@@ -36,7 +36,7 @@
 
     let personId: string;
     try {
-      const person = await createPerson({ personCreateDto: { name } });
+      const person = await createPerson({ personCreateDto: { name, assetId } });
       personId = person.id;
     } catch (error) {
       handleError(error, $t('errors.something_went_wrong'));

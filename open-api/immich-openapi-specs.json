@@ -9697,6 +9697,73 @@
         "x-immich-state": "Stable"
       }
     },
+    "/partners/{id}/permissions": {
+      "put": {
+        "description": "The sharing owner grants or revokes permission to edit shared photos and manage their faces.",
+        "operationId": "updatePartnerPermissions",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartnerPermissionsDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartnerResponseDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Update permissions granted to a partner",
+        "tags": [
+          "Partners"
+        ],
+        "x-immich-history": [
+          {
+            "version": "v3.5",
+            "state": "Added"
+          },
+          {
+            "version": "v3.5",
+            "state": "Beta"
+          }
+        ],
+        "x-immich-permission": "partner.permissions.update",
+        "x-immich-state": "Beta"
+      }
+    },
     "/passkeys": {
       "get": {
         "description": "Search the passkeys of the current user.",
@@ -10162,6 +10229,17 @@
         "description": "Retrieve a list of all people.",
         "operationId": "getAllPeople",
         "parameters": [
+          {
+            "name": "assetId",
+            "required": false,
+            "in": "query",
+            "description": "Select people from the catalogue of an editable asset owner",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
           {
             "name": "closestAssetId",
             "required": false,
@@ -11099,6 +11177,17 @@
         "description": "Retrieve the thumbnail file for a person.",
         "operationId": "getPersonThumbnail",
         "parameters": [
+          {
+            "name": "assetId",
+            "required": false,
+            "in": "query",
+            "description": "Editable asset identifying the owner catalogue",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
           {
             "name": "id",
             "required": true,
@@ -21616,6 +21705,10 @@
       },
       "AssetResponseDto": {
         "properties": {
+          "canEdit": {
+            "description": "Whether the current user may edit this photo and its faces",
+            "type": "boolean"
+          },
           "checksum": {
             "description": "Base64 encoded SHA1 hash",
             "type": "string"
@@ -25290,11 +25383,27 @@
         ],
         "type": "string"
       },
+      "PartnerPermissionsDto": {
+        "properties": {
+          "canEdit": {
+            "description": "Allow the recipient to edit shared photos and manage their faces",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "canEdit"
+        ],
+        "type": "object"
+      },
       "PartnerResponseDto": {
         "description": "Partner response",
         "properties": {
           "avatarColor": {
             "$ref": "#/components/schemas/UserAvatarColor"
+          },
+          "canEdit": {
+            "description": "Permission granted by the sharing owner to edit photos and faces",
+            "type": "boolean"
           },
           "email": {
             "description": "User email",
@@ -25831,6 +25940,7 @@
           "partner.create",
           "partner.read",
           "partner.update",
+          "partner.permissions.update",
           "partner.delete",
           "passkey.read",
           "passkey.update",
@@ -25920,6 +26030,12 @@
       },
       "PersonCreateDto": {
         "properties": {
+          "assetId": {
+            "description": "Create a person in the catalogue of an editable asset owner",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
           "birthDate": {
             "description": "Person date of birth",
             "format": "date",

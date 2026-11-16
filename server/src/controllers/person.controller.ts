@@ -25,6 +25,7 @@ import {
   PeopleResponseDto,
   PeopleUpdateDto,
   PeopleUsersUpsertDto,
+  PersonAssetDto,
   PersonCreateDto,
   PersonDeleteDto,
   PersonResponseDto,
@@ -170,8 +171,9 @@ export class PersonController {
     @Next() next: NextFunction,
     @Auth() auth: AuthDto,
     @Param() { id }: UUIDParamDto,
+    @Query() { assetId }: PersonAssetDto,
   ) {
-    await sendFile(res, next, () => this.service.getThumbnail(auth, id), this.logger);
+    await sendFile(res, next, () => this.service.getThumbnail(auth, id, assetId), this.logger);
   }
 
   @Put(':id/reassign')

@@ -53,6 +53,16 @@ From the partner’s view, toggle the button
 
 <img src={require('./img/partner-sharing-8.webp').default} width="30%" title='Partner Sharing for the mobile app' />
 
+## Allowing Photo and Face Editing
+
+Sharing remains read-only by default. The owner can enable **Allow photo and face editing** for an outgoing partner in **Account Settings > Sharing** on the web. To edit each other's photos, both owners enable this permission independently.
+
+An editor can rotate, crop and mirror shared photos, undo those edits, and add, reassign or remove faces. Face selection and new people belong to the photo owner's catalogue, including when the accounts use different face recognition groups. The editor can view that catalogue to select people; thumbnails from photos they cannot view remain inaccessible.
+
+This permission does not grant deletion of original photos, changes to ownership, visibility or other metadata, or access to locked, archived or trashed photos. Existing photo editing format restrictions still apply. Disable the switch or remove the partnership to revoke editing. Incoming **Show in timeline** preferences never grant editing permission.
+
+The new controls are available in the web client, including a mobile browser. Existing mobile clients keep their current controls.
+
 ## Removing Access
 
 In order to remove a partner, you can go to `User > Account Settings > Sharing` and click on the X button.

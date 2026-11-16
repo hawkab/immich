@@ -1659,6 +1659,8 @@
   "owner": "Owner",
   "page": "Page",
   "partner": "Partner",
+  "partner_allow_editing": "Allow photo and face editing",
+  "partner_allow_editing_description": "Let this partner rotate, crop and mirror your shared photos, and add, reassign or remove faces in your people catalogue. Original photos cannot be deleted with this permission.",
   "partner_can_access": "{partner} can access",
   "partner_can_access_assets": "All your photos and videos except those in Archived and Deleted",
   "partner_can_access_location": "The location where your photos were taken",

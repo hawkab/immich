@@ -20,6 +20,7 @@
 
   const { asset, isOwner, previousRoute }: Props = $props();
 
+  const canEdit = $derived(isOwner || asset.canEdit === true);
   const people = $derived(Array.from(faceManager.people));
   const visiblePeople = $derived(
     people
@@ -59,11 +60,11 @@
 
 {#if !authManager.isSharedLink}
   <section class="px-4 pt-4 text-sm">
-    {#if isOwner || visiblePeople.length > 0}
+    {#if canEdit || visiblePeople.length > 0}
       <div class="flex h-10 w-full items-center justify-between">
         <Text size="small" color="muted">{$t('people')}</Text>
         <div class="flex items-center gap-2">
-          {#if isOwner}
+          {#if canEdit}
             {#if people.some((person) => person.isHidden)}
               <IconButton
                 aria-label={$t('show_hidden_people')}
@@ -109,7 +110,7 @@
         )}
         <a
           class="group outline-none"
-          href={Route.viewPerson(person, { previousRoute })}
+          href={isOwner ? Route.viewPerson(person, { previousRoute }) : undefined}
           onfocus={() => assetViewerManager.setHighlightedFaces(personFaces)}
           onblur={() => assetViewerManager.clearHighlightedFaces()}
           onpointerenter={() => assetViewerManager.setHighlightedFaces(personFaces)}
@@ -118,7 +119,7 @@
           <ImageThumbnail
             curve
             shadow
-            url={getPeopleThumbnailUrl(person)}
+            url={getPeopleThumbnailUrl(person, undefined, canEdit ? asset.id : undefined)}
             altText={person.name}
             title={person.name}
             widthStyle="100%"

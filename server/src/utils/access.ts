@@ -223,16 +223,13 @@ const checkOtherAccess = async (access: AccessRepository, request: OtherAccessRe
       return await access.asset.checkOwnerAccess(auth.user.id, ids, auth.session?.hasElevatedPermission);
     }
 
-    case Permission.AssetEditGet: {
-      return await access.asset.checkOwnerAccess(auth.user.id, ids, auth.session?.hasElevatedPermission);
-    }
-
-    case Permission.AssetEditCreate: {
-      return await access.asset.checkOwnerAccess(auth.user.id, ids, auth.session?.hasElevatedPermission);
-    }
-
+    case Permission.FaceCreate:
+    case Permission.AssetEditGet:
+    case Permission.AssetEditCreate:
     case Permission.AssetEditDelete: {
-      return await access.asset.checkOwnerAccess(auth.user.id, ids, auth.session?.hasElevatedPermission);
+      const owned = await access.asset.checkOwnerAccess(auth.user.id, ids, auth.session?.hasElevatedPermission);
+      const editable = await access.asset.checkPartnerEditAccess(auth.user.id, ids.difference(owned));
+      return owned.union(editable);
     }
 
     case Permission.AssetFileRead:
@@ -321,8 +318,11 @@ const checkOtherAccess = async (access: AccessRepository, request: OtherAccessRe
       return await access.authDevice.checkOwnerAccess(auth.user.id, ids);
     }
 
+    case Permission.FaceUpdate:
     case Permission.FaceDelete: {
-      return access.person.checkFaceOwnerAccess(auth.user.id, ids);
+      const owned = await access.person.checkFaceOwnerAccess(auth.user.id, ids);
+      const editable = await access.person.checkFacePartnerEditAccess(auth.user.id, ids.difference(owned));
+      return owned.union(editable);
     }
 
     case Permission.NotificationRead:
@@ -391,6 +391,10 @@ const checkOtherAccess = async (access: AccessRepository, request: OtherAccessRe
 
     case Permission.ClusterGroupRequestRead: {
       return access.clusterGroupRequest.checkOwnerAccess(auth.user.id, ids);
+    }
+
+    case Permission.PartnerPermissionsUpdate: {
+      return access.partner.checkOwnerAccess(auth.user.id, ids);
     }
 
     case Permission.PartnerUpdate: {

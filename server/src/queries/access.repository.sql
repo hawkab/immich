@@ -71,6 +71,21 @@ where
   "shared_link"."id" = $1
   and "shared_link"."albumId" in ($2)
 
+-- AccessRepository.asset.checkPartnerEditAccess
+select
+  "asset"."id"
+from
+  "partner"
+  inner join "user" as "sharedBy" on "sharedBy"."id" = "partner"."sharedById"
+  and "sharedBy"."deletedAt" is null
+  inner join "asset" on "asset"."ownerId" = "sharedBy"."id"
+  and "asset"."deletedAt" is null
+where
+  "partner"."sharedWithId" = $1
+  and "partner"."canEdit" = $2
+  and "asset"."visibility" in ($3, $4)
+  and "asset"."id" in ($5)
+
 -- AccessRepository.asset.checkAlbumAccess
 with
   "target" as (
@@ -265,6 +280,28 @@ where
       "user"."id" = $2
   )
 
+-- AccessRepository.person.checkFacePartnerEditAccess
+select
+  "asset_face"."id"
+from
+  "asset_face"
+where
+  "asset_face"."id" in ($1)
+  and "asset_face"."assetId" in (
+    select
+      "asset"."id"
+    from
+      "partner"
+      inner join "user" as "sharedBy" on "sharedBy"."id" = "partner"."sharedById"
+      and "sharedBy"."deletedAt" is null
+      inner join "asset" on "asset"."ownerId" = "sharedBy"."id"
+      and "asset"."deletedAt" is null
+    where
+      "partner"."sharedWithId" = $2
+      and "partner"."canEdit" = $3
+      and "asset"."visibility" in ($4, $5)
+  )
+
 -- AccessRepository.person.checkAccess
 select
   "personGroupId",
@@ -310,6 +347,15 @@ from
 where
   "asset_face"."id" in ($1)
   and "asset"."ownerId" = $2
+
+-- AccessRepository.partner.checkOwnerAccess
+select
+  "partner"."sharedWithId"
+from
+  "partner"
+where
+  "partner"."sharedById" = $1
+  and "partner"."sharedWithId" in ($2)
 
 -- AccessRepository.partner.checkUpdateAccess
 select

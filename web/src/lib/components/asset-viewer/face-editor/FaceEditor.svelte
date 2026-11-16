@@ -148,7 +148,7 @@
   };
 
   const getPeople = async () => {
-    const { hasNextPage, people, total } = await getAllPeople({ page, size: 1000, withHidden: false });
+    const { hasNextPage, people, total } = await getAllPeople({ assetId, page, size: 1000, withHidden: false });
 
     if (candidates.length === total) {
       return;
@@ -394,7 +394,7 @@
               <ImageThumbnail
                 curve
                 shadow
-                url={getPeopleThumbnailUrl(person)}
+                url={getPeopleThumbnailUrl(person, undefined, assetId)}
                 altText={person.name}
                 title={person.name}
                 widthStyle="30px"

@@ -90,7 +90,7 @@
           let personId = selectedPersonToReassign[personWithFace.id]?.id;
 
           if (!personId && Object.hasOwn(selectedPersonToCreate, personWithFace.id)) {
-            const data = await createPerson({ personCreateDto: {} });
+            const data = await createPerson({ personCreateDto: { assetId } });
             peopleToCreate.push(data.id);
             personId = data.id;
           }
@@ -247,7 +247,7 @@
                     curve
                     shadow
                     highlighted={isHighlighted}
-                    url={getPeopleThumbnailUrl(selectedPersonToReassign[face.id])}
+                    url={getPeopleThumbnailUrl(selectedPersonToReassign[face.id], undefined, assetId)}
                     altText={selectedPersonToReassign[face.id].name}
                     title={$getPersonNameWithHiddenValue(
                       selectedPersonToReassign[face.id].name,
@@ -262,7 +262,7 @@
                     curve
                     shadow
                     highlighted={isHighlighted}
-                    url={getPeopleThumbnailUrl(face.person)}
+                    url={getPeopleThumbnailUrl(face.person, undefined, assetId)}
                     altText={face.person.name}
                     title={$getPersonNameWithHiddenValue(face.person.name, face.person.isHidden)}
                     widthStyle={thumbnailWidth}

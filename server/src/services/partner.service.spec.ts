@@ -118,6 +118,33 @@ describe(PartnerService.name, () => {
     });
   });
 
+  describe('updatePermissions', () => {
+    it('requires an outgoing partnership owned by the caller', async () => {
+      const auth = AuthFactory.create();
+      const recipient = UserFactory.create();
+      await expect(sut.updatePermissions(auth, recipient.id, { canEdit: true })).rejects.toThrow(
+        'partner.permissions.update',
+      );
+      expect(mocks.partner.update).not.toHaveBeenCalled();
+    });
+
+    it('changes only the permission in the owner-to-recipient direction', async () => {
+      const owner = UserFactory.create();
+      const recipient = UserFactory.create();
+      const auth = AuthFactory.create({ id: owner.id });
+      const partner = PartnerFactory.from({ canEdit: true }).sharedBy(owner).sharedWith(recipient).build();
+      mocks.access.partner.checkOwnerAccess.mockResolvedValue(new Set([recipient.id]));
+      mocks.partner.update.mockResolvedValue(getForPartner(partner));
+      await expect(sut.updatePermissions(auth, recipient.id, { canEdit: true })).resolves.toEqual(
+        expect.objectContaining({ id: recipient.id, canEdit: true }),
+      );
+      expect(mocks.partner.update).toHaveBeenCalledWith(
+        { sharedById: owner.id, sharedWithId: recipient.id },
+        { canEdit: true },
+      );
+    });
+  });
+
   describe('update', () => {
     it('should require access', async () => {
       const user2 = UserFactory.create();

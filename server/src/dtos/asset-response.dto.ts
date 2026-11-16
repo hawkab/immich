@@ -101,6 +101,7 @@ export const AssetResponseSchema = SanitizedAssetResponseSchema.extend(
     exifInfo: ExifResponseSchema.optional(),
     tags: z.array(TagResponseSchema).optional(),
     people: z.array(PersonResponseSchema).optional(),
+    canEdit: z.boolean().optional().describe('Whether the current user may edit this photo and its faces'),
     checksum: z.string().describe('Base64 encoded SHA1 hash'),
     stack: AssetStackResponseSchema.nullish(),
     duplicateId: z.uuidv4().nullish().describe('Duplicate group ID'),
