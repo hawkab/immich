@@ -103,4 +103,15 @@ test.describe('face editor', () => {
     expect(after.left).toBeGreaterThan(before.left + 50);
     expect(after.top).toBeGreaterThan(before.top + 20);
   });
+
+  test('keeps selector geometry aligned with the completed drag', async ({ app }) => {
+    const before = await app.viewer.faceEditor.boxRect();
+    await app.viewer.faceEditor.dragBox(100, 50);
+    const after = await app.viewer.faceEditor.boxRect();
+
+    expect(after.left).toBeCloseTo(before.left + 100, 1);
+    expect(after.top).toBeCloseTo(before.top + 50, 1);
+    expect(after.width).toBeCloseTo(before.width, 1);
+    expect(after.height).toBeCloseTo(before.height, 1);
+  });
 });

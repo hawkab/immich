@@ -170,6 +170,7 @@
 
     const gap = 15;
     const padding = faceRect.padding ?? 0;
+    faceRect.setCoords();
     const rawBox = faceRect.getBoundingRect();
     const faceBox = {
       left: rawBox.left - padding,
