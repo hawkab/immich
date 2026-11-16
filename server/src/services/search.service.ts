@@ -30,6 +30,7 @@ import { getMyPartnerIds } from 'src/utils/asset.util.js';
 import { isSmartSearchEnabled } from 'src/utils/misc.js';
 import { decodeSearchCursor, encodeSearchCursor } from 'src/utils/search-cursor.js';
 import { applyLockedVisibilityPolicy, collectFilterIds } from 'src/utils/search-filter.js';
+import { resolveNamedSearch } from 'src/utils/search-intent.js';
 
 @Injectable()
 export class SearchService extends BaseService {
@@ -166,6 +167,13 @@ export class SearchService extends BaseService {
   }
 
   async searchSmart(auth: AuthDto, dto: SmartSearchDto): Promise<SearchResponseDto> {
+    const planned = await this.resolveNamedQuery(auth, dto);
+    if (planned) {
+      dto = planned;
+      if (!dto.query) {
+        return this.searchMetadata(auth, dto);
+      }
+    }
     if (isNewShapeRequest(dto)) {
       return this.searchSmartV3(auth, dto);
     }
@@ -190,6 +198,7 @@ export class SearchService extends BaseService {
         userIds: await userIds,
         viewingUserId: auth.user.id,
         embedding,
+        ...this.textSearchOptions(dto, machineLearning.clip),
         visibility: dto.visibility ?? (auth.session?.hasElevatedPermission ? undefined : 'not-locked'),
       },
     );
@@ -292,7 +301,12 @@ export class SearchService extends BaseService {
     // no cursor until a rank-aware pagination strategy for smart search is decided
     const { items } = await this.searchRepository.searchSmartV3(
       { take: dto.size },
-      { filter, withExif: dto.withExif, embedding },
+      {
+        filter,
+        withExif: dto.withExif,
+        embedding,
+        ...this.textSearchOptions(dto, machineLearning.clip),
+      },
       scope,
     );
 
@@ -320,6 +334,41 @@ export class SearchService extends BaseService {
     ]);
 
     return { filter: effectiveFilter, scope: { userIds, lockedOwnerId: auth.user.id, viewingUserId: auth.user.id } };
+  }
+
+  private textSearchOptions(dto: SmartSearchDto, clip: SystemConfig['machineLearning']['clip']) {
+    const configuredThreshold = dto.query ? clip.minSimilarity : null;
+    const minSimilarity = dto.minSimilarity === undefined ? configuredThreshold : dto.minSimilarity;
+    const sceneQuery =
+      (dto.useSceneDescriptions ?? clip.useSceneDescriptions) &&
+      dto.query &&
+      /\p{Script=Cyrillic}/u.test(dto.query) &&
+      dto.query;
+    return {
+      ...(typeof minSimilarity === 'number' && { minSimilarity }),
+      ...(sceneQuery && { sceneQuery }),
+    };
+  }
+
+  private async resolveNamedQuery(auth: AuthDto, dto: SmartSearchDto): Promise<SmartSearchDto | undefined> {
+    if (
+      !dto.query ||
+      auth.sharedLink ||
+      dto.queryAssetId ||
+      dto.personIds?.length ||
+      (dto.filter && collectFilterIds(dto.filter, 'personIds').length > 0)
+    ) {
+      return;
+    }
+    const people = await this.personRepository.getNamedForSearch(auth.user.id);
+    const intent = resolveNamedSearch(dto.query, people ?? []);
+    if (!intent) {
+      return;
+    }
+    if (isNewShapeRequest(dto)) {
+      return { ...dto, query: intent.query, filter: { ...dto.filter, personIds: { all: intent.personIds } } };
+    }
+    return { ...dto, query: intent.query, personIds: intent.personIds };
   }
 
   private async resolveEmbedding(

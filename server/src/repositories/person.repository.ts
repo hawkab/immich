@@ -655,6 +655,17 @@ export class PersonRepository {
       .execute();
   }
 
+  @GenerateSql({ params: [DummyValue.UUID] })
+  getNamedForSearch(userId: string): Promise<PersonNameResponse[]> {
+    return this.db
+      .selectFrom('person')
+      .select(['person.personGroupId', 'person.name'])
+      .where('person.ownerId', '=', userId)
+      .where('person.name', '!=', '')
+      .where('person.isHidden', '=', false)
+      .execute();
+  }
+
   @GenerateSql({ params: [DummyValue.UUID, { ownerId: DummyValue.UUID, partnerIds: [DummyValue.UUID] }] })
   getStatistics(
     personGroupId: string,

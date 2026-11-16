@@ -22,6 +22,6 @@ if git diff --quiet v3.4.1 -- package.json pnpm-lock.yaml pnpm-workspace.yaml .p
 fi
 DOCKER_BUILDKIT=1 docker build --file "$recipe" \
   --build-arg BASE_IMAGE="$base_image" --build-arg BUILD_SOURCE_COMMIT="$source_commit" \
-  --build-arg BUILD_SOURCE_REF=v3.4.1-partner-edit.2 --build-arg BUILD_IMAGE=v3.4.1-partner-edit.2 \
-  --tag ghcr.io/hawkab/immich-server:v3.4.1-partner-edit.2 .
-docker image inspect --format '{{json .}}' ghcr.io/hawkab/immich-server:v3.4.1-partner-edit.2 | python3 docker/image-identity.py
+  --build-arg BUILD_SOURCE_REF=v3.4.1-partner-edit.3 --build-arg BUILD_IMAGE=v3.4.1-partner-edit.3 \
+  --tag ghcr.io/hawkab/immich-server:v3.4.1-partner-edit.3 .
+docker image inspect --format '{{json .}}' ghcr.io/hawkab/immich-server:v3.4.1-partner-edit.3 | python3 docker/image-identity.py

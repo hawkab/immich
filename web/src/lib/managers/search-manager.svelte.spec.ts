@@ -10,6 +10,13 @@ describe('SearchManager', () => {
     expect(searchManager.filter.queryType).toBe('smart');
   });
 
+  it('preserves an explicit broad-similarity choice and resets to indexed content', () => {
+    searchManager.setQuery({ query: 'самолёт', useSceneDescriptions: false });
+    expect(searchManager.filter.useSceneDescriptions).toBe(false);
+    searchManager.reset();
+    expect(searchManager.filter.useSceneDescriptions).toBeUndefined();
+  });
+
   it('remembers the selected query type', () => {
     searchManager.setQueryType('metadata');
     expect(searchManager.filter.queryType).toBe('metadata');

@@ -145,6 +145,23 @@
               </p>
             {/snippet}
           </SettingInputField>
+          <SettingInputField
+            inputType={SettingInputFieldType.NUMBER}
+            label={$t('admin.machine_learning_search_min_similarity')}
+            description={$t('admin.machine_learning_search_min_similarity_description')}
+            bind:value={configToEdit.machineLearning.clip.minSimilarity}
+            min={-1}
+            max={1}
+            step="0.01"
+            disabled={disabled || !configToEdit.machineLearning.enabled || !configToEdit.machineLearning.clip.enabled}
+            isEdited={configToEdit.machineLearning.clip.minSimilarity !== config.machineLearning.clip.minSimilarity}
+          />
+          <SettingSwitch
+            title={$t('admin.machine_learning_scene_descriptions')}
+            subtitle={$t('admin.machine_learning_scene_descriptions_description')}
+            bind:checked={configToEdit.machineLearning.clip.useSceneDescriptions}
+            disabled={disabled || !configToEdit.machineLearning.enabled || !configToEdit.machineLearning.clip.enabled}
+          />
         </div>
       </SettingAccordion>
 

@@ -321,6 +321,54 @@ describe(SearchService.name, () => {
       );
     });
 
+    it('converts a named person and scene into a conjunctive search', async () => {
+      const group = newUuid();
+      mocks.person.getNamedForSearch.mockResolvedValue([{ name: 'Маша', personGroupId: group }]);
+      await sut.searchSmart(authStub.user1, { size: 100, query: 'Маша на море' });
+      expect(mocks.person.getNamedForSearch).toHaveBeenCalledWith(authStub.user1.user.id);
+      expect(mocks.machineLearning.encodeText).toHaveBeenCalledWith('на море', expect.anything());
+      expect(mocks.search.searchSmart).toHaveBeenCalledWith(
+        { page: 1, size: 100 },
+        expect.objectContaining({ personIds: [group], query: 'на море' }),
+      );
+    });
+
+    it('keeps V3 filters while adding the named person outside their disjunction', async () => {
+      const group = newUuid();
+      mocks.person.getNamedForSearch.mockResolvedValue([{ name: 'Маша', personGroupId: group }]);
+      mocks.search.searchSmartV3.mockResolvedValue({ hasNextPage: false, items: [] });
+      const filter = { or: [{ city: { eq: 'Sochi' } }, { city: { eq: 'Yalta' } }] };
+      await sut.searchSmart(authStub.user1, { size: 100, query: 'Маша на море', filter });
+      expect(mocks.search.searchSmartV3).toHaveBeenCalledWith(
+        { take: 100 },
+        expect.objectContaining({ filter: expect.objectContaining({ ...filter, personIds: { all: [group] } }) }),
+        expect.objectContaining({ userIds: [authStub.user1.user.id] }),
+      );
+    });
+
+    it('uses a name-only query without asking a visual model to identify the person', async () => {
+      const group = newUuid();
+      mocks.person.getNamedForSearch.mockResolvedValue([{ name: 'Маша', personGroupId: group }]);
+      mocks.search.searchMetadata.mockResolvedValue({ hasNextPage: false, items: [] });
+      await sut.searchSmart(authStub.user1, { size: 100, query: 'Маша' });
+      expect(mocks.machineLearning.encodeText).not.toHaveBeenCalled();
+      expect(mocks.search.searchSmart).not.toHaveBeenCalled();
+      expect(mocks.search.searchMetadata).toHaveBeenCalledWith(
+        { page: 1, size: 100 },
+        expect.objectContaining({ personIds: [group], userIds: [authStub.user1.user.id] }),
+      );
+    });
+
+    it('preserves an explicit person selection', async () => {
+      const group = newUuid();
+      await sut.searchSmart(authStub.user1, { size: 100, query: 'Маша на море', personIds: [group] });
+      expect(mocks.person.getNamedForSearch).not.toHaveBeenCalled();
+      expect(mocks.search.searchSmart).toHaveBeenCalledWith(
+        { page: 1, size: 100 },
+        expect.objectContaining({ personIds: [group] }),
+      );
+    });
+
     it('should work', async () => {
       await sut.searchSmart(authStub.user1, { size: 100, query: 'test' });
 

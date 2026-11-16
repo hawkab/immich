@@ -391,6 +391,18 @@ const SmartSearchSchema = withShapeExclusivity(
   BaseSearchWithResultsSchema.extend({
     size: z.int().min(1).max(1000).default(100).describe('Number of results to return'),
     query: z.string().trim().optional().describe('Natural language search query'),
+    useSceneDescriptions: z
+      .boolean()
+      .optional()
+      .describe('Use indexed visible-scene evidence; false explores broader visual similarity'),
+    minSimilarity: z
+      .number()
+      .min(-1)
+      .max(1)
+      .nullable()
+      .optional()
+      .describe('Override the configured cosine-similarity threshold; null returns all ranked results')
+      .meta({ format: 'double' }),
     queryAssetId: z.uuidv4().optional().describe('Asset ID to use as search reference'),
     language: z.string().optional().describe('Search language code'),
     page: z.int().min(1).optional().describe('Page number').meta(DEPRECATED_FLAT_FIELD),

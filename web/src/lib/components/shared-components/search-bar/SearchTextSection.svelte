@@ -11,6 +11,9 @@
   const config = $derived(query.data);
 
   let queryType = $derived(searchManager.filter.queryType);
+  const useSceneDescriptions = $derived(
+    searchManager.filter.useSceneDescriptions ?? config.machineLearning.clip.useSceneDescriptions ?? false,
+  );
 
   const setType = (type: 'smart' | 'metadata' | 'description' | 'fullPath' | 'ocr') => {
     searchManager.setQueryType(type);
@@ -41,5 +44,23 @@
         </SearchButton>
       {/if}
     </div>
+    {#if queryType === 'smart'}
+      <div class="mt-3 flex flex-wrap gap-2">
+        <SearchButton
+          checked
+          active={useSceneDescriptions}
+          onclick={() => (searchManager.filter.useSceneDescriptions = true)}
+        >
+          {$t('search_scene_evidence')}
+        </SearchButton>
+        <SearchButton
+          checked
+          active={!useSceneDescriptions}
+          onclick={() => (searchManager.filter.useSceneDescriptions = false)}
+        >
+          {$t('search_broad_similarity')}
+        </SearchButton>
+      </div>
+    {/if}
   </fieldset>
 </section>

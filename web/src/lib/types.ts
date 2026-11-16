@@ -69,6 +69,7 @@ export type SearchFilter = {
   tagIds: SvelteSet<string> | null;
   location: SearchLocationFilter;
   queryAssetId?: string;
+  useSceneDescriptions?: boolean;
   camera: SearchCameraFilter;
   date: SearchDateFilter;
   display: SearchDisplayFilters;

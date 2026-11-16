@@ -22,6 +22,7 @@ import {
   withSearchOrder,
 } from 'src/utils/database.js';
 import { paginationHelper, type PaginationOptions } from 'src/utils/pagination.js';
+import { sceneDescriptionMatches } from 'src/utils/search-scenes.js';
 
 export interface SearchAssetIdOptions {
   checksum?: Buffer;
@@ -93,6 +94,8 @@ export interface SearchExifOptions {
 export interface SearchEmbeddingOptions {
   embedding: string;
   userIds: string[];
+  minSimilarity?: number | null;
+  sceneQuery?: string;
 }
 
 export interface SearchOcrOptions {
@@ -327,6 +330,10 @@ export class SearchRepository {
       const items = await searchAssetBuilderLegacy(trx, options)
         .select(columns.searchAsset)
         .innerJoin('smart_search', 'asset.id', 'smart_search.assetId')
+        .$if(!!options.sceneQuery, (qb) => qb.where(sceneDescriptionMatches(options.sceneQuery!)))
+        .$if(options.minSimilarity !== undefined && options.minSimilarity !== null, (qb) =>
+          qb.where(sql<number>`smart_search.embedding <=> ${options.embedding}`, '<=', 1 - options.minSimilarity!),
+        )
         .orderBy(sql`smart_search.embedding <=> ${options.embedding}`)
         .orderBy('asset.id', 'asc')
         .limit(pagination.size + 1)
@@ -568,7 +575,11 @@ export class SearchRepository {
   @GenerateSql(...searchSmartV3Examples)
   searchSmartV3(
     pagination: PaginationOptions,
-    options: Omit<AssetSearchBuilderV3Options, 'order'> & { embedding: string },
+    options: Omit<AssetSearchBuilderV3Options, 'order'> & {
+      embedding: string;
+      minSimilarity?: number | null;
+      sceneQuery?: string;
+    },
     scope: AssetSearchScope,
   ) {
     return this.db.transaction().execute(async (trx) => {
@@ -576,6 +587,10 @@ export class SearchRepository {
       const items = await searchAssetBuilder(trx, options, scope)
         .select(columns.searchAsset)
         .innerJoin('smart_search', 'asset.id', 'smart_search.assetId')
+        .$if(!!options.sceneQuery, (qb) => qb.where(sceneDescriptionMatches(options.sceneQuery!)))
+        .$if(options.minSimilarity !== undefined && options.minSimilarity !== null, (qb) =>
+          qb.where(sql<number>`smart_search.embedding <=> ${options.embedding}`, '<=', 1 - options.minSimilarity!),
+        )
         .orderBy(sql`smart_search.embedding <=> ${options.embedding}`)
         .orderBy('asset.id', 'asc')
         .limit(pagination.take + 1)

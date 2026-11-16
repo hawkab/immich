@@ -228,7 +228,23 @@ const AdminConfigSchemaWithVisibility = z
             interval: z.int(),
           })
           .meta({ id: 'AdminConfigMachineLearningAvailabilityChecksDto' }),
-        clip: AdminConfigMachineLearningModelSchema.meta({ id: 'AdminConfigClipDto' }),
+        clip: AdminConfigMachineLearningModelSchema.extend({
+          useSceneDescriptions: z
+            .boolean()
+            .default(false)
+            .describe('Require indexed visible-scene evidence for Russian text queries')
+            .meta({ visibility: User }),
+          minSimilarity: z
+            .number()
+            .min(-1)
+            .max(1)
+            .nullable()
+            .default(null)
+            .describe(
+              'Minimum text-image cosine similarity; null keeps all ranked results. Calibrate for the selected model.',
+            )
+            .meta({ format: 'double' }),
+        }).meta({ id: 'AdminConfigClipDto' }),
         duplicateDetection: AdminConfigMachineLearningTaskSchema.extend({
           maxDistance: z
             .number()
@@ -668,6 +684,8 @@ export const defaults = Object.freeze<SystemConfig>({
     clip: {
       enabled: true,
       modelName: 'ViT-B-32__openai',
+      minSimilarity: null,
+      useSceneDescriptions: false,
     },
     duplicateDetection: {
       enabled: true,

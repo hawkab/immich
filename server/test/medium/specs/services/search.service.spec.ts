@@ -3,11 +3,14 @@ import { SearchSuggestionType } from 'src/dtos/search.dto.js';
 import { AlbumUserRole, AssetOrder, AssetVisibility, SearchOrderField } from 'src/enum.js';
 import { AccessRepository } from 'src/repositories/access.repository.js';
 import { AssetRepository } from 'src/repositories/asset.repository.js';
+import { ConfigRepository } from 'src/repositories/config.repository.js';
 import { DatabaseRepository } from 'src/repositories/database.repository.js';
 import { LoggingRepository } from 'src/repositories/logging.repository.js';
+import { MachineLearningRepository } from 'src/repositories/machine-learning.repository.js';
 import { PartnerRepository } from 'src/repositories/partner.repository.js';
 import { PersonRepository } from 'src/repositories/person.repository.js';
 import { SearchRepository } from 'src/repositories/search.repository.js';
+import { SystemMetadataRepository } from 'src/repositories/system-metadata.repository.js';
 import { DB } from 'src/schema/index.js';
 import { SearchService } from 'src/services/search.service.js';
 import { newMediumService } from 'test/medium.factory.js';
@@ -29,8 +32,10 @@ const setup = (db?: Kysely<DB>) => {
       SearchRepository,
       PartnerRepository,
       PersonRepository,
+      ConfigRepository,
+      SystemMetadataRepository,
     ],
-    mock: [LoggingRepository],
+    mock: [LoggingRepository, MachineLearningRepository],
   });
 };
 
@@ -489,6 +494,116 @@ describe(SearchService.name, () => {
       const secondPage = await searchRepository.searchSmartV3({ take: 2, skip: 2 }, options, scope);
       expect(secondPage.items.length).toBe(1);
       expect(secondPage.hasNextPage).toBe(false);
+    });
+
+    it('filters source-bound Russian scene evidence before pagination without exposing locked or foreign assets', async () => {
+      const { ctx } = setup();
+      const { user } = await ctx.newUser();
+      const { user: other } = await ctx.newUser();
+      const repository = ctx.get(SearchRepository);
+      const expected: string[] = [];
+
+      for (const kind of ['document', 'fresh', 'stale', 'edited', 'locked', 'foreign', 'fresh']) {
+        const { asset } = await ctx.newAsset({
+          ownerId: kind === 'foreign' ? other.id : user.id,
+          visibility: kind === 'locked' ? AssetVisibility.Locked : AssetVisibility.Timeline,
+          isEdited: kind === 'edited',
+        });
+        await repository.upsert(asset.id, unitVector(0));
+        await ctx.newMetadata({
+          assetId: asset.id,
+          key: 'org.immich.scene.v1',
+          value: {
+            schemaVersion: 1,
+            sourceChecksum: kind === 'stale' ? 'old' : asset.checksum.toString('base64'),
+            thumbhash: asset.thumbhash?.toString('base64') ?? null,
+            isEdited: false,
+            searchText: kind === 'document' ? 'посадочный талон, таблица' : 'крыло самолёта, облака',
+          },
+        });
+        if (kind === 'fresh') {
+          expected.push(asset.id);
+        }
+      }
+
+      const options = {
+        filter: { visibility: { ne: AssetVisibility.Locked } },
+        embedding: unitVector(0),
+        sceneQuery: 'самолёт',
+      };
+      const scope = { userIds: [user.id], lockedOwnerId: user.id };
+      const first = await repository.searchSmartV3({ take: 1 }, options, scope);
+      const second = await repository.searchSmartV3({ take: 1, skip: 1 }, options, scope);
+      expect(first.hasNextPage).toBe(true);
+      expect(second.hasNextPage).toBe(false);
+      expect([...first.items, ...second.items].map((asset) => asset.id).sort()).toEqual(expected.sort());
+      const legacy = await repository.searchSmart(
+        { page: 1, size: 20 },
+        {
+          ...options,
+          userIds: [user.id],
+          visibility: 'not-locked',
+        },
+      );
+      expect(legacy.items.map((asset) => asset.id).sort()).toEqual(expected.sort());
+    });
+
+    it('applies cosine thresholds inside both paginated search shapes', async () => {
+      const { ctx } = setup();
+      const { user } = await ctx.newUser();
+      const repository = ctx.get(SearchRepository);
+      const { asset: relevant } = await ctx.newAsset({ ownerId: user.id });
+      const { asset: unrelated } = await ctx.newAsset({ ownerId: user.id });
+      await repository.upsert(relevant.id, unitVector(0));
+      await repository.upsert(unrelated.id, unitVector(1));
+      const base = { embedding: unitVector(0), minSimilarity: 0.5 };
+      const scope = { userIds: [user.id], lockedOwnerId: user.id };
+      const v3 = await repository.searchSmartV3({ take: 1 }, { ...base, filter: {} }, scope);
+      expect(v3.items.map((asset) => asset.id)).toEqual([relevant.id]);
+      expect(v3.hasNextPage).toBe(false);
+      const legacy = await repository.searchSmart({ page: 1, size: 1 }, { ...base, userIds: [user.id] });
+      expect(legacy.items.map((asset) => asset.id)).toEqual([relevant.id]);
+      expect(legacy.hasNextPage).toBe(false);
+    });
+
+    it('combines a saved person name with visible scene evidence and keeps unrelated people out', async () => {
+      const { sut, ctx } = setup();
+      const { user } = await ctx.newUser();
+      const { person } = await ctx.newPerson({ ownerId: user.id, name: 'Маша' });
+      const { person: other } = await ctx.newPerson({ ownerId: user.id, name: 'Другая' });
+      const repository = ctx.get(SearchRepository);
+      const { asset: atSea } = await ctx.newAsset({ ownerId: user.id });
+      const { asset: atHome } = await ctx.newAsset({ ownerId: user.id });
+      const { asset: differentPerson } = await ctx.newAsset({ ownerId: user.id });
+      for (const asset of [atSea, atHome, differentPerson]) {
+        await repository.upsert(asset.id, unitVector(0));
+        await ctx.newAssetFace({
+          assetId: asset.id,
+          personGroupId: asset.id === differentPerson.id ? other.personGroupId : person.personGroupId,
+        });
+        await ctx.newMetadata({
+          assetId: asset.id,
+          key: 'org.immich.scene.v1',
+          value: {
+            schemaVersion: 1,
+            sourceChecksum: asset.checksum.toString('base64'),
+            thumbhash: asset.thumbhash?.toString('base64') ?? null,
+            isEdited: false,
+            searchText: asset.id === atHome.id ? 'комната, диван' : 'пляж, море, купание',
+          },
+        });
+      }
+      ctx.getMock(MachineLearningRepository).encodeText.mockResolvedValue(unitVector(0));
+      const auth = factory.auth({ user: { id: user.id } });
+      for (const shape of [{}, { filter: {} }]) {
+        const result = await sut.searchSmart(auth, {
+          size: 50,
+          query: 'Маша на море',
+          useSceneDescriptions: true,
+          ...shape,
+        });
+        expect(result.assets.items.map((asset) => asset.id)).toEqual([atSea.id]);
+      }
     });
   });
 });

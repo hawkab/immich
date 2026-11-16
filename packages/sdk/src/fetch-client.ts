@@ -210,8 +210,12 @@ export type AdminConfigMachineLearningAvailabilityChecksDto = {
 export type AdminConfigClipDto = {
     /** Whether the task is enabled */
     enabled: boolean;
+    /** Minimum text-image cosine similarity; null keeps all ranked results. Calibrate for the selected model. */
+    minSimilarity?: number | null;
     /** Name of the model to use */
     modelName: string;
+    /** Require indexed visible-scene evidence for Russian text queries */
+    useSceneDescriptions?: boolean;
 };
 export type AdminConfigDuplicateDetectionDto = {
     /** Whether the task is enabled */
@@ -1587,6 +1591,8 @@ export type UserConfigImageDto = {
 export type UserConfigClipDto = {
     /** Whether the task is enabled */
     enabled: boolean;
+    /** Require indexed visible-scene evidence for Russian text queries */
+    useSceneDescriptions?: boolean;
 };
 export type UserConfigDuplicateDetectionDto = {
     /** Whether the task is enabled */
@@ -2720,6 +2726,8 @@ export type SmartSearchDto = {
     libraryId?: string | null;
     /** Filter by camera make */
     make?: string | null;
+    /** Override the configured cosine-similarity threshold; null returns all ranked results */
+    minSimilarity?: number | null;
     /** Filter by camera model */
     model?: string | null;
     /** Filter by OCR text content */
@@ -2753,6 +2761,8 @@ export type SmartSearchDto = {
     updatedAfter?: string;
     /** Filter by update date (before) */
     updatedBefore?: string;
+    /** Use indexed visible-scene evidence; false explores broader visual similarity */
+    useSceneDescriptions?: boolean;
     visibility?: AssetVisibility;
     /** Include deleted assets */
     withDeleted?: boolean;

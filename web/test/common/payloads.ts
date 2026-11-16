@@ -50,7 +50,7 @@ const userConfig = (overrides: Partial<ResponseOf<'getUserConfig'>> = {}): Respo
   },
   machineLearning: {
     enabled: false,
-    clip: { enabled: true },
+    clip: { enabled: true, useSceneDescriptions: false },
     duplicateDetection: { enabled: true },
     facialRecognition: { enabled: true, minFaces: 3 },
     ocr: { enabled: true },

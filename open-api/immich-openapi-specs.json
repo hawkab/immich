@@ -19019,9 +19019,23 @@
             "description": "Whether the task is enabled",
             "type": "boolean"
           },
+          "minSimilarity": {
+            "default": null,
+            "description": "Minimum text-image cosine similarity; null keeps all ranked results. Calibrate for the selected model.",
+            "format": "double",
+            "maximum": 1,
+            "minimum": -1,
+            "nullable": true,
+            "type": "number"
+          },
           "modelName": {
             "description": "Name of the model to use",
             "type": "string"
+          },
+          "useSceneDescriptions": {
+            "default": false,
+            "description": "Require indexed visible-scene evidence for Russian text queries",
+            "type": "boolean"
           }
         },
         "required": [
@@ -29642,6 +29656,14 @@
             ],
             "x-immich-state": "Deprecated"
           },
+          "minSimilarity": {
+            "description": "Override the configured cosine-similarity threshold; null returns all ranked results",
+            "format": "double",
+            "maximum": 1,
+            "minimum": -1,
+            "nullable": true,
+            "type": "number"
+          },
           "model": {
             "deprecated": true,
             "description": "Filter by camera model",
@@ -29983,6 +30005,10 @@
               }
             ],
             "x-immich-state": "Deprecated"
+          },
+          "useSceneDescriptions": {
+            "description": "Use indexed visible-scene evidence; false explores broader visual similarity",
+            "type": "boolean"
           },
           "visibility": {
             "$ref": "#/components/schemas/AssetVisibility",
@@ -33847,6 +33873,11 @@
         "properties": {
           "enabled": {
             "description": "Whether the task is enabled",
+            "type": "boolean"
+          },
+          "useSceneDescriptions": {
+            "default": false,
+            "description": "Require indexed visible-scene evidence for Russian text queries",
             "type": "boolean"
           }
         },

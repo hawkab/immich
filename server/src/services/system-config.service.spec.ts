@@ -118,6 +118,8 @@ const updatedConfig = Object.freeze<SystemConfig>({
     clip: {
       enabled: true,
       modelName: 'ViT-B-32__openai',
+      minSimilarity: null,
+      useSceneDescriptions: false,
     },
     duplicateDetection: {
       enabled: true,
