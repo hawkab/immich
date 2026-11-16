@@ -4,6 +4,7 @@ import { mapAsset } from 'src/dtos/asset-response.dto.js';
 import { JobCreateDto } from 'src/dtos/job.dto.js';
 import { AssetType, AssetVisibility, IntegrityReport, JobName, JobStatus, ManualJobName } from 'src/enum.js';
 import { ArgsOf } from 'src/repositories/event.repository.js';
+import type { ClientEventMap } from 'src/repositories/websocket.repository.js';
 import { BaseService } from 'src/services/base.service.js';
 import type { JobItem } from 'src/types.js';
 import { hexOrBufferToBase64 } from 'src/utils/bytes.js';
@@ -132,7 +133,7 @@ export class JobService extends BaseService {
         const edits = await this.assetEditRepository.getWithSyncInfo(item.data.id);
 
         if (asset) {
-          this.websocketRepository.clientSend('AssetEditReadyV2', asset.ownerId, {
+          const payload: ClientEventMap['AssetEditReadyV2'][0] = {
             asset: {
               id: asset.id,
               ownerId: asset.ownerId,
@@ -156,7 +157,20 @@ export class JobService extends BaseService {
               isEdited: asset.isEdited,
             },
             edit: edits,
-          });
+          };
+          this.websocketRepository.clientSend('AssetEditReadyV2', asset.ownerId, payload);
+          for (const partner of await this.partnerRepository.getAll(asset.ownerId)) {
+            if (partner.sharedById !== asset.ownerId || !partner.canEdit || partner.sharedWithId === asset.ownerId) {
+              continue;
+            }
+            const access = await this.accessRepository.asset.checkPartnerEditAccess(
+              partner.sharedWithId,
+              new Set([asset.id]),
+            );
+            if (access.has(asset.id)) {
+              this.websocketRepository.clientSend('AssetEditReadyV2', partner.sharedWithId, payload);
+            }
+          }
         }
 
         break;

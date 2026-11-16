@@ -2,6 +2,7 @@ import { AssetType, ImmichWorker, JobName, JobStatus, QueueName } from 'src/enum
 import { JobService } from 'src/services/job.service.js';
 import type { JobItem } from 'src/types.js';
 import { AssetFactory } from 'test/factories/asset.factory.js';
+import { PartnerFactory } from 'test/factories/partner.factory.js';
 import { newUuid } from 'test/small.factory.js';
 import { ServiceMocks, newTestService } from 'test/utils.js';
 
@@ -67,6 +68,64 @@ describe(JobService.name, () => {
 
       expect(mocks.job.queue).not.toHaveBeenCalled();
       expect(mocks.job.queueAll).not.toHaveBeenCalled();
+    });
+
+    it.each([true, false])('notifies an editing partner only while access is current (%s)', async (allowed) => {
+      const asset = AssetFactory.create();
+      const editorId = newUuid();
+      mocks.job.run.mockResolvedValue(JobStatus.Success);
+      mocks.asset.getById.mockResolvedValue({
+        ...asset,
+        owner: undefined,
+        exifInfo: undefined,
+        faces: undefined,
+        stack: undefined,
+        tags: undefined,
+      });
+      mocks.assetEdit.getWithSyncInfo.mockResolvedValue([]);
+      mocks.partner.getAll.mockResolvedValue([
+        {
+          ...PartnerFactory.create({ sharedById: asset.ownerId, sharedWithId: editorId, canEdit: true }),
+          sharedBy: null,
+          sharedWith: null,
+        },
+      ]);
+      mocks.access.asset.checkPartnerEditAccess.mockResolvedValue(new Set(allowed ? [asset.id] : []));
+
+      await sut.onJobRun(QueueName.Editor, { name: JobName.AssetEditThumbnailGeneration, data: { id: asset.id } });
+
+      expect(mocks.websocket.clientSend).toHaveBeenCalledWith('AssetEditReadyV2', asset.ownerId, expect.anything());
+      expect(mocks.websocket.clientSend).toHaveBeenCalledTimes(allowed ? 2 : 1);
+      if (allowed) {
+        expect(mocks.websocket.clientSend).toHaveBeenCalledWith('AssetEditReadyV2', editorId, expect.anything());
+      }
+    });
+
+    it('does not notify read-only or reverse-direction partners', async () => {
+      const asset = AssetFactory.create();
+      mocks.job.run.mockResolvedValue(JobStatus.Success);
+      mocks.asset.getById.mockResolvedValue({
+        ...asset,
+        owner: undefined,
+        exifInfo: undefined,
+        faces: undefined,
+        stack: undefined,
+        tags: undefined,
+      });
+      mocks.assetEdit.getWithSyncInfo.mockResolvedValue([]);
+      mocks.partner.getAll.mockResolvedValue([
+        { ...PartnerFactory.create({ sharedById: asset.ownerId, canEdit: false }), sharedBy: null, sharedWith: null },
+        { ...PartnerFactory.create({ sharedWithId: asset.ownerId, canEdit: true }), sharedBy: null, sharedWith: null },
+      ]);
+
+      await sut.onJobRun(QueueName.Editor, { name: JobName.AssetEditThumbnailGeneration, data: { id: asset.id } });
+
+      expect(mocks.websocket.clientSend).toHaveBeenCalledExactlyOnceWith(
+        'AssetEditReadyV2',
+        asset.ownerId,
+        expect.anything(),
+      );
+      expect(mocks.access.asset.checkPartnerEditAccess).not.toHaveBeenCalled();
     });
 
     const tests: Array<{ item: JobItem; jobs: JobName[]; stub?: any }> = [
