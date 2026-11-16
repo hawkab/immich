@@ -8,6 +8,18 @@ import { PersonId } from 'src/repositories/person.repository.js';
 import { DB } from 'src/schema/index.js';
 import { asUuid } from 'src/utils/database.js';
 
+const editablePartnerAssets = (db: Kysely<DB>, userId: string) =>
+  db
+    .selectFrom('partner')
+    .innerJoin('user as sharedBy', (join) =>
+      join.onRef('sharedBy.id', '=', 'partner.sharedById').on('sharedBy.deletedAt', 'is', null),
+    )
+    .innerJoin('asset', (join) => join.onRef('asset.ownerId', '=', 'sharedBy.id').on('asset.deletedAt', 'is', null))
+    .select('asset.id')
+    .where('partner.sharedWithId', '=', userId)
+    .where('partner.canEdit', '=', true)
+    .where('asset.visibility', 'in', [AssetVisibility.Timeline, AssetVisibility.Hidden]);
+
 class ActivityAccess {
   constructor(private db: Kysely<DB>) {}
 
@@ -142,6 +154,18 @@ class AlbumAccess {
 
 class AssetAccess {
   constructor(private db: Kysely<DB>) {}
+
+  @GenerateSql({ params: [DummyValue.UUID, DummyValue.UUID_SET] })
+  @ChunkedSet({ paramIndex: 1 })
+  async checkPartnerEditAccess(userId: string, assetIds: Set<string>) {
+    if (assetIds.size === 0) {
+      return new Set<string>();
+    }
+    const assets = await editablePartnerAssets(this.db, userId)
+      .where('asset.id', 'in', [...assetIds])
+      .execute();
+    return new Set(assets.map(({ id }) => id));
+  }
 
   @GenerateSql({ params: [DummyValue.UUID, DummyValue.UUID_SET] })
   @ChunkedSet({ paramIndex: 1 })
@@ -551,6 +575,21 @@ class PasskeyAccess {
 class PersonAccess {
   constructor(private db: Kysely<DB>) {}
 
+  @GenerateSql({ params: [DummyValue.UUID, DummyValue.UUID_SET] })
+  @ChunkedSet({ paramIndex: 1 })
+  async checkFacePartnerEditAccess(userId: string, faceIds: Set<string>) {
+    if (faceIds.size === 0) {
+      return new Set<string>();
+    }
+    const faces = await this.db
+      .selectFrom('asset_face')
+      .select('asset_face.id')
+      .where('asset_face.id', 'in', [...faceIds])
+      .where('asset_face.assetId', 'in', editablePartnerAssets(this.db, userId))
+      .execute();
+    return new Set(faces.map(({ id }) => id));
+  }
+
   @GenerateSql({ params: [DummyValue.UUID, DummyValue.UUID_SET, [PersonUserRole.Admin]] })
   @ChunkedSet({ paramIndex: 1 })
   async checkAccess(userId: string, personIds: Set<PersonId>, roles: PersonUserRole[]) {
@@ -621,6 +660,21 @@ class PersonAccess {
 
 class PartnerAccess {
   constructor(private db: Kysely<DB>) {}
+
+  @GenerateSql({ params: [DummyValue.UUID, DummyValue.UUID_SET] })
+  @ChunkedSet({ paramIndex: 1 })
+  async checkOwnerAccess(userId: string, partnerIds: Set<string>) {
+    if (partnerIds.size === 0) {
+      return new Set<string>();
+    }
+    const partners = await this.db
+      .selectFrom('partner')
+      .select('partner.sharedWithId')
+      .where('partner.sharedById', '=', userId)
+      .where('partner.sharedWithId', 'in', [...partnerIds])
+      .execute();
+    return new Set(partners.map(({ sharedWithId }) => sharedWithId));
+  }
 
   @GenerateSql({ params: [DummyValue.UUID, DummyValue.UUID_SET] })
   @ChunkedSet({ paramIndex: 1 })

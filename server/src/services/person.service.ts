@@ -61,16 +61,17 @@ const personKey = ({ ownerId, personGroupId }: PersonId) => `${ownerId}/${person
 @Injectable()
 export class PersonService extends BaseService {
   async getAll(auth: AuthDto, dto: PersonSearchDto): Promise<PeopleResponseDto> {
-    const { withHidden = false, closestAssetId, closestPersonId, page, size, ...filters } = dto;
+    const { assetId, withHidden = false, closestAssetId, closestPersonId, page, size, ...filters } = dto;
+    const ownerId = assetId ? await this.getAssetPersonOwner(auth, assetId) : auth.user.id;
     const pagination = {
       take: size,
       skip: (page - 1) * size,
     };
     const partnerIds = await getMyPartnerIds({
-      userId: auth.user.id,
+      userId: ownerId,
       repository: this.partnerRepository,
     });
-    const { items, hasNextPage, total, hidden } = await this.personRepository.getAllForUser(pagination, auth.user.id, {
+    const { items, hasNextPage, total, hidden } = await this.personRepository.getAllForUser(pagination, ownerId, {
       withHidden,
       partnerIds,
       closestFaceAssetId: closestAssetId,
@@ -131,14 +132,15 @@ export class PersonService extends BaseService {
   }
 
   async reassignFacesById(auth: AuthDto, personGroupId: string, dto: FaceDto): Promise<PersonResponseDto> {
-    await this.requirePersonAccess({
-      auth,
-      permission: Permission.PersonUpdate,
-      ids: [{ personGroupId, ownerId: auth.user.id }],
-    });
-    await this.requireAccess({ auth, permission: Permission.PersonCreate, ids: [dto.id] });
-    const face = await this.personRepository.getFaceById(dto.id, { viewingUserId: auth.user.id });
-    const person = await this.findOrFail(auth, personGroupId);
+    await this.requireAccess({ auth, permission: Permission.FaceUpdate, ids: [dto.id] });
+    let face = await this.personRepository.getFaceById(dto.id, { viewingUserId: auth.user.id });
+    const ownerId = face.ownerId;
+    if (ownerId === auth.user.id) {
+      await this.requirePersonAccess({ auth, permission: Permission.PersonUpdate, ids: [{ personGroupId, ownerId }] });
+    } else {
+      face = await this.personRepository.getFaceById(dto.id, { viewingUserId: ownerId });
+    }
+    const person = await findOrFail(() => this.personRepository.getByGroupId({ ownerId, personGroupId }), 'Person');
 
     await this.personRepository.reassignFace(face.id, person.personGroupId);
     if (person.faceAssetId === null) {
@@ -148,13 +150,20 @@ export class PersonService extends BaseService {
       await this.createNewFeaturePhoto([face.person]);
     }
 
-    return mapPerson(await this.findOrFail(auth, personGroupId));
+    return mapPerson(await findOrFail(() => this.personRepository.getByGroupId({ ownerId, personGroupId }), 'Person'));
   }
 
   async getFacesById(auth: AuthDto, dto: FaceDto): Promise<AssetFaceResponseDto[]> {
     await this.requireAccess({ auth, permission: Permission.AssetRead, ids: [dto.id] });
-    const faces = await this.personRepository.getFaces(dto.id, { viewingUserId: auth.user.id, isVisible: true });
     const asset = await this.assetRepository.getForFaces(dto.id);
+    let viewingUserId = auth.user.id;
+    if (asset.ownerId !== auth.user.id) {
+      const editable = await this.checkAccess({ auth, permission: Permission.FaceCreate, ids: [dto.id] });
+      if (editable.has(dto.id)) {
+        viewingUserId = asset.ownerId;
+      }
+    }
+    const faces = await this.personRepository.getFaces(dto.id, { viewingUserId, isVisible: true });
     const assetDimensions = getDimensions(asset);
 
     return faces.map((face) => mapFaces(face, asset.edits, assetDimensions));
@@ -205,13 +214,20 @@ export class PersonService extends BaseService {
     return this.personRepository.getStatistics(personGroupId, { ownerId: auth.user.id, partnerIds });
   }
 
-  async getThumbnail(auth: AuthDto, personGroupId: string): Promise<ImmichFileResponse> {
-    await this.requirePersonAccess({
-      auth,
-      permission: Permission.PersonRead,
-      ids: [{ personGroupId, ownerId: auth.user.id }],
-    });
-    const personGroup = await this.personRepository.getForThumbnail({ ownerId: auth.user.id, personGroupId });
+  async getThumbnail(auth: AuthDto, personGroupId: string, assetId?: string): Promise<ImmichFileResponse> {
+    const ownerId = assetId ? await this.getAssetPersonOwner(auth, assetId) : auth.user.id;
+    if (!assetId) {
+      await this.requirePersonAccess({ auth, permission: Permission.PersonRead, ids: [{ personGroupId, ownerId }] });
+    }
+    if (ownerId !== auth.user.id) {
+      const person = await findOrFail(() => this.personRepository.getByGroupId({ ownerId, personGroupId }), 'Person');
+      if (!person.faceAssetId) {
+        throw new NotFoundException();
+      }
+      const face = await this.personRepository.getFaceById(person.faceAssetId, { viewingUserId: ownerId });
+      await this.requireAccess({ auth, permission: Permission.AssetRead, ids: [face.assetId] });
+    }
+    const personGroup = await this.personRepository.getForThumbnail({ ownerId, personGroupId });
     const thumbnailPath = personGroup?.thumbnailPath || personGroup?.sharedThumbnailPath;
     if (!thumbnailPath) {
       throw new NotFoundException();
@@ -225,9 +241,10 @@ export class PersonService extends BaseService {
   }
 
   async create(auth: AuthDto, dto: PersonCreateDto): Promise<PersonResponseDto> {
-    const group = await this.personRepository.createGroup(auth.user.id);
+    const ownerId = dto.assetId ? await this.getAssetPersonOwner(auth, dto.assetId) : auth.user.id;
+    const group = await this.personRepository.createGroup(ownerId);
     const person = await this.personRepository.create({
-      ownerId: auth.user.id,
+      ownerId,
       personGroupId: group.id,
       name: dto.name,
       birthDate: dto.birthDate,
@@ -762,29 +779,35 @@ export class PersonService extends BaseService {
     return results.values().toArray();
   }
 
+  private async getAssetPersonOwner(auth: AuthDto, assetId: string): Promise<string> {
+    await this.requireAccess({ auth, permission: Permission.FaceCreate, ids: [assetId] });
+    const asset = await findOrFail(() => this.assetRepository.getById(assetId), 'Asset');
+    return asset.ownerId;
+  }
+
   private findOrFail(auth: AuthDto, personGroupId: string) {
     return findOrFail(() => this.personRepository.getByGroupId({ ownerId: auth.user.id, personGroupId }), 'Person');
   }
 
   // TODO return a asset face response
   async createFace(auth: AuthDto, dto: AssetFaceCreateDto): Promise<void> {
-    await Promise.all([
-      this.requireAccess({ auth, permission: Permission.AssetUpdate, ids: [dto.assetId] }),
-      this.requirePersonAccess({
-        auth,
-        permission: Permission.PersonRead,
-        ids: [{ personGroupId: dto.personId, ownerId: auth.user.id }],
-      }),
-    ]);
-
-    const [asset, person] = await Promise.all([
-      this.assetRepository.getById(dto.assetId, { edits: true, exifInfo: true }),
-      this.findOrFail(auth, dto.personId),
-    ]);
-
+    await this.requireAccess({ auth, permission: Permission.FaceCreate, ids: [dto.assetId] });
+    const asset = await this.assetRepository.getById(dto.assetId, { edits: true, exifInfo: true });
     if (!asset) {
       throw new NotFoundException('Asset not found');
     }
+    const ownerId = asset.ownerId;
+    if (ownerId === auth.user.id) {
+      await this.requirePersonAccess({
+        auth,
+        permission: Permission.PersonRead,
+        ids: [{ personGroupId: dto.personId, ownerId }],
+      });
+    }
+    const person = await findOrFail(
+      () => this.personRepository.getByGroupId({ ownerId, personGroupId: dto.personId }),
+      'Person',
+    );
 
     const edits = asset.edits || [];
 

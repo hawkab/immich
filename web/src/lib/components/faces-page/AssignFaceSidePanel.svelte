@@ -33,7 +33,7 @@
   async function loadPeople() {
     const timeout = setTimeout(() => (isShowLoadingPeople = true), timeBeforeShowLoadingSpinner);
     try {
-      const { people } = await getAllPeople({ withHidden: true, closestAssetId: editedFace.id });
+      const { people } = await getAllPeople({ assetId, withHidden: true, closestAssetId: editedFace.id });
       allPeople = people;
     } catch (error) {
       handleError(error, $t('errors.cant_get_faces'));
@@ -162,7 +162,7 @@
                   <ImageThumbnail
                     curve
                     shadow
-                    url={getPeopleThumbnailUrl(person)}
+                    url={getPeopleThumbnailUrl(person, undefined, assetId)}
                     altText={$getPersonNameWithHiddenValue(person.name, person.isHidden)}
                     title={$getPersonNameWithHiddenValue(person.name, person.isHidden)}
                     widthStyle="90px"

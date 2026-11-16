@@ -16,6 +16,7 @@ import { createZodDto } from 'src/zod.js';
 
 const PersonCreateSchema = z
   .object({
+    assetId: z.uuid().optional().describe('Create a person in the catalogue of an editable asset owner'),
     name: z.string().optional().describe('Person name'),
     birthDate: z
       .string()
@@ -30,7 +31,7 @@ const PersonCreateSchema = z
   })
   .meta({ id: 'PersonCreateDto' });
 
-const PersonUpdateBaseSchema = PersonCreateSchema.extend({
+const PersonUpdateBaseSchema = PersonCreateSchema.omit({ assetId: true }).extend({
   featureFaceAssetId: z.uuidv4().optional().describe('Asset ID used for feature face thumbnail'),
 });
 
@@ -60,6 +61,7 @@ const MergePersonSchema = z
 
 const PersonSearchSchema = z
   .object({
+    assetId: z.uuid().optional().describe('Select people from the catalogue of an editable asset owner'),
     withHidden: stringToBool.optional().describe('Include hidden people'),
     closestPersonId: z.uuidv4().optional().describe('Closest person ID for similarity search'),
     closestAssetId: z.uuidv4().optional().describe('Closest asset ID for similarity search'),
@@ -146,6 +148,14 @@ const PeopleDeleteSchema = BulkIdsSchema.extend({ userId: z.string().optional() 
   id: 'PeopleDeleteDto',
   ...new HistoryBuilder().added('v3.3').getExtensions(),
 });
+
+export class PersonAssetDto extends createZodDto(
+  z
+    .object({
+      assetId: z.uuid().optional().describe('Editable asset identifying the owner catalogue'),
+    })
+    .meta({ id: 'PersonAssetDto' }),
+) {}
 
 export class PersonCreateDto extends createZodDto(PersonCreateSchema) {}
 export class PersonUpdateDto extends createZodDto(PersonUpdateSchema) {}

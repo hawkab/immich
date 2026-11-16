@@ -247,6 +247,7 @@ export enum Permission {
   PartnerCreate = 'partner.create',
   PartnerRead = 'partner.read',
   PartnerUpdate = 'partner.update',
+  PartnerPermissionsUpdate = 'partner.permissions.update',
   PartnerDelete = 'partner.delete',
 
   PasskeyRead = 'passkey.read',

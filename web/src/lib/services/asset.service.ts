@@ -323,7 +323,8 @@ export const getAssetActions = (
   const TagPeople: ActionItem = {
     title: $t('tag_people'),
     icon: mdiFaceRecognition,
-    $if: () => isOwner && asset.type === AssetTypeEnum.Image && !asset.isTrashed,
+    $if: () =>
+      !sharedLink && (isOwner || asset.canEdit === true) && asset.type === AssetTypeEnum.Image && !asset.isTrashed,
     onAction: () => assetViewerManager.toggleFaceEditMode(),
     shortcuts: { key: 'p' },
   };
@@ -333,7 +334,8 @@ export const getAssetActions = (
     icon: mdiTune,
     $if: () =>
       !sharedLink &&
-      isOwner &&
+      (isOwner || asset.canEdit === true) &&
+      !asset.isTrashed &&
       asset.type === AssetTypeEnum.Image &&
       !asset.livePhotoVideoId &&
       asset.exifInfo?.projectionType !== ProjectionType.EQUIRECTANGULAR &&

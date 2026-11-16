@@ -2,7 +2,13 @@ import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, 
 import { ApiTags } from '@nestjs/swagger';
 import { Endpoint, HistoryBuilder } from 'src/decorators.js';
 import type { AuthDto } from 'src/dtos/auth.dto.js';
-import { PartnerCreateDto, PartnerResponseDto, PartnerSearchDto, PartnerUpdateDto } from 'src/dtos/partner.dto.js';
+import {
+  PartnerCreateDto,
+  PartnerPermissionsDto,
+  PartnerResponseDto,
+  PartnerSearchDto,
+  PartnerUpdateDto,
+} from 'src/dtos/partner.dto.js';
 import { ApiTag, Permission } from 'src/enum.js';
 import { Auth, Authenticated } from 'src/middleware/auth.guard.js';
 import { PartnerService } from 'src/services/partner.service.js';
@@ -59,6 +65,21 @@ export class PartnerController {
     @Body() dto: PartnerUpdateDto,
   ): Promise<PartnerResponseDto> {
     return this.service.update(auth, id, dto);
+  }
+
+  @Put(':id/permissions')
+  @Authenticated({ permission: Permission.PartnerPermissionsUpdate })
+  @Endpoint({
+    summary: 'Update permissions granted to a partner',
+    description: 'The sharing owner grants or revokes permission to edit shared photos and manage their faces.',
+    history: new HistoryBuilder().added('v3.5').beta('v3.5'),
+  })
+  updatePartnerPermissions(
+    @Auth() auth: AuthDto,
+    @Param() { id }: UUIDParamDto,
+    @Body() dto: PartnerPermissionsDto,
+  ): Promise<PartnerResponseDto> {
+    return this.service.updatePermissions(auth, id, dto);
   }
 
   @Delete(':id')

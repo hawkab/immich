@@ -1,3 +1,4 @@
+import { UnauthorizedException } from '@nestjs/common';
 import request from 'supertest';
 import { PartnerController } from 'src/controllers/partner.controller.js';
 import { LoggingRepository } from 'src/repositories/logging.repository.js';
@@ -66,6 +67,35 @@ describe(PartnerController.name, () => {
         .set('Authorization', `Bearer token`);
       expect(status).toBe(400);
       expect(body).toEqual(errorDto.validationError([{ path: ['id'], message: 'Invalid UUID' }]));
+    });
+  });
+
+  describe('PUT /partners/:id/permissions', () => {
+    const id = '00000000-0000-4000-a000-000000000001';
+
+    it('requires authentication', async () => {
+      ctx.authenticate.mockRejectedValue(new UnauthorizedException());
+      const { status } = await request(ctx.getHttpServer()).put(`/partners/${id}/permissions`).send({ canEdit: true });
+      expect(status).toBe(401);
+      expect(service.updatePermissions).not.toHaveBeenCalled();
+    });
+
+    it.each([{}, { canEdit: 'true' }, { canEdit: null }])('requires a boolean canEdit (%j)', async (dto) => {
+      const { status } = await request(ctx.getHttpServer())
+        .put(`/partners/${id}/permissions`)
+        .set('Authorization', 'Bearer token')
+        .send(dto);
+      expect(status).toBe(400);
+      expect(service.updatePermissions).not.toHaveBeenCalled();
+    });
+
+    it('rejects a malformed recipient ID', async () => {
+      const { status } = await request(ctx.getHttpServer())
+        .put('/partners/invalid/permissions')
+        .set('Authorization', 'Bearer token')
+        .send({ canEdit: true });
+      expect(status).toBe(400);
+      expect(service.updatePermissions).not.toHaveBeenCalled();
     });
   });
 

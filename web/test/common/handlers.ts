@@ -69,6 +69,10 @@ export const createHandlers = (data: MockData): Handlers => {
       const partner = data.updatePartner(params.id, body.inTimeline);
       return partner ? { json: partner } : notFound;
     },
+    updatePartnerPermissions: ({ params, body }) => {
+      const partner = data.updatePartnerPermissions(params.id, body.canEdit);
+      return partner ? { json: partner } : notFound;
+    },
     getNotifications: () => ({ json: data.notifications }),
     createProfileImage: () => ({
       status: 201,

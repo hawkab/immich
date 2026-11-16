@@ -80,7 +80,12 @@ export class AssetService extends BaseService {
       throw new BadRequestException('Asset not found');
     }
 
-    return mapAsset(asset, { withStack: true, auth });
+    const response = mapAsset(asset, { withStack: true, auth });
+    if (auth.sharedLink) {
+      return response;
+    }
+    const editable = await this.checkAccess({ auth, permission: Permission.AssetEditCreate, ids: [id] });
+    return { ...response, canEdit: editable.has(id) };
   }
 
   async update(auth: AuthDto, id: string, dto: UpdateAssetDto): Promise<AssetResponseDto> {

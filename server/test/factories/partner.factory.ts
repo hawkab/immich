@@ -22,6 +22,7 @@ export class PartnerFactory {
       createdAt: newDate(),
       createId: newUuidV7(),
       inTimeline: true,
+      canEdit: false,
       sharedById,
       sharedWithId,
       updatedAt: newDate(),

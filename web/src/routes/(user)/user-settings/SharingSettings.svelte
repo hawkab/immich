@@ -24,6 +24,7 @@
     removePartner,
     searchUsers,
     updatePartner,
+    updatePartnerPermissions,
     type ClusterGroupRequestResponseDto,
     type PartnerResponseDto,
     type UserResponseDto,
@@ -38,6 +39,7 @@
     sharedByMe: boolean;
     sharedWithMe: boolean;
     inTimeline: boolean;
+    canEdit: boolean;
   };
 
   let clusterGroupId: string = $state('');
@@ -140,6 +142,16 @@
     }
   };
 
+  const handleEditPermissionChanged = async (partner: PartnerSharing, canEdit: boolean) => {
+    try {
+      await updatePartnerPermissions({ id: partner.user.id, partnerPermissionsDto: { canEdit } });
+    } catch (error) {
+      handleError(error, $t('errors.something_went_wrong'));
+    } finally {
+      await refreshPartners();
+    }
+  };
+
   const refreshPartners = async () => {
     partners = [];
 
@@ -154,6 +166,7 @@
         {
           user: candidate,
           sharedByMe: true,
+          canEdit: candidate.canEdit ?? false,
           sharedWithMe: false,
           inTimeline: candidate.inTimeline ?? false,
         },
@@ -169,6 +182,7 @@
           {
             user: candidate,
             sharedByMe: false,
+            canEdit: false,
             sharedWithMe: true,
             inTimeline: candidate.inTimeline ?? false,
           },
@@ -384,6 +398,12 @@
                     {$t('partner_can_access_location')}
                   </li>
                 </ul>
+                <SettingSwitch
+                  title={$t('partner_allow_editing')}
+                  subtitle={$t('partner_allow_editing_description')}
+                  checked={partner.canEdit}
+                  onToggle={(checked) => handleEditPermissionChanged(partner, checked)}
+                />
               {/if}
 
               <!-- this user is sharing assets with me -->

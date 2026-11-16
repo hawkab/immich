@@ -4,7 +4,7 @@ import { factory } from '#test/unit/factories.ts';
 import { test } from '#test/unit/fixtures.ts';
 import { PartnerDirection } from '@immich/sdk';
 import { expect } from 'vitest';
-import { userEvent } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import Page from './+page.svelte';
 import { load } from './+page.ts';
 
@@ -354,4 +354,40 @@ test('reruns facial recognition for the cluster group', async ({ data, router, r
   await settle();
 
   expect(api.clusterGroupRegeneratePeople).toHaveBeenCalledWith({ params: { id: data.user.clusterGroupId } });
+});
+
+test('grants and revokes editing separately from incoming timeline preferences', async ({
+  data,
+  router,
+  render,
+  settle,
+  api,
+  app,
+}) => {
+  const partner = factory.partner({ name: 'Alice', canEdit: false });
+  data.addPartners(PartnerDirection.SharedBy, partner);
+  data.addPartners(PartnerDirection.SharedWith, factory.partner({ ...partner, canEdit: true, inTimeline: true }));
+  await router.goto(Route.userSettings({ isOpen: OpenQueryParam.SHARING }));
+  await render(Page, load);
+  await app.settings.section('partners').click();
+  const edit = page.getByRole('switch', { name: 'partner_allow_editing', exact: true });
+  await expect.element(edit).not.toBeChecked();
+  await edit.click();
+  await settle();
+  expect(api.updatePartnerPermissions).toHaveBeenCalledWith({ params: { id: partner.id }, body: { canEdit: true } });
+  await expect.element(edit).toBeChecked();
+  expect(api.updatePartner).not.toHaveBeenCalled();
+  await edit.click();
+  await settle();
+  expect(api.updatePartnerPermissions).toHaveBeenCalledWith({ params: { id: partner.id }, body: { canEdit: false } });
+});
+
+test('does not offer an editing grant to an incoming-only partner', async ({ data, router, render, app }) => {
+  data.addPartners(PartnerDirection.SharedWith, factory.partner({ name: 'Alice', canEdit: true }));
+  await router.goto(Route.userSettings({ isOpen: OpenQueryParam.SHARING }));
+  await render(Page, load);
+  await app.settings.section('partners').click();
+  await expect
+    .element(page.getByRole('switch', { name: 'partner_allow_editing', exact: true }))
+    .not.toBeInTheDocument();
 });

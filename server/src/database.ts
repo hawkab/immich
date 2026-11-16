@@ -243,6 +243,7 @@ export type Partner = {
   updatedAt: Date;
   updateId: string;
   inTimeline: boolean;
+  canEdit: boolean;
 };
 
 export type Place = {

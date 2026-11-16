@@ -1306,6 +1306,8 @@ export type TagResponseDto = {
     value: string;
 };
 export type AssetResponseDto = {
+    /** Whether the current user may edit this photo and its faces */
+    canEdit?: boolean;
     /** Base64 encoded SHA1 hash */
     checksum: string;
     /** The UTC timestamp when the asset was originally uploaded to Immich. */
@@ -2002,6 +2004,8 @@ export type OAuthCallbackDto = {
 };
 export type PartnerResponseDto = {
     avatarColor: UserAvatarColor;
+    /** Permission granted by the sharing owner to edit photos and faces */
+    canEdit?: boolean;
     /** User email */
     email: string;
     /** User ID */
@@ -2022,6 +2026,10 @@ export type PartnerCreateDto = {
 export type PartnerUpdateDto = {
     /** Show partner assets in timeline */
     inTimeline: boolean;
+};
+export type PartnerPermissionsDto = {
+    /** Allow the recipient to edit shared photos and manage their faces */
+    canEdit: boolean;
 };
 export type PasskeyResponseDto = {
     /** Creation date */
@@ -2079,6 +2087,8 @@ export type PeopleResponseDto = {
     total: number;
 };
 export type PersonCreateDto = {
+    /** Create a person in the catalogue of an editable asset owner */
+    assetId?: string;
     /** Person date of birth */
     birthDate?: string | null;
     /** Person color (hex) */
@@ -6199,6 +6209,22 @@ export function updatePartner({ id, partnerUpdateDto }: {
     })));
 }
 /**
+ * Update permissions granted to a partner
+ */
+export function updatePartnerPermissions({ id, partnerPermissionsDto }: {
+    id: string;
+    partnerPermissionsDto: PartnerPermissionsDto;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchJson<{
+        status: 200;
+        data: PartnerResponseDto;
+    }>(`/partners/${encodeURIComponent(id)}/permissions`, oazapfts.json({
+        ...opts,
+        method: "PUT",
+        body: partnerPermissionsDto
+    })));
+}
+/**
  * Search passkeys
  */
 export function searchPasskeys({ id }: {
@@ -6322,7 +6348,8 @@ export function deletePeople({ peopleDeleteDto }: {
 /**
  * Get all people
  */
-export function getAllPeople({ closestAssetId, closestPersonId, isFavorite, isHidden, name, page, sharedById, sharedWithId, size, withHidden }: {
+export function getAllPeople({ assetId, closestAssetId, closestPersonId, isFavorite, isHidden, name, page, sharedById, sharedWithId, size, withHidden }: {
+    assetId?: string;
     closestAssetId?: string;
     closestPersonId?: string;
     isFavorite?: boolean;
@@ -6338,6 +6365,7 @@ export function getAllPeople({ closestAssetId, closestPersonId, isFavorite, isHi
         status: 200;
         data: PeopleResponseDto;
     }>(`/people${QS.query(QS.explode({
+        assetId,
         closestAssetId,
         closestPersonId,
         isFavorite,
@@ -6534,13 +6562,16 @@ export function getPersonStatistics({ id }: {
 /**
  * Get person thumbnail
  */
-export function getPersonThumbnail({ id }: {
+export function getPersonThumbnail({ assetId, id }: {
+    assetId?: string;
     id: string;
 }, opts?: Oazapfts.RequestOpts) {
     return oazapfts.ok(oazapfts.fetchBlob<{
         status: 200;
         data: Blob;
-    }>(`/people/${encodeURIComponent(id)}/thumbnail`, {
+    }>(`/people/${encodeURIComponent(id)}/thumbnail${QS.query(QS.explode({
+        assetId
+    }))}`, {
         ...opts
     }));
 }
@@ -8410,6 +8441,7 @@ export enum Permission {
     PartnerCreate = "partner.create",
     PartnerRead = "partner.read",
     PartnerUpdate = "partner.update",
+    PartnerPermissionsUpdate = "partner.permissions.update",
     PartnerDelete = "partner.delete",
     PasskeyRead = "passkey.read",
     PasskeyUpdate = "passkey.update",

@@ -562,6 +562,16 @@ export class MockData {
     return updated;
   }
 
+  updatePartnerPermissions(id: string, canEdit: boolean) {
+    const partner = this.partners[PartnerDirection.SharedBy].get(id);
+    if (!partner) {
+      return;
+    }
+    const updated = { ...partner, canEdit };
+    this.partners[PartnerDirection.SharedBy].set(id, updated);
+    return updated;
+  }
+
   addClusterGroupRequests(requests: MaybeArray<ClusterGroupRequestResponseDto>) {
     for (const request of toList(requests)) {
       this.clusterGroupRequests.set(request.id, request);

@@ -582,7 +582,7 @@ describe(PersonService.name, () => {
       const asset = AssetFactory.from({ id: face.assetId }).exif().build();
       mocks.access.asset.checkOwnerAccess.mockResolvedValue(new Set([asset.id]));
       mocks.person.getFaces.mockResolvedValue([getForAssetFace(face)]);
-      mocks.asset.getForFaces.mockResolvedValue({ edits: [], ...asset.exifInfo });
+      mocks.asset.getForFaces.mockResolvedValue({ ownerId: auth.user.id, edits: [], ...asset.exifInfo });
       await expect(sut.getFacesById(auth, { id: face.assetId })).resolves.toStrictEqual([
         mapFaces(getForAssetFace(face)),
       ]);
@@ -733,7 +733,7 @@ describe(PersonService.name, () => {
   describe('reassignFacesById', () => {
     it('should create a new person', async () => {
       const auth = AuthFactory.create();
-      const face = AssetFaceFactory.create();
+      const face = AssetFaceFactory.create({ ownerId: auth.user.id });
       const person = PersonFactory.create({ ownerId: auth.user.id, faceAssetId: newUuid() });
 
       mocks.access.person.checkAccess.mockResolvedValue(
@@ -762,7 +762,7 @@ describe(PersonService.name, () => {
 
     it('should fail if user has not the correct permissions on the asset', async () => {
       const auth = AuthFactory.create();
-      const face = AssetFaceFactory.create();
+      const face = AssetFaceFactory.create({ ownerId: auth.user.id });
       const person = PersonFactory.create({ ownerId: auth.user.id });
 
       mocks.access.person.checkAccess.mockResolvedValue(
