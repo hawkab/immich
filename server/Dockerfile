@@ -108,7 +108,7 @@ COPY LICENSE /licenses/LICENSE.txt
 COPY LICENSE /LICENSE
 COPY --from=orientation /usr/local/ /opt/immich-auto-orient/python/
 COPY --from=orientation /opt/auto-orient-site/ /opt/immich-auto-orient/site/
-COPY misc/auto-orient/auto_orient/ /opt/immich-auto-orient/source/auto_orient/
+COPY misc/auto-orient/auto_orient/*.py /opt/immich-auto-orient/source/auto_orient/
 COPY --chmod=0755 docker/immich-auto-orient /usr/local/bin/immich-auto-orient
 
 ENV PATH="${PATH}:/usr/src/app/server/bin"

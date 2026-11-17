@@ -10,7 +10,7 @@ COPY server/dist/ /usr/src/app/server/dist/
 COPY web/build/ /build/www/
 COPY --from=orientation /usr/local/ /opt/immich-auto-orient/python/
 COPY --from=orientation /opt/auto-orient-site/ /opt/immich-auto-orient/site/
-COPY misc/auto-orient/auto_orient/ /opt/immich-auto-orient/source/auto_orient/
+COPY misc/auto-orient/auto_orient/*.py /opt/immich-auto-orient/source/auto_orient/
 COPY --chmod=0755 docker/immich-auto-orient /usr/local/bin/immich-auto-orient
 
 ARG BUILD_SOURCE_COMMIT
