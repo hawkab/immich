@@ -566,6 +566,51 @@ describe(SearchService.name, () => {
       expect(legacy.hasNextPage).toBe(false);
     });
 
+    it('separates real subjects from represented subjects while retaining the original facts and Russian inflections', async () => {
+      const { ctx } = setup();
+      const { user } = await ctx.newUser();
+      const repository = ctx.get(SearchRepository);
+      const ids: string[] = [];
+      const examples = [
+        { kind: 'photo', searchText: 'крыло самолёта, облака', depictedText: '' },
+        { kind: 'photo', searchText: 'ребёнок, скульптура самолёта, парк', depictedText: 'самолёт' },
+        { kind: 'drawing', searchText: 'картина с самолётом над городом', depictedText: 'самолёт, город' },
+        { kind: 'screenshot', searchText: 'реклама, детский горшок в виде самолёта', depictedText: 'самолёт' },
+      ];
+      for (const example of examples) {
+        const { asset } = await ctx.newAsset({ ownerId: user.id });
+        ids.push(asset.id);
+        await repository.upsert(asset.id, unitVector(0));
+        await ctx.newMetadata({
+          assetId: asset.id,
+          key: 'org.immich.scene.v1',
+          value: {
+            schemaVersion: 1,
+            sourceChecksum: asset.checksum.toString('base64'),
+            thumbhash: asset.thumbhash?.toString('base64') ?? null,
+            isEdited: false,
+            ...example,
+          },
+        });
+      }
+      const scope = { userIds: [user.id], lockedOwnerId: user.id };
+      const base = { embedding: unitVector(0), sceneQuery: 'самолёта' };
+      const precise = await repository.searchSmartV3({ take: 100 }, { ...base, filter: {} }, scope);
+      expect(precise.items.map((asset) => asset.id)).toEqual([ids[0]]);
+      const broad = await repository.searchSmartV3(
+        { take: 100 },
+        { ...base, filter: {}, includeDepictions: true },
+        scope,
+      );
+      expect(broad.items.map((asset) => asset.id).sort()).toEqual([...ids].sort());
+      const legacy = await repository.searchSmart({ page: 1, size: 100 }, { ...base, userIds: [user.id] });
+      expect(legacy.items.map((asset) => asset.id)).toEqual([ids[0]]);
+      const park = await repository.searchSmartV3({ take: 100 }, { ...base, filter: {}, sceneQuery: 'парк' }, scope);
+      expect(park.items.map((asset) => asset.id)).toEqual([ids[1]]);
+      const art = await repository.searchSmartV3({ take: 100 }, { ...base, filter: {}, sceneQuery: 'картина' }, scope);
+      expect(art.items.map((asset) => asset.id)).toEqual([ids[2]]);
+    });
+
     it('combines a saved person name with visible scene evidence and keeps unrelated people out', async () => {
       const { sut, ctx } = setup();
       const { user } = await ctx.newUser();

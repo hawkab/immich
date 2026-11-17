@@ -162,6 +162,12 @@
             bind:checked={configToEdit.machineLearning.clip.useSceneDescriptions}
             disabled={disabled || !configToEdit.machineLearning.enabled || !configToEdit.machineLearning.clip.enabled}
           />
+          <SettingSwitch
+            title={$t('admin.machine_learning_include_depictions')}
+            subtitle={$t('admin.machine_learning_include_depictions_description')}
+            bind:checked={configToEdit.machineLearning.clip.includeDepictions}
+            disabled={disabled || !configToEdit.machineLearning.enabled || !configToEdit.machineLearning.clip.enabled}
+          />
         </div>
       </SettingAccordion>
 

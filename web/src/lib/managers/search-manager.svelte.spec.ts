@@ -11,10 +11,12 @@ describe('SearchManager', () => {
   });
 
   it('preserves an explicit broad-similarity choice and resets to indexed content', () => {
-    searchManager.setQuery({ query: 'самолёт', useSceneDescriptions: false });
+    searchManager.setQuery({ query: 'самолёт', useSceneDescriptions: false, includeDepictions: true });
     expect(searchManager.filter.useSceneDescriptions).toBe(false);
+    expect(searchManager.filter.includeDepictions).toBe(true);
     searchManager.reset();
     expect(searchManager.filter.useSceneDescriptions).toBeUndefined();
+    expect(searchManager.filter.includeDepictions).toBeUndefined();
   });
 
   it('remembers the selected query type', () => {

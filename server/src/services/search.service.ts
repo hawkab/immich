@@ -346,7 +346,7 @@ export class SearchService extends BaseService {
       dto.query;
     return {
       ...(typeof minSimilarity === 'number' && { minSimilarity }),
-      ...(sceneQuery && { sceneQuery }),
+      ...(sceneQuery && { sceneQuery, includeDepictions: dto.includeDepictions ?? clip.includeDepictions }),
     };
   }
 

@@ -70,6 +70,7 @@ export type SearchFilter = {
   location: SearchLocationFilter;
   queryAssetId?: string;
   useSceneDescriptions?: boolean;
+  includeDepictions?: boolean;
   camera: SearchCameraFilter;
   date: SearchDateFilter;
   display: SearchDisplayFilters;

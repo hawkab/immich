@@ -19019,6 +19019,11 @@
             "description": "Whether the task is enabled",
             "type": "boolean"
           },
+          "includeDepictions": {
+            "default": false,
+            "description": "Include subjects present only as art, toys, models or text mentions",
+            "type": "boolean"
+          },
           "minSimilarity": {
             "default": null,
             "description": "Minimum text-image cosine similarity; null keeps all ranked results. Calibrate for the selected model.",
@@ -29487,6 +29492,10 @@
               }
             ]
           },
+          "includeDepictions": {
+            "description": "Include subjects present only as drawings, toys, models or text mentions",
+            "type": "boolean"
+          },
           "isEncoded": {
             "deprecated": true,
             "description": "Filter by encoded status",
@@ -33873,6 +33882,11 @@
         "properties": {
           "enabled": {
             "description": "Whether the task is enabled",
+            "type": "boolean"
+          },
+          "includeDepictions": {
+            "default": false,
+            "description": "Include subjects present only as art, toys, models or text mentions",
             "type": "boolean"
           },
           "useSceneDescriptions": {

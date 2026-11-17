@@ -116,6 +116,7 @@ const updatedConfig = Object.freeze<SystemConfig>({
       timeout: 2000,
     },
     clip: {
+      includeDepictions: false,
       enabled: true,
       modelName: 'ViT-B-32__openai',
       minSimilarity: null,

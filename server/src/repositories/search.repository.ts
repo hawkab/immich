@@ -92,6 +92,7 @@ export interface SearchExifOptions {
 }
 
 export interface SearchEmbeddingOptions {
+  includeDepictions?: boolean;
   embedding: string;
   userIds: string[];
   minSimilarity?: number | null;
@@ -330,7 +331,9 @@ export class SearchRepository {
       const items = await searchAssetBuilderLegacy(trx, options)
         .select(columns.searchAsset)
         .innerJoin('smart_search', 'asset.id', 'smart_search.assetId')
-        .$if(!!options.sceneQuery, (qb) => qb.where(sceneDescriptionMatches(options.sceneQuery!)))
+        .$if(!!options.sceneQuery, (qb) =>
+          qb.where(sceneDescriptionMatches(options.sceneQuery!, options.includeDepictions)),
+        )
         .$if(options.minSimilarity !== undefined && options.minSimilarity !== null, (qb) =>
           qb.where(sql<number>`smart_search.embedding <=> ${options.embedding}`, '<=', 1 - options.minSimilarity!),
         )
@@ -579,6 +582,7 @@ export class SearchRepository {
       embedding: string;
       minSimilarity?: number | null;
       sceneQuery?: string;
+      includeDepictions?: boolean;
     },
     scope: AssetSearchScope,
   ) {
@@ -587,7 +591,9 @@ export class SearchRepository {
       const items = await searchAssetBuilder(trx, options, scope)
         .select(columns.searchAsset)
         .innerJoin('smart_search', 'asset.id', 'smart_search.assetId')
-        .$if(!!options.sceneQuery, (qb) => qb.where(sceneDescriptionMatches(options.sceneQuery!)))
+        .$if(!!options.sceneQuery, (qb) =>
+          qb.where(sceneDescriptionMatches(options.sceneQuery!, options.includeDepictions)),
+        )
         .$if(options.minSimilarity !== undefined && options.minSimilarity !== null, (qb) =>
           qb.where(sql<number>`smart_search.embedding <=> ${options.embedding}`, '<=', 1 - options.minSimilarity!),
         )

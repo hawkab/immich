@@ -14,6 +14,9 @@
   const useSceneDescriptions = $derived(
     searchManager.filter.useSceneDescriptions ?? config.machineLearning.clip.useSceneDescriptions ?? false,
   );
+  const includeDepictions = $derived(
+    searchManager.filter.includeDepictions ?? config.machineLearning.clip.includeDepictions ?? false,
+  );
 
   const setType = (type: 'smart' | 'metadata' | 'description' | 'fullPath' | 'ocr') => {
     searchManager.setQueryType(type);
@@ -61,6 +64,17 @@
           {$t('search_broad_similarity')}
         </SearchButton>
       </div>
+      {#if useSceneDescriptions}
+        <div class="mt-3">
+          <SearchButton
+            checked
+            active={includeDepictions}
+            onclick={() => (searchManager.filter.includeDepictions = !includeDepictions)}
+          >
+            {$t('search_include_depictions')}
+          </SearchButton>
+        </div>
+      {/if}
     {/if}
   </fieldset>
 </section>

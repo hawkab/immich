@@ -395,6 +395,10 @@ const SmartSearchSchema = withShapeExclusivity(
       .boolean()
       .optional()
       .describe('Use indexed visible-scene evidence; false explores broader visual similarity'),
+    includeDepictions: z
+      .boolean()
+      .optional()
+      .describe('Include subjects present only as drawings, toys, models or text mentions'),
     minSimilarity: z
       .number()
       .min(-1)

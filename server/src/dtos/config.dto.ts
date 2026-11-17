@@ -229,6 +229,11 @@ const AdminConfigSchemaWithVisibility = z
           })
           .meta({ id: 'AdminConfigMachineLearningAvailabilityChecksDto' }),
         clip: AdminConfigMachineLearningModelSchema.extend({
+          includeDepictions: z
+            .boolean()
+            .default(false)
+            .describe('Include subjects present only as art, toys, models or text mentions')
+            .meta({ visibility: User }),
           useSceneDescriptions: z
             .boolean()
             .default(false)
@@ -682,6 +687,7 @@ export const defaults = Object.freeze<SystemConfig>({
       interval: 30_000,
     },
     clip: {
+      includeDepictions: false,
       enabled: true,
       modelName: 'ViT-B-32__openai',
       minSimilarity: null,

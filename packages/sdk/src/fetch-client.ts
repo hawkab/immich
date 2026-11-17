@@ -210,6 +210,8 @@ export type AdminConfigMachineLearningAvailabilityChecksDto = {
 export type AdminConfigClipDto = {
     /** Whether the task is enabled */
     enabled: boolean;
+    /** Include subjects present only as art, toys, models or text mentions */
+    includeDepictions?: boolean;
     /** Minimum text-image cosine similarity; null keeps all ranked results. Calibrate for the selected model. */
     minSimilarity?: number | null;
     /** Name of the model to use */
@@ -1591,6 +1593,8 @@ export type UserConfigImageDto = {
 export type UserConfigClipDto = {
     /** Whether the task is enabled */
     enabled: boolean;
+    /** Include subjects present only as art, toys, models or text mentions */
+    includeDepictions?: boolean;
     /** Require indexed visible-scene evidence for Russian text queries */
     useSceneDescriptions?: boolean;
 };
@@ -2708,6 +2712,8 @@ export type SmartSearchDto = {
     /** Filter by creation date (before) */
     createdBefore?: string;
     filter?: SearchFilter;
+    /** Include subjects present only as drawings, toys, models or text mentions */
+    includeDepictions?: boolean;
     /** Filter by encoded status */
     isEncoded?: boolean;
     /** Filter by favorite status */
