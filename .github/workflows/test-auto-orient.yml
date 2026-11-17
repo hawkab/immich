@@ -16,16 +16,21 @@ permissions:
 jobs:
   orientation:
     runs-on: ubuntu-latest
+    env:
+      MISE_AUTO_INSTALL: 'false'
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
       - name: Setup Mise
-        uses: immich-app/devtools/actions/use-mise@caac7f7e4298458a14238959504f411fc6cc7f06
+        uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca
         with:
           github_token: ${{ github.token }}
           working_directory: ./misc/auto-orient
+          install_args: '--locked python uv'
+          export_path: false
+          version: 2026.10.5
       - run: mise //misc/auto-orient:install
       - run: mise //misc/auto-orient:lint
       - run: mise //misc/auto-orient:check
