@@ -25,6 +25,50 @@ beforeAll(async () => {
 
 describe(AssetEditRepository.name, () => {
   describe('replaceAll', () => {
+    it('should preserve an existing manual edit when an automatic correction arrives', async () => {
+      const { ctx, sut } = setup();
+      const { user } = await ctx.newUser();
+      const { asset } = await ctx.newAsset({ ownerId: user.id });
+      const manual = await sut.replaceAll(asset.id, [{ action: AssetEditAction.Rotate, parameters: { angle: 180 } }]);
+      const automatic = await sut.replaceAll(
+        asset.id,
+        [{ action: AssetEditAction.Rotate, parameters: { angle: 90 } }],
+        asset.checksum.toString('base64'),
+      );
+      expect(automatic).toBeNull();
+      expect(await sut.getAll(asset.id)).toEqual(manual);
+    });
+
+    it('should reject an automatic correction for a replaced original', async () => {
+      const { ctx, sut } = setup();
+      const { user } = await ctx.newUser();
+      const { asset } = await ctx.newAsset({ ownerId: user.id });
+      const result = await sut.replaceAll(
+        asset.id,
+        [{ action: AssetEditAction.Rotate, parameters: { angle: 90 } }],
+        Buffer.alloc(32).toString('base64'),
+      );
+      expect(result).toBeNull();
+      expect(await sut.getAll(asset.id)).toEqual([]);
+    });
+
+    it('should accept exactly one of two concurrent automatic corrections', async () => {
+      const { ctx, sut } = setup();
+      const { user } = await ctx.newUser();
+      const { asset } = await ctx.newAsset({ ownerId: user.id });
+      const results = await Promise.all(
+        [90, 270].map((angle) =>
+          sut.replaceAll(
+            asset.id,
+            [{ action: AssetEditAction.Rotate, parameters: { angle } }],
+            asset.checksum.toString('base64'),
+          ),
+        ),
+      );
+      expect(results.filter((result) => result !== null)).toHaveLength(1);
+      expect(await sut.getAll(asset.id)).toHaveLength(1);
+    });
+
     it('should set isEdited on insert', async () => {
       const { ctx, sut } = setup();
       const { user } = await ctx.newUser();

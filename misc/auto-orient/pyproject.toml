@@ -1,0 +1,31 @@
+[project]
+name = "immich-auto-orient"
+version = "0.1.0"
+description = "Head-led, scene-verified, reversible orientation correction for Immich"
+requires-python = ">=3.12"
+dependencies = ["httpx>=0.28,<1", "pillow>=11,<13"]
+
+[project.scripts]
+immich-auto-orient = "auto_orient.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "ruff>=0.12,<1", "mypy>=1.17,<2"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["auto_orient"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.mypy]
+strict = true

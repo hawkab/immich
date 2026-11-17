@@ -10,9 +10,35 @@ import { DB } from 'src/schema/index.js';
 export class AssetEditRepository {
   constructor(@InjectKysely() private db: Kysely<DB>) {}
 
+  replaceAll(assetId: string, edits: AssetEditActionItem[]): Promise<AssetEditActionItemResponseDto[]>;
+  replaceAll(
+    assetId: string,
+    edits: AssetEditActionItem[],
+    ifUneditedChecksum: string,
+  ): Promise<AssetEditActionItemResponseDto[] | null>;
   @GenerateSql({ params: [DummyValue.UUID] })
-  replaceAll(assetId: string, edits: AssetEditActionItem[]): Promise<AssetEditActionItemResponseDto[]> {
+  replaceAll(
+    assetId: string,
+    edits: AssetEditActionItem[],
+    ifUneditedChecksum?: string,
+  ): Promise<AssetEditActionItemResponseDto[] | null> {
     return this.db.transaction().execute(async (trx) => {
+      const asset = await trx
+        .selectFrom('asset')
+        .select(['checksum', 'isEdited'])
+        .where('id', '=', assetId)
+        .forUpdate()
+        .executeTakeFirstOrThrow();
+      if (ifUneditedChecksum !== undefined) {
+        const existing = await trx
+          .selectFrom('asset_edit')
+          .select('id')
+          .where('assetId', '=', assetId)
+          .executeTakeFirst();
+        if (asset.isEdited || existing || !asset.checksum.equals(Buffer.from(ifUneditedChecksum, 'base64'))) {
+          return null;
+        }
+      }
       await trx.deleteFrom('asset_edit').where('assetId', '=', assetId).execute();
 
       if (edits.length > 0) {

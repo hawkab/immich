@@ -20895,6 +20895,13 @@
             },
             "minItems": 1,
             "type": "array"
+          },
+          "ifUneditedChecksum": {
+            "contentEncoding": "base64",
+            "description": "Apply only if the original checksum matches and there are no existing edits; otherwise return 412",
+            "format": "base64",
+            "pattern": "^$|^(?:[0-9a-zA-Z+/]{4})*(?:(?:[0-9a-zA-Z+/]{2}==)|(?:[0-9a-zA-Z+/]{3}=))?$",
+            "type": "string"
           }
         },
         "required": [

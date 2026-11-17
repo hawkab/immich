@@ -1419,6 +1419,8 @@ export type AssetEditActionItemDto = {
 export type AssetEditsCreateDto = {
     /** List of edit actions to apply (crop, rotate, or mirror) */
     edits: AssetEditActionItemDto[];
+    /** Apply only if the original checksum matches and there are no existing edits; otherwise return 412 */
+    ifUneditedChecksum?: string;
 };
 export type AssetMetadataResponseDto = {
     /** Metadata key */
