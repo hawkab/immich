@@ -111,6 +111,13 @@ function uniqueEditActions(edits: z.infer<typeof AssetEditActionItemSchema>[]): 
 
 const AssetEditsCreateSchema = z
   .object({
+    ifUneditedChecksum: z
+      .base64()
+      .refine((value) => [20, 32].includes(Buffer.from(value, 'base64').length), {
+        error: 'Expected a base64 SHA-1 or SHA-256 source checksum',
+      })
+      .optional()
+      .describe('Apply only if the original checksum matches and there are no existing edits; otherwise return 412'),
     edits: z
       .array(AssetEditActionItemSchema)
       .min(1)

@@ -13,6 +13,7 @@ config_roots = [
   ".github",
   "machine-learning",
   "native",
+  "misc/auto-orient",
 ]
 
 [tools]

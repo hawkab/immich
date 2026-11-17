@@ -1,0 +1,76 @@
+{
+  "checked_at_utc": "2026-11-17T05:27:08.625204+00:00",
+  "acceptance": "passed",
+  "base_ref": "main",
+  "base_commit": "f932212299988b2cbada1687cb4015ff894efb31",
+  "delivery": "feature branch; no production asset writes or upstream pull request",
+  "automated_tests": {
+    "python": 66,
+    "server_controller_and_service": 89,
+    "postgresql_repository": 7
+  },
+  "static_checks": [
+    "ruff",
+    "mypy strict",
+    "server TypeScript",
+    "changed TypeScript ESLint",
+    "Prettier"
+  ],
+  "generated_artifacts": [
+    "OpenAPI specification",
+    "TypeScript SDK",
+    "Dart client",
+    "SQL repository snapshots"
+  ],
+  "visual_development_cases": {
+    "total": 12,
+    "passed": 12,
+    "dataset_role": "Engineering development and regression acceptance cases; not a population accuracy benchmark.",
+    "cases": {
+      "public_portrait_four_quadrants": 4,
+      "cropped_portrait_without_horizon_three_rotations": 3,
+      "lying_people_preserved": 2,
+      "picture_inside_frame_preserved": 1,
+      "mixed_head_directions_preserved": 1,
+      "diagonal_composition_preserved": 1
+    },
+    "original_source_images": {
+      "public_portraits": 1,
+      "private_posture_photographs": 2
+    },
+    "public_fixture": {
+      "url": "https://raw.githubusercontent.com/imageio/imageio-binaries/master/images/astronaut.png",
+      "sha256": "88431cd9653ccd539741b555fb0a46b61558b301d4110412b5bc28b5e3ea6cb5"
+    },
+    "detector": "existing Immich buffalo_l SCRFD detection without face recognition embeddings",
+    "vision_service": "existing local OpenAI-compatible service; configured alias spark-current",
+    "scene_assessment": "Original assessed independently before a candidate is shown; corrected posture assessed separately."
+  },
+  "performance": {
+    "upright_fast_path_detector_passes": 1,
+    "upright_fast_path_observed_seconds": 0.1349632139899768,
+    "rotated_candidate_detector_passes": 4,
+    "old_four_pass_upright_observed_seconds": 0.6421171480324119,
+    "inference_preview_max_edge": 1024,
+    "model_output_token_limit_set": false
+  },
+  "safety": {
+    "originals_rewritten": false,
+    "owner_only": true,
+    "existing_manual_edits_preserved": true,
+    "atomic_original_checksum_and_empty_edit_precondition": true,
+    "concurrent_automatic_edits_one_winner_verified": true,
+    "user_orientation_keep_tag": true,
+    "lost_write_responses_read_back_before_any_repeat": true,
+    "unknown_authorship_not_claimed": true,
+    "old_prompt_proposals_require_reanalysis": true,
+    "explicit_manual_reverts_not_reapplied": true,
+    "private_receipts_and_images_committed": false,
+    "production_deployed": false
+  },
+  "visual_evidence_sha256": {
+    "REAL-SCENE-RESULTS.json": "26f563acc9fd45faaa7b448745253b83bdcb995e506724a29ffb88233fc74e25",
+    "REAL-MODEL-RESULTS.json": "9b9bcb9fa497ed3c1dc82c90506c8bcdf434e57b34f5b883686ccf07cc52a62a",
+    "UPRIGHT-FAST-PATH.json": "b6437550e6b83a232bfe216036db02d3fb3a6adf40ff62f739b3d1290ae35a31"
+  }
+}

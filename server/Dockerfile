@@ -86,6 +86,11 @@ RUN --mount=type=cache,id=pnpm,target=/buildcache/pnpm-store \
   --mount=type=cache,id=mise-tools-${TARGETPLATFORM},target=/buildcache/mise \
   mise //:plugins
 
+FROM python:3.12-slim-bookworm@sha256:935c3c5b12357a7e10caa9c1e6ca5692344d97cf229832ef584be2cec9fc03df AS orientation
+COPY misc/auto-orient/runtime-requirements.txt /tmp/runtime-requirements.txt
+RUN python3 -m pip install --disable-pip-version-check --no-cache-dir --require-hashes \
+  --target /opt/auto-orient-site -r /tmp/runtime-requirements.txt
+
 FROM ghcr.io/immich-app/base-server-prod:202610291416@sha256:6211bec52cbccc19076889b0c39ef473a1a1d02ceb635ccd2e0ecb4683e5fd4d
 
 WORKDIR /usr/src/app
@@ -101,6 +106,10 @@ COPY --from=plugins /usr/src/app/packages/plugin-core/manifest.json /build/plugi
 RUN ln -s ../../cli/bin/immich server/bin/immich
 COPY LICENSE /licenses/LICENSE.txt
 COPY LICENSE /LICENSE
+COPY --from=orientation /usr/local/ /opt/immich-auto-orient/python/
+COPY --from=orientation /opt/auto-orient-site/ /opt/immich-auto-orient/site/
+COPY misc/auto-orient/auto_orient/ /opt/immich-auto-orient/source/auto_orient/
+COPY --chmod=0755 docker/immich-auto-orient /usr/local/bin/immich-auto-orient
 
 ENV PATH="${PATH}:/usr/src/app/server/bin"
 
@@ -110,9 +119,9 @@ ARG BUILD_SOURCE_REF
 ARG BUILD_SOURCE_COMMIT
 
 ENV IMMICH_BUILD=${BUILD_ID}
-ENV IMMICH_BUILD_URL=https://github.com/hawkab/immich/releases/tag/v3.4.1-partner-edit.1
+ENV IMMICH_BUILD_URL=https://github.com/hawkab/immich/releases/tag/${BUILD_SOURCE_REF}
 ENV IMMICH_BUILD_IMAGE=${BUILD_IMAGE}
-ENV IMMICH_BUILD_IMAGE_URL=https://github.com/hawkab/immich/releases/tag/v3.4.1-partner-edit.1
+ENV IMMICH_BUILD_IMAGE_URL=https://github.com/hawkab/immich/releases/tag/${BUILD_SOURCE_REF}
 ENV IMMICH_REPOSITORY=hawkab/immich
 ENV IMMICH_REPOSITORY_URL=https://github.com/hawkab/immich
 ENV IMMICH_SOURCE_REF=${BUILD_SOURCE_REF}
@@ -121,7 +130,7 @@ ENV IMMICH_SOURCE_URL=https://github.com/hawkab/immich/commit/${BUILD_SOURCE_COM
 
 LABEL org.opencontainers.image.source="https://github.com/hawkab/immich" \
   org.opencontainers.image.revision="${BUILD_SOURCE_COMMIT}" \
-  org.opencontainers.image.version="v3.4.1-partner-edit.1"
+  org.opencontainers.image.version="${BUILD_IMAGE}"
 
 COPY --from=ghcr.io/futo-org/backups/restic-proxy:v1.11.2@sha256:a88252d884d22a55749f45dd39a2458c6391ca3e4d3b0d9e0c2246786cf923be /usr/local/bin/restic-proxy /usr/local/bin/restic-proxy
 COPY --from=ghcr.io/futo-org/restic:sha-1e904f0@sha256:501bb3e696bd78db0d89ae4e5c51b6993b9cb3f88e657020777dba49226169bc /usr/bin/restic /usr/local/bin/restic

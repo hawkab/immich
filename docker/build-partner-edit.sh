@@ -5,6 +5,7 @@ git diff --quiet
 git diff --cached --quiet
 git verify-commit HEAD
 source_commit=$(git rev-parse HEAD)
+release_tag=${RELEASE_TAG:-v3.4.1-combined.1}
 recipe=server/Dockerfile
 base_image=${BASE_IMAGE:-ghcr.io/immich-app/immich-server@sha256:7c489add298fc2f92cda4c777de6462aa206877e04087b815f62c7664af0b53b}
 if git diff --quiet v3.4.1 -- package.json pnpm-lock.yaml pnpm-workspace.yaml .pnpmfile.cjs server/package.json packages/plugin-core packages/plugin-sdk; then
@@ -20,8 +21,8 @@ if git diff --quiet v3.4.1 -- package.json pnpm-lock.yaml pnpm-workspace.yaml .p
   mise //server:build
   mise //web:build
 fi
-DOCKER_BUILDKIT=1 docker build --file "$recipe" \
+DOCKER_BUILDKIT=1 docker build --network=host --file "$recipe" \
   --build-arg BASE_IMAGE="$base_image" --build-arg BUILD_SOURCE_COMMIT="$source_commit" \
-  --build-arg BUILD_SOURCE_REF=v3.4.1-partner-edit.4 --build-arg BUILD_IMAGE=v3.4.1-partner-edit.4 \
-  --tag ghcr.io/hawkab/immich-server:v3.4.1-partner-edit.4 .
-docker image inspect --format '{{json .}}' ghcr.io/hawkab/immich-server:v3.4.1-partner-edit.4 | python3 docker/image-identity.py
+  --build-arg BUILD_SOURCE_REF="$release_tag" --build-arg BUILD_IMAGE="$release_tag" \
+  --tag "ghcr.io/hawkab/immich-server:$release_tag" .
+docker image inspect --format '{{json .}}' "ghcr.io/hawkab/immich-server:$release_tag" | python3 docker/image-identity.py

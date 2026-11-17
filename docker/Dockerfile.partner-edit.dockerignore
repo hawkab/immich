@@ -5,3 +5,10 @@
 !web/
 !web/build/
 !web/build/**
+!misc/
+!misc/auto-orient/
+!misc/auto-orient/runtime-requirements.txt
+!misc/auto-orient/auto_orient/
+!misc/auto-orient/auto_orient/**
+!docker/
+!docker/immich-auto-orient

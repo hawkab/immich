@@ -305,6 +305,28 @@ describe(AssetController.name, () => {
   });
 
   describe('PUT /assets/:id/edits', () => {
+    it('should pass a conditional source checksum to the service', async () => {
+      const assetId = factory.uuid();
+      const dto = {
+        ifUneditedChecksum: Buffer.alloc(20).toString('base64'),
+        edits: [{ action: 'rotate', parameters: { angle: 90 } }],
+      };
+      const { status } = await request(ctx.getHttpServer()).put(`/assets/${assetId}/edits`).send(dto);
+      expect(status).toBe(200);
+      expect(service.editAsset).toHaveBeenCalledWith(undefined, assetId, dto);
+    });
+
+    it('should reject a non-digest conditional checksum', async () => {
+      const { status } = await request(ctx.getHttpServer())
+        .put(`/assets/${factory.uuid()}/edits`)
+        .send({
+          ifUneditedChecksum: Buffer.from('not-a-checksum').toString('base64'),
+          edits: [{ action: 'rotate', parameters: { angle: 180 } }],
+        });
+      expect(status).toBe(400);
+      expect(service.editAsset).not.toHaveBeenCalled();
+    });
+
     it('should accept valid edits and pass to service correctly', async () => {
       const edits = [
         {

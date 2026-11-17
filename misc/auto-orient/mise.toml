@@ -1,0 +1,21 @@
+[tools]
+python = "3.12"
+uv = "0.8.15"
+
+[tasks.install]
+run = "uv sync --locked"
+
+[tasks.test]
+run = "uv run pytest"
+
+[tasks.lint]
+run = "uv run ruff check auto_orient tests"
+
+[tasks.format]
+run = "uv run ruff format auto_orient tests"
+
+[tasks.check]
+run = "uv run mypy auto_orient"
+
+[tasks.run]
+run = "uv run immich-auto-orient {{arg(name='args', var=true)}}"

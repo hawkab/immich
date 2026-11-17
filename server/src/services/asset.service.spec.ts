@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, PreconditionFailedException } from '@nestjs/common';
 import { DateTime } from 'luxon';
 import { AssetJobName, AssetStatsResponseDto } from 'src/dtos/asset.dto.js';
 import { AssetEditAction } from 'src/dtos/editing.dto.js';
@@ -797,6 +797,50 @@ describe(AssetService.name, () => {
   });
 
   describe('editAsset', () => {
+    beforeEach(() => {
+      mocks.access.asset.checkOwnerAccess.mockResolvedValue(new Set(['asset-1']));
+      mocks.asset.getForEdit.mockResolvedValue({
+        type: AssetType.Image,
+        livePhotoVideoId: null,
+        originalPath: '/photo.jpg',
+        originalFileName: 'photo.jpg',
+        exifImageWidth: 100,
+        exifImageHeight: 100,
+        orientation: null,
+        projectionType: null,
+      });
+    });
+
+    it('should return 412 without queuing thumbnails when a conditional edit conflicts', async () => {
+      mocks.assetEdit.replaceAll.mockResolvedValue(null);
+      const checksum = Buffer.alloc(20).toString('base64');
+      const edits = [{ action: AssetEditAction.Rotate, parameters: { angle: 90 } }];
+
+      await expect(
+        sut.editAsset(authStub.admin, 'asset-1', { edits, ifUneditedChecksum: checksum }),
+      ).rejects.toBeInstanceOf(PreconditionFailedException);
+      expect(mocks.assetEdit.replaceAll).toHaveBeenCalledWith('asset-1', edits, checksum);
+      expect(mocks.job.queue).not.toHaveBeenCalled();
+    });
+
+    it('should queue the normal reversible edit after the original matches atomically', async () => {
+      const edits = [{ action: AssetEditAction.Rotate, parameters: { angle: 270 } }];
+      const accepted = [{ ...edits[0], id: newUuid() }];
+      mocks.assetEdit.replaceAll.mockResolvedValue(accepted);
+      mocks.job.queue.mockResolvedValue();
+
+      await expect(
+        sut.editAsset(authStub.admin, 'asset-1', {
+          edits,
+          ifUneditedChecksum: Buffer.alloc(20).toString('base64'),
+        }),
+      ).resolves.toEqual({ assetId: 'asset-1', edits: accepted });
+      expect(mocks.job.queue).toHaveBeenCalledWith({
+        name: JobName.AssetEditThumbnailGeneration,
+        data: { id: 'asset-1' },
+      });
+    });
+
     it('should enforce crop first', async () => {
       await expect(
         sut.editAsset(authStub.admin, 'asset-1', {

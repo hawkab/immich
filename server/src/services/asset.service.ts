@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, PreconditionFailedException } from '@nestjs/common';
 import { isUndefined, omitBy } from 'lodash-es';
 import { DateTime, Duration } from 'luxon';
 import type { AssetFile } from 'src/database.js';
@@ -601,7 +601,15 @@ export class AssetService extends BaseService {
       }
     }
 
-    const newEdits = await this.assetEditRepository.replaceAll(id, edits);
+    const newEdits =
+      dto.ifUneditedChecksum === undefined
+        ? await this.assetEditRepository.replaceAll(id, edits)
+        : await this.assetEditRepository.replaceAll(id, edits, dto.ifUneditedChecksum);
+    if (newEdits === null) {
+      throw new PreconditionFailedException(
+        'The original changed or another edit was saved; no edits were overwritten',
+      );
+    }
     await this.jobRepository.queue({ name: JobName.AssetEditThumbnailGeneration, data: { id } });
 
     // Return the asset and its applied edits

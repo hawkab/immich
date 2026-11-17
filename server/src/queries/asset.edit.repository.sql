@@ -2,9 +2,14 @@
 
 -- AssetEditRepository.replaceAll
 begin
-delete from "asset_edit"
+select
+  "checksum",
+  "isEdited"
+from
+  "asset"
 where
-  "assetId" = $1
+  "id" = $1
+for update
 rollback
 
 -- AssetEditRepository.getAll
