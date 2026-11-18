@@ -18,6 +18,7 @@ export const createHandlers = (data: MockData): Handlers => {
   };
 
   return {
+    getAssetMetadata: () => ({ json: [] }),
     getServerConfig: () => ({ json: data.serverConfig }),
     getPublicConfig: () => ({ json: data.publicConfig }),
     getUserConfig: () => ({ json: data.userConfig }),

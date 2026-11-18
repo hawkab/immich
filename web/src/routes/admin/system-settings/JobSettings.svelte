@@ -27,6 +27,7 @@
     QueueName.VideoConversion,
     QueueName.StorageTemplateMigration,
     QueueName.Migration,
+    QueueName.Transcription,
     QueueName.Ocr,
   ];
 
@@ -50,6 +51,7 @@
     [QueueName.Library]: $t('external_libraries'),
     [QueueName.Notifications]: $t('notifications'),
     [QueueName.BackupDatabase]: $t('admin.backup_database'),
+    [QueueName.Transcription]: $t('admin.video_transcription'),
     [QueueName.Ocr]: $t('admin.machine_learning_ocr'),
     [QueueName.Workflow]: $t('workflows'),
     [QueueName.Editor]: $t('editor'),

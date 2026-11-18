@@ -1,4 +1,5 @@
 import { sql, type SqlBool } from 'kysely';
+import { transcriptMatches } from 'src/utils/transcription.js';
 
 export const SCENE_DESCRIPTION_KEY = 'org.immich.scene.v1';
 
@@ -27,3 +28,25 @@ export function sceneDescriptionMatches(query: string, includeDepictions = false
       and ${evidence} @@ websearch_to_tsquery('russian', ${query})
   )`;
 }
+
+export const smartSearchEvidence = (options: {
+  embedding: string;
+  transcriptQuery?: string;
+  transcriptOnly?: boolean;
+  sceneQuery?: string;
+  includeDepictions?: boolean;
+  minSimilarity?: number | null;
+}) => {
+  const speech = options.transcriptQuery ? transcriptMatches(options.transcriptQuery) : sql<SqlBool>`false`;
+  if (options.transcriptOnly) {
+    return speech;
+  }
+  const scene = options.sceneQuery
+    ? sceneDescriptionMatches(options.sceneQuery, options.includeDepictions)
+    : sql<SqlBool>`true`;
+  const threshold =
+    typeof options.minSimilarity === 'number'
+      ? sql<SqlBool>`smart_search.embedding <=> ${options.embedding} <= ${1 - options.minSimilarity}`
+      : sql<SqlBool>`true`;
+  return sql<SqlBool>`((smart_search."assetId" is not null and ${scene} and ${threshold}) or ${speech})`;
+};

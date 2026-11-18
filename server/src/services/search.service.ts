@@ -31,6 +31,7 @@ import { isSmartSearchEnabled } from 'src/utils/misc.js';
 import { decodeSearchCursor, encodeSearchCursor } from 'src/utils/search-cursor.js';
 import { applyLockedVisibilityPolicy, collectFilterIds } from 'src/utils/search-filter.js';
 import { resolveNamedSearch } from 'src/utils/search-intent.js';
+import { speechQuery } from 'src/utils/transcription.js';
 
 @Injectable()
 export class SearchService extends BaseService {
@@ -167,7 +168,9 @@ export class SearchService extends BaseService {
   }
 
   async searchSmart(auth: AuthDto, dto: SmartSearchDto): Promise<SearchResponseDto> {
-    const planned = await this.resolveNamedQuery(auth, dto);
+    const speech = speechQuery(dto.query);
+    dto = { ...dto, query: speech.query, ...((dto.transcriptOnly || speech.only) && { transcriptOnly: true }) };
+    const planned = dto.transcriptOnly ? undefined : await this.resolveNamedQuery(auth, dto);
     if (planned) {
       dto = planned;
       if (!dto.query) {
@@ -183,12 +186,15 @@ export class SearchService extends BaseService {
     }
 
     const { machineLearning } = await this.getConfig({ withCache: false });
-    if (!isSmartSearchEnabled(machineLearning)) {
+    if (dto.transcriptOnly && !machineLearning.transcription.enabled) {
+      throw new BadRequestException('Video transcription is not enabled');
+    }
+    if (!isSmartSearchEnabled(machineLearning) && !dto.transcriptOnly) {
       throw new BadRequestException('Smart search is not enabled');
     }
 
     const userIds = this.getUserIdsToSearch(auth, dto.visibility);
-    const embedding = await this.resolveEmbedding(auth, dto, machineLearning);
+    const embedding = dto.transcriptOnly ? '' : await this.resolveEmbedding(auth, dto, machineLearning);
     const page = dto.page ?? 1;
     const size = dto.size;
     const { hasNextPage, items } = await this.searchRepository.searchSmart(
@@ -198,6 +204,8 @@ export class SearchService extends BaseService {
         userIds: await userIds,
         viewingUserId: auth.user.id,
         embedding,
+        ...(machineLearning.transcription.enabled &&
+          dto.query && { transcriptQuery: dto.query, transcriptOnly: dto.transcriptOnly }),
         ...this.textSearchOptions(dto, machineLearning.clip),
         visibility: dto.visibility ?? (auth.session?.hasElevatedPermission ? undefined : 'not-locked'),
       },
@@ -289,13 +297,16 @@ export class SearchService extends BaseService {
 
   private async searchSmartV3(auth: AuthDto, dto: SmartSearchDto): Promise<SearchResponseDto> {
     const { machineLearning } = await this.getConfig({ withCache: false });
-    if (!isSmartSearchEnabled(machineLearning)) {
+    if (dto.transcriptOnly && !machineLearning.transcription.enabled) {
+      throw new BadRequestException('Video transcription is not enabled');
+    }
+    if (!isSmartSearchEnabled(machineLearning) && !dto.transcriptOnly) {
       throw new BadRequestException('Smart search is not enabled');
     }
 
     const [{ filter, scope }, embedding] = await Promise.all([
       this.resolveSearchScopeV3(auth, dto),
-      this.resolveEmbedding(auth, dto, machineLearning),
+      dto.transcriptOnly ? Promise.resolve('') : this.resolveEmbedding(auth, dto, machineLearning),
     ]);
 
     // no cursor until a rank-aware pagination strategy for smart search is decided
@@ -305,6 +316,8 @@ export class SearchService extends BaseService {
         filter,
         withExif: dto.withExif,
         embedding,
+        ...(machineLearning.transcription.enabled &&
+          dto.query && { transcriptQuery: dto.query, transcriptOnly: dto.transcriptOnly }),
         ...this.textSearchOptions(dto, machineLearning.clip),
       },
       scope,

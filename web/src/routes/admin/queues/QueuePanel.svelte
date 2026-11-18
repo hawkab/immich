@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { getAdminConfigQuery } from '#lib/queries/config-admin.query.ts';
+  import { createQuery } from '@tanstack/svelte-query';
   import { queueManager } from '#lib/managers/queue-manager.svelte.ts';
   import { createPreloadedQuery } from '#lib/queries/client.ts';
   import { getUserConfigQuery } from '#lib/queries/config-user.query.ts';
@@ -33,6 +35,8 @@
     disabled?: boolean;
     handleCommand?: (jobId: QueueName, jobCommand: QueueCommandDto) => Promise<void>;
   };
+
+  const adminConfig = createQuery(getAdminConfigQuery);
 
   const queueDetails: Partial<Record<QueueName, QueueDetails>> = $derived({
     [QueueName.ThumbnailGeneration]: {
@@ -71,6 +75,7 @@
       missingText: $t('missing'),
       disabled: !machineLearning.facialRecognition.enabled,
     },
+    [QueueName.Transcription]: {allText: $t('all'), missingText: $t('missing'), disabled: !adminConfig.data?.machineLearning.transcription?.enabled},
     [QueueName.Ocr]: {
       allText: $t('all'),
       missingText: $t('missing'),

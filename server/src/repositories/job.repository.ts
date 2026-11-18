@@ -275,6 +275,12 @@ export class JobRepository {
       case JobName.FacialRecognitionQueueAll: {
         return { deduplication: { id: JobName.FacialRecognitionQueueAll } };
       }
+      case JobName.TranscriptionQueueAll: {
+        return { deduplication: { id: JobName.TranscriptionQueueAll } };
+      }
+      case JobName.Transcription: {
+        return { deduplication: { id: `${JobName.Transcription}-${item.data.id}` } };
+      }
       case JobName.VersionCheck: {
         return { deduplication: { id: JobName.VersionCheck } };
       }

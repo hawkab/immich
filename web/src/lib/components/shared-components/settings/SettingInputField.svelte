@@ -84,7 +84,7 @@
 <div class="mb-4 w-full">
   <div class="flex place-items-center gap-1">
     {#if label}
-      <label class="min-h-6 text-sm font-medium text-primary" for={label}>{label}</label>
+      <label class="min-h-6 text-sm font-medium text-primary" id="{label}-label" for={label}>{label}</label>
     {/if}
 
     {#if required}

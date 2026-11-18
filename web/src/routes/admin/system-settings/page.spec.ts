@@ -26,3 +26,18 @@ test('a number setting can be emptied while editing', async ({ app }) => {
   await userEvent.tab();
   await expect.element(app.admin.settings.numberInput).toHaveValue(null);
 });
+
+describe('video transcription settings', () => {
+  test('exposes Raspberry GigaAM defaults and an editable provider', async ({ router, render, app }) => {
+    await router.goto(Route.systemSettings());
+    await render(Page, load);
+    await app.admin.settings.open('admin.machine_learning_settings');
+    await app.admin.settings.open('admin.video_transcription');
+    await expect
+      .element(page.getByRole('textbox', { name: 'admin.transcription_endpoint' }))
+      .toHaveValue('http://172.30.72.254:8000/v1/audio/transcriptions');
+    await expect.element(page.getByRole('combobox', { name: 'admin.transcription_provider' })).toHaveValue('gigaam');
+    await page.getByRole('combobox', { name: 'admin.transcription_provider' }).selectOptions('openai');
+    await expect.element(page.getByRole('combobox', { name: 'admin.transcription_provider' })).toHaveValue('openai');
+  });
+});

@@ -2,6 +2,7 @@ import {
   AfterDeleteTrigger,
   Column,
   ForeignKeyColumn,
+  Index,
   PrimaryColumn,
   Table,
   Timestamp,
@@ -15,6 +16,18 @@ import { AssetTable } from 'src/schema/tables/asset.table.js';
 
 @UpdatedAtTrigger('asset_metadata_updated_at')
 @Table('asset_metadata')
+@Index({
+  name: 'asset_metadata_transcript_ru_idx',
+  using: 'gin',
+  expression: "to_tsvector('russian'::regconfig, coalesce(value->>'text', ''))",
+  where: "key = 'org.immich.transcript.v1'",
+})
+@Index({
+  name: 'asset_metadata_transcript_simple_idx',
+  using: 'gin',
+  expression: "to_tsvector('simple'::regconfig, coalesce(value->>'text', ''))",
+  where: "key = 'org.immich.transcript.v1'",
+})
 @AfterDeleteTrigger({
   scope: 'statement',
   function: asset_metadata_audit,
