@@ -81,7 +81,7 @@
           <SettingSwitch
             title={$t('enabled')}
             bind:checked={configToEdit.machineLearning.transcription.enabled}
-            {disabled}
+            disabled={disabled || !configToEdit.machineLearning.enabled}
           />
           <SettingSelect
             name="transcription-provider"
@@ -91,33 +91,33 @@
               { value: 'openai', text: 'OpenAI-compatible audio API' },
             ]}
             bind:value={configToEdit.machineLearning.transcription.provider}
-            {disabled}
+            disabled={disabled || !configToEdit.machineLearning.enabled}
           />
           <SettingInputField
             inputType={SettingInputFieldType.TEXT}
             label={$t('admin.transcription_endpoint')}
             bind:value={configToEdit.machineLearning.transcription.url}
-            {disabled}
+            disabled={disabled || !configToEdit.machineLearning.enabled}
             required
           />
           <SettingInputField
             inputType={SettingInputFieldType.TEXT}
             label={$t('admin.transcription_model')}
             bind:value={configToEdit.machineLearning.transcription.model}
-            {disabled}
+            disabled={disabled || !configToEdit.machineLearning.enabled}
             required
           />
           <SettingInputField
             inputType={SettingInputFieldType.TEXT}
             label={$t('language')}
             bind:value={configToEdit.machineLearning.transcription.language}
-            {disabled}
+            disabled={disabled || !configToEdit.machineLearning.enabled}
           />
           <SettingInputField
             inputType={SettingInputFieldType.PASSWORD}
             label={$t('api_key')}
             bind:value={configToEdit.machineLearning.transcription.apiKey}
-            {disabled}
+            disabled={disabled || !configToEdit.machineLearning.enabled}
           />
         </div>
       </SettingAccordion>

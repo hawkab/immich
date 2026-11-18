@@ -178,7 +178,7 @@ export class SearchService extends BaseService {
     }
 
     const { machineLearning } = await this.getConfig({ withCache: false });
-    if (dto.transcriptOnly && !machineLearning.transcription.enabled) {
+    if (dto.transcriptOnly && (!machineLearning.enabled || !machineLearning.transcription.enabled)) {
       throw new BadRequestException('Video transcription is not enabled');
     }
     if (!isSmartSearchEnabled(machineLearning) && !dto.transcriptOnly) {
@@ -288,7 +288,7 @@ export class SearchService extends BaseService {
 
   private async searchSmartV3(auth: AuthDto, dto: SmartSearchDto): Promise<SearchResponseDto> {
     const { machineLearning } = await this.getConfig({ withCache: false });
-    if (dto.transcriptOnly && !machineLearning.transcription.enabled) {
+    if (dto.transcriptOnly && (!machineLearning.enabled || !machineLearning.transcription.enabled)) {
       throw new BadRequestException('Video transcription is not enabled');
     }
     if (!isSmartSearchEnabled(machineLearning) && !dto.transcriptOnly) {
