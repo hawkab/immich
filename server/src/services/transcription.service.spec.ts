@@ -22,7 +22,9 @@ const setup = () => {
     audioStreams: [{ index: 1 }],
     videoStreams: [],
   } as never);
-  mocks.media.extractSpeech.mockResolvedValue(Buffer.from('audio'));
+  const audio = Buffer.alloc(48);
+  audio.writeInt16LE(123, 44);
+  mocks.media.extractSpeech.mockResolvedValue(audio);
   mocks.machineLearning.transcribe.mockResolvedValue({ text: 'Сегодня мы говорили о путешествии' });
   return { sut, mocks, asset, saved: () => value };
 };
@@ -99,4 +101,15 @@ it('uses a new request only after a reconciled terminal provider failure', async
   await sut.handleTranscription({ id: asset.id });
   expect(mocks.machineLearning.transcribe.mock.calls[0][2]).not.toBe(mocks.machineLearning.transcribe.mock.calls[1][2]);
   expect(saved()).toMatchObject({ status: 'complete', requestAttempt: 0 });
+});
+
+it('finishes silent tails without sending empty audio to the provider', async () => {
+  const { sut, mocks, asset, saved } = setup();
+  mocks.media.extractSpeech
+    .mockResolvedValueOnce(Buffer.alloc(44))
+    .mockResolvedValueOnce(Buffer.alloc(44))
+    .mockResolvedValueOnce(Buffer.alloc(44));
+  expect(await sut.handleTranscription({ id: asset.id })).toBe(JobStatus.Success);
+  expect(saved()).toMatchObject({ status: 'complete', nextStart: 50, text: '' });
+  expect(mocks.machineLearning.transcribe).not.toHaveBeenCalled();
 });

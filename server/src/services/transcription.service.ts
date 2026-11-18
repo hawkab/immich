@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { OnEvent, OnJob } from 'src/decorators.js';
-import { AssetType, ImmichWorker, JobName, JobStatus, QueueName } from 'src/enum.js';
+import { AssetType, AssetVisibility, ImmichWorker, JobName, JobStatus, QueueName } from 'src/enum.js';
 import type { ArgOf } from 'src/repositories/event.repository.js';
 import { BaseService } from 'src/services/base.service.js';
 import type { JobOf } from 'src/types.js';
@@ -74,7 +74,13 @@ export class TranscriptionService extends BaseService {
       return JobStatus.Skipped;
     }
     const asset = await this.assetRepository.getById(id);
-    if (!asset || asset.type !== AssetType.Video || asset.deletedAt || asset.isOffline) {
+    if (
+      !asset ||
+      asset.type !== AssetType.Video ||
+      asset.deletedAt ||
+      asset.isOffline ||
+      asset.visibility === AssetVisibility.Hidden
+    ) {
       return JobStatus.Skipped;
     }
     const sourceChecksum = asset.checksum.toString('base64');
@@ -125,11 +131,13 @@ export class TranscriptionService extends BaseService {
       const audio = await this.mediaRepository.extractSpeech(asset.originalPath, start, end - start);
       let result: { text: string };
       try {
-        result = await this.machineLearningRepository.transcribe(
-          audio,
-          config,
-          `${configuration}-${sourceChecksum}-${start}-${transcript.requestAttempt ?? 0}`,
-        );
+        result = audio.subarray(44).every((sample) => sample === 0)
+          ? { text: '' }
+          : await this.machineLearningRepository.transcribe(
+              audio,
+              config,
+              `${configuration}-${sourceChecksum}-${start}-${transcript.requestAttempt ?? 0}`,
+            );
       } catch (error) {
         if (error instanceof TranscriptionProviderError && (error.status >= 500 || error.status === 429)) {
           transcript.requestAttempt = (transcript.requestAttempt ?? 0) + 1;

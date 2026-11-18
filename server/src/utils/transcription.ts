@@ -90,7 +90,8 @@ export class TranscriptionProviderError extends Error {
   }
 }
 
-export const speechWave = (pcm: Buffer) => {
+export const speechWave = (input: Buffer) => {
+  const pcm = input.length < 32_000 ? Buffer.concat([input, Buffer.alloc(32_000 - input.length)]) : input;
   const header = Buffer.alloc(44);
   header.write('RIFF', 0);
   header.writeUInt32LE(pcm.length + 36, 4);
