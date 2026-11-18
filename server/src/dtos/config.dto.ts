@@ -236,6 +236,7 @@ const AdminConfigSchemaWithVisibility = z
             model: z.string().min(1).default('v3_e2e_ctc'),
             language: z.string().default('ru'),
             apiKey: z.string().default(''),
+            searchMinSimilarity: z.number().min(0).max(1).default(0.85).meta({ format: 'double' }),
           })
           .default({
             enabled: false,
@@ -244,6 +245,7 @@ const AdminConfigSchemaWithVisibility = z
             model: 'v3_e2e_ctc',
             language: 'ru',
             apiKey: '',
+            searchMinSimilarity: 0.85,
           })
           .meta({ id: 'AdminConfigTranscriptionDto' }),
         availabilityChecks: z
@@ -714,6 +716,7 @@ export const defaults = Object.freeze<SystemConfig>({
       model: 'v3_e2e_ctc',
       language: 'ru',
       apiKey: '',
+      searchMinSimilarity: 0.85,
     },
     availabilityChecks: {
       enabled: true,

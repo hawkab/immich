@@ -256,6 +256,7 @@ export type AdminConfigTranscriptionDto = {
     language?: string;
     model?: string;
     provider?: Provider;
+    searchMinSimilarity?: number;
     url?: string;
 };
 export type AdminConfigMachineLearningDto = {
@@ -8810,6 +8811,7 @@ export enum JobName {
     VersionCheck = "VersionCheck",
     TranscriptionQueueAll = "TranscriptionQueueAll",
     Transcription = "Transcription",
+    TranscriptSearch = "TranscriptSearch",
     OcrQueueAll = "OcrQueueAll",
     Ocr = "Ocr",
     WorkflowAssetTrigger = "WorkflowAssetTrigger",

@@ -22,6 +22,7 @@ export const normalizeAdminConfig = (config: AdminConfigDto) => {
         model: value?.model ?? 'v3_e2e_ctc',
         language: value?.language ?? 'ru',
         apiKey: value?.apiKey ?? '',
+        searchMinSimilarity: value?.searchMinSimilarity ?? 0.85,
       },
     },
   };

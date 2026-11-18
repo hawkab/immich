@@ -4,6 +4,7 @@ import { AssetType, AssetVisibility, ImmichWorker, JobName, JobStatus, QueueName
 import type { ArgOf } from 'src/repositories/event.repository.js';
 import { BaseService } from 'src/services/base.service.js';
 import type { JobOf } from 'src/types.js';
+import { transcriptSearchTexts, transcriptTextChecksum } from 'src/utils/transcript-search.js';
 import {
   TRANSCRIPT_CHUNK_SECONDS,
   TRANSCRIPT_KEY,
@@ -64,6 +65,101 @@ export class TranscriptionService extends BaseService {
       force,
     )) {
       await this.jobRepository.queue({ name: JobName.Transcription, data: { id: asset.id, force } });
+    }
+    if (machineLearning.clip.enabled) {
+      for await (const asset of this.assetJobRepository.streamForTranscriptSearch(machineLearning.clip.modelName)) {
+        await this.jobRepository.queue({ name: JobName.TranscriptSearch, data: { id: asset.id } });
+      }
+    }
+    return JobStatus.Success;
+  }
+
+  @OnJob({ name: JobName.TranscriptSearch, queue: QueueName.SmartSearch })
+  async handleSearch({ id }: JobOf<JobName.TranscriptSearch>): Promise<JobStatus> {
+    const { machineLearning } = await this.getConfig({ withCache: false });
+    if (
+      this.stopping ||
+      !machineLearning.enabled ||
+      !machineLearning.transcription.enabled ||
+      !machineLearning.clip.enabled
+    ) {
+      return JobStatus.Skipped;
+    }
+    const asset = await this.assetRepository.getById(id);
+    if (
+      !asset ||
+      asset.type !== AssetType.Video ||
+      asset.deletedAt ||
+      asset.isOffline ||
+      asset.visibility === AssetVisibility.Hidden
+    ) {
+      return JobStatus.Skipped;
+    }
+    const saved = await this.assetRepository.getMetadataByKey(id, TRANSCRIPT_KEY);
+    const transcript = saved?.value;
+    if (!isTranscript(transcript) || transcript.sourceChecksum !== asset.checksum.toString('base64')) {
+      return JobStatus.Skipped;
+    }
+    const modelName = machineLearning.clip.modelName;
+    const parts = transcriptSearchTexts(transcript);
+    const existing = await this.searchRepository.getTranscriptSearch(id);
+    const byPart = new Map(existing.map((row) => [row.part, row]));
+    const embeddings = new Map(
+      existing
+        .filter((row) => row.modelName === modelName && row.configuration === transcript.configuration)
+        .map((row) => [row.contentChecksum, row.embedding]),
+    );
+    const textChecksum = transcriptTextChecksum(transcript.text);
+    for (const [part, text] of parts.entries()) {
+      const { machineLearning: current } = await this.getConfig({ withCache: false });
+      if (
+        this.stopping ||
+        !current.enabled ||
+        !current.transcription.enabled ||
+        !current.clip.enabled ||
+        current.clip.modelName !== modelName
+      ) {
+        return JobStatus.Skipped;
+      }
+      const contentChecksum = transcriptTextChecksum(text);
+      const cached = byPart.get(part);
+      if (
+        cached?.modelName === modelName &&
+        cached.configuration === transcript.configuration &&
+        cached.sourceChecksum === transcript.sourceChecksum &&
+        cached.textChecksum === textChecksum &&
+        cached.contentChecksum === contentChecksum &&
+        cached.partCount === parts.length
+      ) {
+        continue;
+      }
+      const embedding =
+        embeddings.get(contentChecksum) ??
+        (await this.machineLearningRepository.encodeText(text, { modelName, language: transcript.language }));
+      const vector: unknown = JSON.parse(embedding);
+      if (
+        !Array.isArray(vector) ||
+        vector.length === 0 ||
+        vector.some((value) => !(typeof value === 'number' && Number.isFinite(value))) ||
+        vector.every((value) => value === 0)
+      ) {
+        throw new Error('Transcript search provider returned an invalid embedding');
+      }
+      embeddings.set(contentChecksum, embedding);
+      await this.searchRepository.upsertTranscriptSearch({
+        assetId: id,
+        part,
+        partCount: parts.length,
+        sourceChecksum: transcript.sourceChecksum,
+        configuration: transcript.configuration,
+        modelName,
+        textChecksum,
+        contentChecksum,
+        embedding,
+      });
+    }
+    if (existing.some((row) => row.part >= parts.length)) {
+      await this.searchRepository.pruneTranscriptSearch(id, parts.length);
     }
     return JobStatus.Success;
   }
@@ -163,6 +259,9 @@ export class TranscriptionService extends BaseService {
         .join(' ');
       transcript.status = end >= duration ? 'complete' : 'processing';
       await this.assetRepository.upsertMetadata(id, [{ key: TRANSCRIPT_KEY, value: transcript }]);
+      if (snapshot.machineLearning.clip.enabled && result.text) {
+        await this.jobRepository.queue({ name: JobName.TranscriptSearch, data: { id } });
+      }
     }
     return JobStatus.Success;
   }

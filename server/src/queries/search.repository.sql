@@ -229,6 +229,10 @@ from
   "asset"
   inner join "asset_exif" on "asset"."id" = "asset_exif"."assetId"
   left join "smart_search" on "asset"."id" = "smart_search"."assetId"
+  left join lateral (
+    select
+      0 as score
+  ) as "transcript_match" on true
 where
   "asset"."fileCreatedAt" >= $1
   and "asset_exif"."lensModel" = $2
@@ -1856,6 +1860,10 @@ from
   "asset"
   left join "asset_exif" on "asset"."id" = "asset_exif"."assetId"
   left join "smart_search" on "asset"."id" = "smart_search"."assetId"
+  left join lateral (
+    select
+      0 as score
+  ) as "transcript_match" on true
 where
   "asset"."ownerId" = any ($1::uuid[])
   and (
@@ -1917,6 +1925,10 @@ from
   "asset"
   left join "asset_exif" on "asset"."id" = "asset_exif"."assetId"
   left join "smart_search" on "asset"."id" = "smart_search"."assetId"
+  left join lateral (
+    select
+      0 as score
+  ) as "transcript_match" on true
 where
   "asset"."ownerId" = any ($1::uuid[])
   and (
@@ -1981,6 +1993,10 @@ from
   "asset"
   left join "asset_exif" on "asset"."id" = "asset_exif"."assetId"
   left join "smart_search" on "asset"."id" = "smart_search"."assetId"
+  left join lateral (
+    select
+      0 as score
+  ) as "transcript_match" on true
 where
   "asset"."ownerId" = any ($1::uuid[])
   and (

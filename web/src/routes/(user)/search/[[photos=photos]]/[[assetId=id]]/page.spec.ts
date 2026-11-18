@@ -2,6 +2,7 @@ import { searchManager } from '#lib/managers/search-manager.svelte.ts';
 import { Route } from '#lib/route.ts';
 import { factory } from '#test/unit/factories.ts';
 import { test } from '#test/unit/fixtures.ts';
+import { AssetTypeEnum } from '@immich/sdk';
 import { expect } from 'vitest';
 import Page from './+page.svelte';
 import { load } from './+page.ts';
@@ -43,4 +44,23 @@ test('untagged replaces the tags and toggling it off restores none', async ({ ro
 
   await app.search.tags.untaggedButton().click();
   expect([...(searchManager.filter.tagIds ?? [])]).toEqual([]);
+});
+
+test('ordinary Context text uses smart search and keeps the video filter without a speech prefix', async ({
+  data,
+  api,
+  router,
+  render,
+  settle,
+}) => {
+  data.userConfig.machineLearning.enabled = true;
+  data.userConfig.machineLearning.clip.enabled = true;
+  api.on({ searchSmart: () => ({ json: data.searchAssets({}) }) });
+  await router.goto(Route.search({ query: 'поездка к доктору', type: AssetTypeEnum.Video }));
+  await render(Page, load);
+  await settle();
+  expect(api.searchSmart).toHaveBeenCalledWith({
+    body: expect.objectContaining({ query: 'поездка к доктору', type: AssetTypeEnum.Video }),
+  });
+  expect(api.searchAssets).not.toHaveBeenCalled();
 });

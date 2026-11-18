@@ -278,8 +278,9 @@ export class JobRepository {
       case JobName.TranscriptionQueueAll: {
         return { deduplication: { id: JobName.TranscriptionQueueAll } };
       }
+      case JobName.TranscriptSearch:
       case JobName.Transcription: {
-        return { deduplication: { id: `${JobName.Transcription}-${item.data.id}` } };
+        return { deduplication: { id: `${item.name}-${item.data.id}` } };
       }
       case JobName.VersionCheck: {
         return { deduplication: { id: JobName.VersionCheck } };

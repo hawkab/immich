@@ -86,6 +86,7 @@ import { SystemMetadataTable } from 'src/schema/tables/system-metadata.table.js'
 import { TagAssetTable } from 'src/schema/tables/tag-asset.table.js';
 import { TagClosureTable } from 'src/schema/tables/tag-closure.table.js';
 import { TagTable } from 'src/schema/tables/tag.table.js';
+import { TranscriptSearchTable } from 'src/schema/tables/transcript-search.table.js';
 import { UserAuditTable } from 'src/schema/tables/user-audit.table.js';
 import { UserMetadataAuditTable } from 'src/schema/tables/user-metadata-audit.table.js';
 import { UserMetadataTable } from 'src/schema/tables/user-metadata.table.js';
@@ -152,6 +153,7 @@ export class ImmichDatabase {
     SharedLinkAssetTable,
     SharedLinkTable,
     SmartSearchTable,
+    TranscriptSearchTable,
     StackTable,
     StackAuditTable,
     SessionSyncCheckpointTable,
@@ -286,6 +288,7 @@ export interface DB {
   shared_link_asset: SharedLinkAssetTable;
 
   smart_search: SmartSearchTable;
+  transcript_search: TranscriptSearchTable;
 
   stack: StackTable;
   stack_audit: StackAuditTable;

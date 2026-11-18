@@ -323,6 +323,35 @@ export class AssetJobRepository {
       .executeTakeFirst();
   }
 
+  streamForTranscriptSearch(modelName: string) {
+    return this.db
+      .selectFrom('asset')
+      .select('asset.id')
+      .innerJoin('asset_metadata as transcript', (join) =>
+        join.onRef('transcript.assetId', '=', 'asset.id').on('transcript.key', '=', 'org.immich.transcript.v1'),
+      )
+      .where('asset.type', '=', sql.lit(AssetType.Video))
+      .where('asset.deletedAt', 'is', null)
+      .where('asset.visibility', '!=', sql.lit(AssetVisibility.Hidden))
+      .where('asset.isOffline', '=', false)
+      .where(
+        sql<boolean>`transcript.value->>'schemaVersion' = '1'
+        and transcript.value->>'sourceChecksum' = encode(asset.checksum, 'base64')
+        and transcript.value->>'status' in ('processing', 'complete')
+        and coalesce(transcript.value->>'text', '') <> ''
+        and not exists (
+          select 1 from transcript_search speech where speech."assetId" = asset.id
+            and speech."sourceChecksum" = transcript.value->>'sourceChecksum'
+            and speech.configuration = transcript.value->>'configuration'
+            and speech."modelName" = ${modelName}
+            and speech."textChecksum" = md5(transcript.value->>'text')
+          group by speech."partCount" having count(*) = speech."partCount"
+        )`,
+      )
+      .orderBy('asset.createdAt', 'desc')
+      .stream();
+  }
+
   streamForTranscription(configuration: string, force?: boolean) {
     return this.db
       .selectFrom('asset')

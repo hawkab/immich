@@ -28,6 +28,12 @@ import { AssetTable } from 'src/schema/tables/asset.table.js';
   expression: "to_tsvector('simple'::regconfig, coalesce(value->>'text', ''))",
   where: "key = 'org.immich.transcript.v1'",
 })
+@Index({
+  name: 'asset_metadata_transcript_trgm_idx',
+  using: 'gin',
+  expression: "lower(coalesce(value->>'text', '')) gin_trgm_ops",
+  where: "key = 'org.immich.transcript.v1'",
+})
 @AfterDeleteTrigger({
   scope: 'statement',
   function: asset_metadata_audit,

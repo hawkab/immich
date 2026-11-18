@@ -1,5 +1,6 @@
 import { AssetType, JobStatus } from 'src/enum.js';
 import { TranscriptionService } from 'src/services/transcription.service.js';
+import { transcriptTextChecksum } from 'src/utils/transcript-search.js';
 import { TRANSCRIPT_KEY, TranscriptionProviderError } from 'src/utils/transcription.js';
 import { AssetFactory } from 'test/factories/asset.factory.js';
 import { newTestService } from 'test/utils.js';
@@ -130,4 +131,72 @@ it('respects the global machine learning switch', async () => {
   mocks.systemMetadata.get.mockResolvedValue({ machineLearning: { enabled: false, transcription: { enabled: true } } });
   expect(await sut.handleTranscription({ id: asset.id })).toBe(JobStatus.Skipped);
   expect(mocks.media.extractSpeech).not.toHaveBeenCalled();
+});
+
+const indexSetup = async () => {
+  const state = setup();
+  state.mocks.machineLearning.transcribe
+    .mockResolvedValueOnce({ text: 'Первый фрагмент' })
+    .mockResolvedValueOnce({ text: 'Второй фрагмент' })
+    .mockResolvedValueOnce({ text: 'Третий фрагмент' });
+  await state.sut.handleTranscription({ id: state.asset.id });
+  const rows: Array<Record<string, unknown>> = [];
+  state.mocks.search.getTranscriptSearch.mockImplementation(() => Promise.resolve(structuredClone(rows) as never));
+  state.mocks.search.upsertTranscriptSearch.mockImplementation((row) => {
+    rows[row.part] = structuredClone(row);
+    return Promise.resolve([]);
+  });
+  state.mocks.search.pruneTranscriptSearch.mockResolvedValue([]);
+  state.mocks.machineLearning.encodeText.mockResolvedValue('[1,0]');
+  return { ...state, rows };
+};
+
+describe('speech meaning index', () => {
+  it('indexes accepted speech independently and reuses unchanged vectors after restart', async () => {
+    const { sut, mocks, asset, saved, rows } = await indexSetup();
+    expect(await sut.handleSearch({ id: asset.id })).toBe(JobStatus.Success);
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toMatchObject({
+      assetId: asset.id,
+      part: 0,
+      partCount: 3,
+      sourceChecksum: asset.checksum.toString('base64'),
+      textChecksum: transcriptTextChecksum(String(saved()?.text)),
+    });
+    await sut.handleSearch({ id: asset.id });
+    expect(mocks.machineLearning.encodeText).toHaveBeenCalledTimes(3);
+    expect(mocks.machineLearning.transcribe).toHaveBeenCalledTimes(3);
+  });
+
+  it('resumes from persisted vectors after an embedding-provider outage', async () => {
+    const { sut, mocks, asset, rows } = await indexSetup();
+    mocks.machineLearning.encodeText.mockResolvedValueOnce('[1,0]').mockRejectedValueOnce(new Error('ML offline'));
+    await expect(sut.handleSearch({ id: asset.id })).rejects.toThrow('ML offline');
+    expect(rows).toHaveLength(1);
+    await sut.handleSearch({ id: asset.id });
+    expect(rows).toHaveLength(3);
+    expect(mocks.machineLearning.encodeText).toHaveBeenCalledTimes(4);
+  });
+
+  it('rejects invalid provider vectors without persisting a poisoned search row', async () => {
+    const { sut, mocks, asset, rows } = await indexSetup();
+    mocks.machineLearning.encodeText.mockResolvedValue('[0,0]');
+    await expect(sut.handleSearch({ id: asset.id })).rejects.toThrow('invalid embedding');
+    expect(rows).toHaveLength(0);
+  });
+
+  it('does not index changed sources, disabled models or work after shutdown', async () => {
+    const { sut, mocks, asset, rows } = await indexSetup();
+    mocks.asset.getById.mockResolvedValue({ ...asset, checksum: Buffer.from('changed') } as never);
+    expect(await sut.handleSearch({ id: asset.id })).toBe(JobStatus.Skipped);
+    expect(rows).toHaveLength(0);
+    mocks.asset.getById.mockResolvedValue(asset as never);
+    mocks.systemMetadata.get.mockResolvedValue({
+      machineLearning: { transcription: { enabled: true }, clip: { enabled: false } },
+    });
+    expect(await sut.handleSearch({ id: asset.id })).toBe(JobStatus.Skipped);
+    sut.onShutdown();
+    expect(await sut.handleSearch({ id: asset.id })).toBe(JobStatus.Skipped);
+    expect(mocks.machineLearning.encodeText).not.toHaveBeenCalled();
+  });
 });

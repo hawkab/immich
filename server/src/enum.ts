@@ -967,6 +967,7 @@ export enum JobName {
   // OCR
   TranscriptionQueueAll = 'TranscriptionQueueAll',
   Transcription = 'Transcription',
+  TranscriptSearch = 'TranscriptSearch',
   OcrQueueAll = 'OcrQueueAll',
   Ocr = 'Ocr',
 

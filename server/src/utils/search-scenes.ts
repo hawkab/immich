@@ -1,5 +1,4 @@
 import { sql, type SqlBool } from 'kysely';
-import { transcriptMatches } from 'src/utils/transcription.js';
 
 export const SCENE_DESCRIPTION_KEY = 'org.immich.scene.v1';
 
@@ -37,7 +36,7 @@ export const smartSearchEvidence = (options: {
   includeDepictions?: boolean;
   minSimilarity?: number | null;
 }) => {
-  const speech = options.transcriptQuery ? transcriptMatches(options.transcriptQuery) : sql<SqlBool>`false`;
+  const speech = options.transcriptQuery ? sql<SqlBool>`transcript_match.score > 0` : sql<SqlBool>`false`;
   if (options.transcriptOnly) {
     return speech;
   }
