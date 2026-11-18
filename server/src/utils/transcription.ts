@@ -79,8 +79,12 @@ export class TranscriptionProviderError extends Error {
   }
 }
 
-export const speechWave = (input: Buffer) => {
-  const pcm = input.length < 32_000 ? Buffer.concat([input, Buffer.alloc(32_000 - input.length)]) : input;
+export const speechWave = (input: Buffer, duration?: number) => {
+  if (duration !== undefined && (!Number.isFinite(duration) || duration <= 0)) {
+    throw new RangeError('Speech window duration must be finite and positive');
+  }
+  const samples = duration === undefined ? input : input.subarray(0, Math.round(duration * 16_000) * 2);
+  const pcm = samples.length < 32_000 ? Buffer.concat([samples, Buffer.alloc(32_000 - samples.length)]) : samples;
   const header = Buffer.alloc(44);
   header.write('RIFF', 0);
   header.writeUInt32LE(pcm.length + 36, 4);

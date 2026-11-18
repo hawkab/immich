@@ -270,7 +270,7 @@ export class MediaRepository {
         .audioCodec('pcm_s16le')
         .format('s16le')
         .on('error', reject)
-        .on('end', () => resolve(speechWave(Buffer.concat(chunks))))
+        .on('end', () => resolve(speechWave(Buffer.concat(chunks), duration)))
         .pipe(output);
     });
   }

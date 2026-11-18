@@ -31,3 +31,29 @@ it('finalizes the PCM WAV length so GigaAM does not mistake streamed WAV headers
   expect(audio.readUInt32LE(24)).toBe(16_000);
   expect(audio.readUInt32LE(40) / audio.readUInt32LE(28)).toBe(24);
 });
+
+it('bounds decoded AAC overshoot to the requested sample window instead of creating a tiny provider tail', () => {
+  const frames = 24 * 16_000;
+  const decoded = Buffer.alloc((frames + 6) * 2);
+  decoded.writeInt16LE(1234, 0);
+  decoded.writeInt16LE(5678, (frames - 1) * 2);
+  const wave = speechWave(decoded, 24);
+  expect(wave.readUInt32LE(40)).toBe(frames * 2);
+  expect(wave.length).toBe(frames * 2 + 44);
+  expect(wave.readInt16LE(44)).toBe(1234);
+  expect(wave.readInt16LE(wave.length - 2)).toBe(5678);
+  expect(wave.readUInt32LE(40) / wave.readUInt32LE(28)).toBe(24);
+});
+
+it('keeps every shorter decoded sample and pads short tails for the speech model', () => {
+  const samples = Buffer.alloc(100);
+  samples.writeInt16LE(4321, 98);
+  const wave = speechWave(samples, 0.5);
+  expect(wave.readUInt32LE(40)).toBe(32_000);
+  expect(wave.subarray(44, 144)).toEqual(samples);
+  expect(wave.subarray(144).every((byte) => byte === 0)).toBe(true);
+});
+
+it.each([0, -1, NaN, Infinity])('rejects invalid speech window duration %s', (duration) => {
+  expect(() => speechWave(Buffer.alloc(100), duration)).toThrow(RangeError);
+});
