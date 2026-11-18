@@ -15,6 +15,7 @@ import {
 
 @Injectable()
 export class TranscriptionService extends BaseService {
+  private stopping = false;
   private recoveryInterval?: ReturnType<typeof setInterval>;
 
   @OnEvent({ name: 'ConfigInit', workers: [ImmichWorker.Api] })
@@ -31,14 +32,15 @@ export class TranscriptionService extends BaseService {
     return this.schedule();
   }
 
-  @OnEvent({ name: 'AppShutdown' })
+  @OnEvent({ name: 'AppShutdown', priority: -1 })
   onShutdown() {
+    this.stopping = true;
     clearInterval(this.recoveryInterval);
   }
 
   private async schedule() {
     const { machineLearning } = await this.getConfig({ withCache: false });
-    if (machineLearning.transcription.enabled) {
+    if (machineLearning.enabled && machineLearning.transcription.enabled) {
       await this.jobRepository.queue({ name: JobName.TranscriptionQueueAll, data: {} });
     }
   }
@@ -46,7 +48,7 @@ export class TranscriptionService extends BaseService {
   @OnEvent({ name: 'AssetMetadataExtracted', workers: [ImmichWorker.Microservices] })
   async onAssetMetadata({ assetId }: ArgOf<'AssetMetadataExtracted'>) {
     const { machineLearning } = await this.getConfig({ withCache: false });
-    if (machineLearning.transcription.enabled) {
+    if (machineLearning.enabled && machineLearning.transcription.enabled) {
       await this.jobRepository.queue({ name: JobName.Transcription, data: { id: assetId } });
     }
   }
@@ -54,7 +56,7 @@ export class TranscriptionService extends BaseService {
   @OnJob({ name: JobName.TranscriptionQueueAll, queue: QueueName.Transcription })
   async handleQueue({ force }: JobOf<JobName.TranscriptionQueueAll>): Promise<JobStatus> {
     const { machineLearning } = await this.getConfig({ withCache: false });
-    if (!machineLearning.transcription.enabled) {
+    if (!machineLearning.enabled || !machineLearning.transcription.enabled) {
       return JobStatus.Skipped;
     }
     for await (const asset of this.assetJobRepository.streamForTranscription(
@@ -70,7 +72,7 @@ export class TranscriptionService extends BaseService {
   async handleTranscription({ id, force }: JobOf<JobName.Transcription>): Promise<JobStatus> {
     const { machineLearning } = await this.getConfig({ withCache: false });
     const config = machineLearning.transcription;
-    if (!config.enabled) {
+    if (this.stopping || !machineLearning.enabled || !config.enabled) {
       return JobStatus.Skipped;
     }
     const asset = await this.assetRepository.getById(id);
@@ -119,7 +121,12 @@ export class TranscriptionService extends BaseService {
     while (transcript.nextStart < duration) {
       const snapshot = await this.getConfig({ withCache: false });
       const currentConfig = snapshot.machineLearning.transcription;
-      if (!currentConfig.enabled || transcriptionIdentity(currentConfig) !== configuration) {
+      if (
+        this.stopping ||
+        !snapshot.machineLearning.enabled ||
+        !currentConfig.enabled ||
+        transcriptionIdentity(currentConfig) !== configuration
+      ) {
         return JobStatus.Skipped;
       }
       const currentAsset = await this.assetRepository.getById(id);

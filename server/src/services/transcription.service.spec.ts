@@ -113,3 +113,21 @@ it('finishes silent tails without sending empty audio to the provider', async ()
   expect(saved()).toMatchObject({ status: 'complete', nextStart: 50, text: '' });
   expect(mocks.machineLearning.transcribe).not.toHaveBeenCalled();
 });
+
+it('checkpoints before stopping and does not start the next audio segment', async () => {
+  const { sut, mocks, asset, saved } = setup();
+  mocks.machineLearning.transcribe.mockImplementationOnce(() => {
+    sut.onShutdown();
+    return Promise.resolve({ text: 'Фрагмент до остановки' });
+  });
+  expect(await sut.handleTranscription({ id: asset.id })).toBe(JobStatus.Skipped);
+  expect(saved()).toMatchObject({ status: 'processing', nextStart: 24, text: 'Фрагмент до остановки' });
+  expect(mocks.machineLearning.transcribe).toHaveBeenCalledTimes(1);
+});
+
+it('respects the global machine learning switch', async () => {
+  const { sut, mocks, asset } = setup();
+  mocks.systemMetadata.get.mockResolvedValue({ machineLearning: { enabled: false, transcription: { enabled: true } } });
+  expect(await sut.handleTranscription({ id: asset.id })).toBe(JobStatus.Skipped);
+  expect(mocks.media.extractSpeech).not.toHaveBeenCalled();
+});
