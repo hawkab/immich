@@ -15,6 +15,7 @@ def process(owner, registry, profile, events, cache, now, *, should_stop=lambda:
     stats = {'assets': len(assets), 'changed_assets': len(changed), 'albums': 0,
              'excluded_burial': len(excluded), 'waiting_for_scene': len(waiting), 'errors': []}
     scope = 'albums:' + owner.id
+    summaries = {album['id']: album for album in owner.owned_albums()}
     for key, record in registry.rows(scope).items():
         if key not in groups and record.get('phase') not in ('deleted', 'detached'):
             groups[key] = {'key': key, 'title': '', 'theme': '', 'assets': [], 'input_digest': digest([])}
@@ -22,6 +23,16 @@ def process(owner, registry, profile, events, cache, now, *, should_stop=lambda:
         if should_stop():
             break
         try:
+            previous = registry.get(scope, group['key'], {})
+            summary = summaries.get(previous.get('album_id'), {})
+            if (summary.get('updatedAt') is not None and previous.get('phase') == 'active'
+                    and previous.get('membership_phase') == 'verified'
+                    and previous.get('input_digest') == group['input_digest']
+                    and previous.get('native_updated_at') == summary['updatedAt']
+                    and previous.get('native_asset_count') == summary.get('assetCount')
+                    and previous.get('marker') in summary.get('description', '').splitlines()):
+                stats['albums'] += 1
+                continue
             record = sync_album(owner, registry, group,
                 share_with=profile.get('share_with', {}).get(owner.id, []), excluded_ids=set(excluded))
             if record.get('phase') == 'active':
