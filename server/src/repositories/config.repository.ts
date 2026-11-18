@@ -29,6 +29,7 @@ export interface EnvData {
   port: number;
   environment: ImmichEnvironment;
   configFile?: string;
+  memoryEventsDir?: string;
   logLevel?: LogLevel;
   logFormat?: LogFormat;
 
@@ -369,6 +370,8 @@ const getEnv = (): EnvData => {
     },
 
     redis: redisConfig,
+
+    ...(dto.IMMICH_MEMORIES_EVENTS_DIR && { memoryEventsDir: dto.IMMICH_MEMORIES_EVENTS_DIR }),
 
     resourcePaths: {
       lockFile: join(buildFolder, 'build-lock.json'),
