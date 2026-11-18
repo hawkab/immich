@@ -8,7 +8,7 @@ import { PersonId } from 'src/repositories/person.repository.js';
 import { DB } from 'src/schema/index.js';
 import { asUuid } from 'src/utils/database.js';
 
-const editablePartnerAssets = (db: Kysely<DB>, userId: string) =>
+export const editablePartnerAssets = (db: Kysely<DB>, userId: string) =>
   db
     .selectFrom('partner')
     .innerJoin('user as sharedBy', (join) =>

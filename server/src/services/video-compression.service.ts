@@ -203,7 +203,7 @@ export class VideoCompressionService extends BaseService {
         asset.deletedAt ||
         asset.isOffline ||
         asset.libraryId ||
-        !(await this.videoCompressionRepository.hasEditAccess(asset.ownerId, draft.actorId))
+        !(await this.videoCompressionRepository.hasEditAccess(asset.id, draft.actorId))
       ) {
         throw new Error('The original changed or is unavailable. Create a new preview');
       }
