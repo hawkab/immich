@@ -1,7 +1,7 @@
 import { Route } from '#lib/route.ts';
 import { test } from '#test/unit/fixtures.ts';
 import { expect } from 'vitest';
-import { userEvent } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import Page from './+page.svelte';
 import { load } from './+page.ts';
 
@@ -28,9 +28,7 @@ test('a number setting can be emptied while editing', async ({ app }) => {
 });
 
 describe('video transcription settings', () => {
-  test('exposes Raspberry GigaAM defaults and an editable provider', async ({ router, render, app }) => {
-    await router.goto(Route.systemSettings());
-    await render(Page, load);
+  test('exposes Raspberry GigaAM defaults and an editable provider', async ({ app }) => {
     await app.admin.settings.open('admin.machine_learning_settings');
     await app.admin.settings.open('admin.video_transcription');
     await expect

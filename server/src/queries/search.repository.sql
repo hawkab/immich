@@ -235,7 +235,14 @@ where
   and "asset"."ownerId" = any ($3::uuid[])
   and "asset"."isFavorite" = $4
   and "asset"."deletedAt" is null
-  and "smart_search"."assetId" is not null
+  and (
+    (
+      smart_search."assetId" is not null
+      and true
+      and true
+    )
+    or false
+  )
 order by
   smart_search.embedding <=> $5,
   "asset"."id" asc
@@ -1856,7 +1863,14 @@ where
     or "asset"."ownerId" = $3
   )
   and true
-  and "smart_search"."assetId" is not null
+  and (
+    (
+      smart_search."assetId" is not null
+      and true
+      and true
+    )
+    or false
+  )
 order by
   smart_search.embedding <=> $4,
   "asset"."id" asc
@@ -1913,7 +1927,14 @@ where
     "asset"."fileCreatedAt" < $4
     and "asset"."fileCreatedAt" >= $5
   )
-  and "smart_search"."assetId" is not null
+  and (
+    (
+      smart_search."assetId" is not null
+      and true
+      and true
+    )
+    or false
+  )
 order by
   smart_search.embedding <=> $6,
   "asset"."id" asc
@@ -1967,7 +1988,14 @@ where
     or "asset"."ownerId" = $3
   )
   and true
-  and "smart_search"."assetId" is not null
+  and (
+    (
+      smart_search."assetId" is not null
+      and true
+      and true
+    )
+    or false
+  )
 order by
   smart_search.embedding <=> $4,
   "asset"."id" asc
