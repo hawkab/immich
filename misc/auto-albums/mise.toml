@@ -1,0 +1,9 @@
+[tasks.test]
+dir = "{{config_root}}"
+env = { PYTHONPATH = "{{config_root}}" }
+run = "python3 -m unittest discover -s tests -v"
+
+[tasks.test-render]
+dir = "{{config_root}}"
+env = { PYTHONPATH = "{{config_root}}" }
+run = "python3 -m unittest discover -s tests -p 'test_render*.py' -v"
