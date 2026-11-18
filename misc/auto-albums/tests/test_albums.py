@@ -1,6 +1,4 @@
-import base64
 import copy
-import hashlib
 import tempfile
 from pathlib import Path
 import unittest
@@ -12,8 +10,8 @@ from photo_memories.state import Registry
 class FakeOwner:
     def __init__(self):
         self.id, self.albums, self.assets = 'owner', {}, {}
-        self.writes, self.uploads, self.tags = [], [], {}
-        self.lose_create, self.lose_upload = False, False
+        self.writes, self.tags = [], {}
+        self.lose_create = False
         self.lose_membership = False
 
     def album(self, identity):
@@ -49,11 +47,6 @@ class FakeOwner:
                     raise AssertionError(method)
             album['assets'] = list(current.values())
             return []
-        if path == '/assets/bulk-upload-check':
-            request = value['assets'][0]
-            match = next((asset for asset in self.assets.values() if asset.get('checksum') == request['checksum']), None)
-            return {'results': [{'id': request['id'], 'action': 'reject' if match else 'accept',
-                                 **({'assetId': match['id'], 'isTrashed': match.get('isTrashed', False)} if match else {})}]}
         if path.startswith('/assets/'):
             identity = path.split('/')[2]
             if path.endswith('/metadata') and method == 'PUT':
@@ -65,15 +58,6 @@ class FakeOwner:
             return copy.deepcopy(self.assets[identity])
         raise AssertionError((path, value, method))
 
-    def upload(self, path, *, name, created_at):
-        self.uploads.append(name)
-        identity = 'video-' + str(len(self.uploads))
-        checksum = base64.b64encode(hashlib.sha1(Path(path).read_bytes()).digest()).decode()
-        self.assets[identity] = {'id': identity, 'ownerId': self.id, 'type': 'VIDEO', 'originalFileName': name,
-                                 'checksum': checksum, 'visibility': 'archive'}
-        if self.lose_upload:
-            raise ConnectionError('Synthetic committed upload lost reply')
-        return identity
 
 
 class AlbumFixture:

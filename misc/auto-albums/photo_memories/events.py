@@ -54,18 +54,3 @@ def wait_for_changes(directory, seconds):
             os.read(descriptor, 65536)
     finally:
         os.close(descriptor)
-
-
-def pending_sources(directory, registry):
-    for path in Path(directory).glob('*.json'):
-        try:
-            value = json.loads(path.read_text())
-        except FileNotFoundError:
-            continue
-        except ValueError:
-            return True
-        if not isinstance(value, dict) or 'ownerId' not in value or 'assetId' not in value:
-            return True
-        if not registry.get('generated:' + value['ownerId'], value['assetId']):
-            return True
-    return False

@@ -17,7 +17,7 @@ from .status import save_status
 STOP = Event()
 
 
-def run(profile, *, once=False, render_key=None):
+def run(profile, *, once=False):
     os.umask(0o077)
     directory = Path(profile['state_directory'])
     directory.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -25,13 +25,10 @@ def run(profile, *, once=False, render_key=None):
         fcntl.flock(lock, fcntl.LOCK_EX)
         registry = Registry(directory / 'registry.sqlite3')
         sessions = {}
-        continuation = False
         try:
             while not STOP.is_set():
                 now = datetime.now(timezone.utc)
                 events = list(claim(profile['event_directory'], directory / 'claimed'))
-                if any(not registry.get('generated:' + owner_id, asset_id) for _, owner_id, asset_id in events):
-                    continuation = False
                 cache = scene_cache(profile.get('scene_cache'))
                 accounts = [Path(profile['credential_directory']) / 'login.json']
                 accounts += sorted((Path(profile['credential_directory']) / 'users').glob('*.login.json'))
@@ -45,7 +42,7 @@ def run(profile, *, once=False, render_key=None):
                         if owner is None:
                             owner = sessions[credential] = Owner(profile, credential)
                         status['owners'][owner.id] = process(owner, registry, profile, events, cache, now,
-                                                              render_key=render_key, should_stop=STOP.is_set, continuation=continuation)
+                                                              should_stop=STOP.is_set)
                         save_status(directory / 'STATUS.json', status)
                     except Exception as error:
                         identity = owner.id if owner else 'credential:' + credential.name
@@ -60,9 +57,6 @@ def run(profile, *, once=False, render_key=None):
                     return status
                 if STOP.is_set():
                     return status
-                continuation = any(value.get('continue_pending') for value in status['owners'].values())
-                if continuation:
-                    continue
                 wait_for_changes(profile['event_directory'], profile.get('poll_seconds', 60))
         finally:
             for owner in sessions.values():
@@ -79,9 +73,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('profile', type=Path)
     parser.add_argument('--once', action='store_true')
-    parser.add_argument('--render-key')
     args = parser.parse_args()
-    result = run(json.loads(args.profile.read_text()), once=args.once, render_key=args.render_key)
+    result = run(json.loads(args.profile.read_text()), once=args.once)
     if result:
         print(json.dumps(result, ensure_ascii=False))
 

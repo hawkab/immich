@@ -18,7 +18,7 @@ def managed_album(owner, record):
     return album, 'active'
 
 
-def sync_album(owner, registry, bucket, *, share_with=()):
+def sync_album(owner, registry, bucket, *, share_with=(), excluded_ids=frozenset()):
     scope, key = 'albums:' + owner.id, bucket['key']
     record = registry.get(scope, key)
 
@@ -26,7 +26,7 @@ def sync_album(owner, registry, bucket, *, share_with=()):
         registry.put(scope, key, record)
         return record
 
-    desired = {asset['id'] for asset in bucket['assets']}
+    desired = {asset['id'] for asset in bucket['assets']} - excluded_ids
     if any(asset.get('ownerId') != owner.id or asset.get('isTrashed') for asset in bucket['assets']):
         raise PermissionError('Automatic albums accept only current assets of this owner')
     if record and record['phase'] in ('deleted', 'detached'):
@@ -73,10 +73,8 @@ def sync_album(owner, registry, bucket, *, share_with=()):
     managed |= uncertain & current
     uncertain -= current
     uncertain_removals &= current
-    if record.get('video_id') and record['video_id'] not in current:
-        record['video_suppressed'] = True
     add = desired - exclusions - uncertain - current
-    remove = (managed & current) - desired
+    remove = ((managed & current) - desired) | (current & excluded_ids)
     record['exclusions'] = sorted(exclusions)
     if add or remove:
         record['pending_membership'] = {'add': sorted(add), 'remove': sorted(remove)}

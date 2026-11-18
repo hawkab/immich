@@ -1,58 +1,46 @@
-# Automatic albums and memory movies
+# Automatic photo albums
 
 Author: Olshansky Grigory.
 
-New uploads join stable albums by capture month, confirmed subjects and recorded
-location. Late imports are grouped by the date the picture was taken. A late
-earlier picture keeps the existing city/month collection instead of creating a
-second album. All matching originals remain members; highlight selection only
-affects the short movie.
+Uploads join stable albums by capture month, visible subjects and recorded
+location after source-bound scene analysis is available. Late imports use the
+capture date. All eligible originals remain album members.
 
-Memories use chronological, diverse frames with original procedural music, gentle
-movement and a final collage. Portraits fit completely over a blurred background.
-Native duplicate groups and favorites guide selection. Screenshots and documents
-are organized separately and do not become family highlight movies. Videos use
-their native display frame in this version.
+Graves, gravestones, cemeteries, burials and mourning scenes are excluded from
+all automatic collections, including date and location albums. Confirmed
+exclusions are remembered by original checksum so another caption or duplicate
+import does not reintroduce them. Original files remain in the photo library and
+search. Ordinary public monuments, flower wreaths and toys are not burial evidence.
+A portrait depicted on an object does not by itself mean games or creativity.
 
-The default presentation is 45 seconds. This is an editable movie format, not an
-execution deadline. Albums are updated first; one render runs at a time and yields
-to newly arriving source events. Current events settle briefly before an edition;
-historical collections can be rendered after their initial snapshot. The registry
-caches output and safely reconciles uncertain publication without duplicate albums
-or films. Generated output never becomes a new source for its own curation.
+The worker does not generate videos, music, collages or derived media. The signed
+installer retires outputs from the previous generator: an owner-bound metadata
+marker or exact persisted upload receipt must prove their origin. Only those
+videos are detached from albums and moved to the recoverable native Trash.
+Original photographs and authored videos are preserved. Verified legacy cache
+files are removed while diagnostic receipts remain.
 
-Automatic albums have an ownership marker in their description. Changing their
-name or cover preserves the user's choice. Removing the marker detaches the album
-from automatic maintenance; deleting an automatic album does not recreate it.
-Manual additions remain, manual removals become exclusions, and deleting a
-generated film suppresses automatic replacement. Retired films remain archived;
-the worker changes only its album membership and never deletes originals.
+Managed albums preserve user names, covers, additions and exclusions. Removing
+the description marker detaches an album; deleting an album does not recreate it.
+The burial policy also removes known burial photographs manually added to a
+managed collection. Independently authored albums are not maintained by this worker.
 
-Each configured account is processed with its own native session. Inputs and
-generated films remain owner-scoped. Sharing is private by default and uses native
-album roles only when explicitly configured. Secrets, event receipts and source
-images belong in the protected operational directory, outside this repository.
-
-The event spool provides immediate dirty signals. Incremental API reconciliation
-and a daily metadata-only census recover missed events. Existing source-bound
-scene descriptions are reused without a second whole-library model pass.
-Edited previews require a producer-bound immutable generation and actual native
-media kind; legacy output requests a targeted native thumbnail job.
+Each account uses its own native session and albums are private by default.
+Native upload and metadata events plus incremental and daily API reconciliation
+keep memberships current. Accepted work survives restarts; uncertain writes are
+read back before another mutation. Native album-scoped timeline queries supply
+actual membership, including partner additions and archived media.
 
 ## Tests and execution
 
-Dependencies: Python, Pillow, NumPy, FFmpeg with libx264/AAC and DejaVu Sans.
+The album worker uses the Python standard library. The existing scene indexer
+retains its independent image-processing dependencies.
 
 ```sh
 mise //misc/auto-albums:test
-PYTHONPATH=misc/auto-albums python3 -m photo_memories.runtime /protected/memory-profile.json
+PYTHONPATH=misc/auto-albums python3 -m photo_memories.runtime /protected/album-profile.json
 ```
 
-The common Proxmox installer provisions dependencies, the encrypted event spool,
-native event hooks and the single-consumer service on the application node.
-
-The design draws on [Google Photos highlight videos](https://support.google.com/photos/answer/6128862)
-and [Apple Photos memories](https://support.apple.com/guide/iphone/iphee2ee53fe/ios):
-people, places and activities define the collection; a paced story and music
-define the movie. It uses the existing [Immich API](https://api.immich.app/)
-and [FFmpeg filters](https://ffmpeg.org/ffmpeg-filters.html).
+The common installer provisions the encrypted event spool, source manifest,
+legacy-output retirement and single-consumer service. Credentials, family images
+and operational receipts remain outside this repository.
