@@ -29,6 +29,7 @@ export class ImmichFileResponse {
   public readonly contentType!: string;
   public readonly cacheControl!: CacheControl;
   public readonly fileName?: string;
+  public readonly headers?: Record<string, string>;
 
   constructor(response: ImmichFileResponse) {
     Object.assign(this, response);
@@ -66,6 +67,9 @@ export const sendFile = async (
     }
 
     res.header('Content-Type', file.contentType);
+    for (const [name, value] of Object.entries(file.headers ?? {})) {
+      res.header(name, value);
+    }
     if (file.fileName) {
       res.header('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`);
     }

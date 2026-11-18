@@ -588,7 +588,8 @@ where
 select
   "asset"."originalPath",
   "asset"."originalFileName",
-  "asset_file"."path" as "path"
+  "asset_file"."path" as "path",
+  "asset_file"."isEdited" as "isEdited"
 from
   "asset"
   left join "asset_file" on "asset"."id" = "asset_file"."assetId"

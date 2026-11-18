@@ -54,6 +54,7 @@ import {
   withTagId,
   withTags,
 } from 'src/utils/database.js';
+import { MediaSource, mediaProof } from 'src/utils/media-generation.js';
 
 export type AssetStats = Record<AssetType, number>;
 
@@ -1059,6 +1060,61 @@ export class AssetRepository {
       .execute();
   }
 
+  replaceEditedFiles(source: MediaSource, files: Parameters<AssetRepository['upsertFiles']>[0]) {
+    return this.db.transaction().execute(async (trx) => {
+      const asset = await trx
+        .selectFrom('asset')
+        .select(['id', 'checksum'])
+        .where('id', '=', source.id)
+        .forUpdate()
+        .executeTakeFirst();
+      if (!asset) {
+        return { applied: false, obsoletePaths: [] as string[] };
+      }
+      const edits = await trx
+        .selectFrom('asset_edit')
+        .select(['action', 'parameters'])
+        .where('assetId', '=', source.id)
+        .orderBy('sequence', 'asc')
+        .execute();
+      if (mediaProof({ ...asset, edits }).generation !== mediaProof(source).generation) {
+        return { applied: false, obsoletePaths: [] as string[] };
+      }
+      const old = await trx
+        .selectFrom('asset_file')
+        .select(['id', 'path', 'type'])
+        .where('assetId', '=', source.id)
+        .where('isEdited', '=', true)
+        .execute();
+      if (files.length > 0) {
+        await trx
+          .insertInto('asset_file')
+          .values(files)
+          .onConflict((conflict) =>
+            conflict.columns(['assetId', 'type', 'isEdited']).doUpdateSet((eb) => ({
+              path: eb.ref('excluded.path'),
+              isProgressive: eb.ref('excluded.isProgressive'),
+              isTransparent: eb.ref('excluded.isTransparent'),
+            })),
+          )
+          .execute();
+      }
+      const removed = old.filter((file) => files.every((current) => current.type !== file.type));
+      if (removed.length > 0) {
+        await trx
+          .deleteFrom('asset_file')
+          .where('id', '=', anyUuid(removed.map((file) => file.id)))
+          .execute();
+      }
+      return {
+        applied: true,
+        obsoletePaths: old
+          .filter((file) => files.every((current) => current.path !== file.path))
+          .map((file) => file.path),
+      };
+    });
+  }
+
   async deleteFile({
     assetId,
     type,
@@ -1197,7 +1253,12 @@ export class AssetRepository {
       .leftJoin('asset_file', (join) =>
         join.onRef('asset.id', '=', 'asset_file.assetId').on('asset_file.type', '=', type),
       )
-      .select(['asset.originalPath', 'asset.originalFileName', 'asset_file.path as path'])
+      .select([
+        'asset.originalPath',
+        'asset.originalFileName',
+        'asset_file.path as path',
+        'asset_file.isEdited as isEdited',
+      ])
       .orderBy('asset_file.isEdited', isEdited ? 'desc' : 'asc')
       .executeTakeFirstOrThrow();
   }

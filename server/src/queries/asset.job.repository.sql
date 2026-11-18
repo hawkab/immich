@@ -246,6 +246,7 @@ select
   "asset"."originalPath",
   "asset"."ownerId",
   "asset"."thumbhash",
+  "asset"."checksum",
   "asset"."type",
   (
     select

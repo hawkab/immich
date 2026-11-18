@@ -654,12 +654,17 @@ describe(AssetMediaService.name, () => {
     it('should fall back to preview if the requested thumbnail file does not exist', async () => {
       const asset = AssetFactory.from().file({ type: AssetFileType.Preview }).build();
       mocks.access.asset.checkOwnerAccess.mockResolvedValue(new Set([asset.id]));
-      mocks.asset.getForThumbnail.mockResolvedValue({ ...asset, path: asset.files[0].path });
+      mocks.asset.getForThumbnail.mockResolvedValue({
+        ...asset,
+        path: asset.files[0].path,
+        isEdited: asset.files[0].isEdited,
+      });
 
       await expect(sut.viewThumbnail(authStub.admin, asset.id, { size: AssetMediaSize.THUMBNAIL })).resolves.toEqual(
         new ImmichFileResponse({
           path: asset.files[0].path,
           cacheControl: CacheControl.PrivateWithCache,
+          headers: { 'X-Immich-Media-Kind': asset.files[0].isEdited ? 'edited' : 'original' },
           contentType: 'image/jpeg',
           fileName: `IMG_${asset.id}_thumbnail.jpg`,
         }),
@@ -669,11 +674,16 @@ describe(AssetMediaService.name, () => {
     it('should get preview file', async () => {
       const asset = AssetFactory.from().file({ type: AssetFileType.Preview }).build();
       mocks.access.asset.checkOwnerAccess.mockResolvedValue(new Set([asset.id]));
-      mocks.asset.getForThumbnail.mockResolvedValue({ ...asset, path: asset.files[0].path });
+      mocks.asset.getForThumbnail.mockResolvedValue({
+        ...asset,
+        path: asset.files[0].path,
+        isEdited: asset.files[0].isEdited,
+      });
       await expect(sut.viewThumbnail(authStub.admin, asset.id, { size: AssetMediaSize.PREVIEW })).resolves.toEqual(
         new ImmichFileResponse({
           path: asset.files[0].path,
           cacheControl: CacheControl.PrivateWithCache,
+          headers: { 'X-Immich-Media-Kind': asset.files[0].isEdited ? 'edited' : 'original' },
           contentType: 'image/jpeg',
           fileName: `IMG_${asset.id}_preview.jpg`,
         }),
@@ -685,11 +695,16 @@ describe(AssetMediaService.name, () => {
         .file({ type: AssetFileType.Thumbnail, path: '/uploads/user-id/webp/path.ext' })
         .build();
       mocks.access.asset.checkOwnerAccess.mockResolvedValue(new Set([asset.id]));
-      mocks.asset.getForThumbnail.mockResolvedValue({ ...asset, path: asset.files[0].path });
+      mocks.asset.getForThumbnail.mockResolvedValue({
+        ...asset,
+        path: asset.files[0].path,
+        isEdited: asset.files[0].isEdited,
+      });
       await expect(sut.viewThumbnail(authStub.admin, asset.id, { size: AssetMediaSize.THUMBNAIL })).resolves.toEqual(
         new ImmichFileResponse({
           path: asset.files[0].path,
           cacheControl: CacheControl.PrivateWithCache,
+          headers: { 'X-Immich-Media-Kind': asset.files[0].isEdited ? 'edited' : 'original' },
           contentType: 'application/octet-stream',
           fileName: `IMG_${asset.id}_thumbnail.ext`,
         }),
@@ -700,11 +715,16 @@ describe(AssetMediaService.name, () => {
     it('should get original thumbnail by default', async () => {
       const asset = AssetFactory.from().file({ type: AssetFileType.Thumbnail }).build();
       mocks.access.asset.checkOwnerAccess.mockResolvedValue(new Set([asset.id]));
-      mocks.asset.getForThumbnail.mockResolvedValue({ ...asset, path: asset.files[0].path });
+      mocks.asset.getForThumbnail.mockResolvedValue({
+        ...asset,
+        path: asset.files[0].path,
+        isEdited: asset.files[0].isEdited,
+      });
       await expect(sut.viewThumbnail(authStub.admin, asset.id, { size: AssetMediaSize.THUMBNAIL })).resolves.toEqual(
         new ImmichFileResponse({
           path: asset.files[0].path,
           cacheControl: CacheControl.PrivateWithCache,
+          headers: { 'X-Immich-Media-Kind': asset.files[0].isEdited ? 'edited' : 'original' },
           contentType: 'image/jpeg',
           fileName: `IMG_${asset.id}_thumbnail.jpg`,
         }),
@@ -715,13 +735,18 @@ describe(AssetMediaService.name, () => {
     it('should get edited thumbnail when edited=true', async () => {
       const asset = AssetFactory.from().file({ type: AssetFileType.Thumbnail, isEdited: true }).build();
       mocks.access.asset.checkOwnerAccess.mockResolvedValue(new Set([asset.id]));
-      mocks.asset.getForThumbnail.mockResolvedValue({ ...asset, path: asset.files[0].path });
+      mocks.asset.getForThumbnail.mockResolvedValue({
+        ...asset,
+        path: asset.files[0].path,
+        isEdited: asset.files[0].isEdited,
+      });
       await expect(
         sut.viewThumbnail(authStub.admin, asset.id, { size: AssetMediaSize.THUMBNAIL, edited: true }),
       ).resolves.toEqual(
         new ImmichFileResponse({
           path: asset.files[0].path,
           cacheControl: CacheControl.PrivateWithCache,
+          headers: { 'X-Immich-Media-Kind': asset.files[0].isEdited ? 'edited' : 'original' },
           contentType: 'image/jpeg',
           fileName: `IMG_${asset.id}_thumbnail.jpg`,
         }),
@@ -732,13 +757,18 @@ describe(AssetMediaService.name, () => {
     it('should get original thumbnail when edited=false', async () => {
       const asset = AssetFactory.from().file({ type: AssetFileType.Thumbnail }).build();
       mocks.access.asset.checkOwnerAccess.mockResolvedValue(new Set([asset.id]));
-      mocks.asset.getForThumbnail.mockResolvedValue({ ...asset, path: asset.files[0].path });
+      mocks.asset.getForThumbnail.mockResolvedValue({
+        ...asset,
+        path: asset.files[0].path,
+        isEdited: asset.files[0].isEdited,
+      });
       await expect(
         sut.viewThumbnail(authStub.admin, asset.id, { size: AssetMediaSize.THUMBNAIL, edited: false }),
       ).resolves.toEqual(
         new ImmichFileResponse({
           path: asset.files[0].path,
           cacheControl: CacheControl.PrivateWithCache,
+          headers: { 'X-Immich-Media-Kind': asset.files[0].isEdited ? 'edited' : 'original' },
           contentType: 'image/jpeg',
           fileName: `IMG_${asset.id}_thumbnail.jpg`,
         }),
@@ -749,7 +779,11 @@ describe(AssetMediaService.name, () => {
     it('should not return the unedited version if requested using a shared link', async () => {
       const asset = AssetFactory.from().file({ type: AssetFileType.Thumbnail }).build();
       mocks.access.asset.checkSharedLinkAccess.mockResolvedValue(new Set([asset.id]));
-      mocks.asset.getForThumbnail.mockResolvedValue({ ...asset, path: asset.files[0].path });
+      mocks.asset.getForThumbnail.mockResolvedValue({
+        ...asset,
+        path: asset.files[0].path,
+        isEdited: asset.files[0].isEdited,
+      });
       await expect(
         sut.viewThumbnail(authStub.adminSharedLink, asset.id, {
           size: AssetMediaSize.THUMBNAIL,
@@ -759,6 +793,7 @@ describe(AssetMediaService.name, () => {
         new ImmichFileResponse({
           path: asset.files[0].path,
           cacheControl: CacheControl.PrivateWithCache,
+          headers: { 'X-Immich-Media-Kind': asset.files[0].isEdited ? 'edited' : 'original' },
           contentType: 'image/jpeg',
           fileName: `IMG_${asset.id}_thumbnail.jpg`,
         }),
@@ -770,7 +805,11 @@ describe(AssetMediaService.name, () => {
       const asset = AssetFactory.from().file({ type: AssetFileType.Preview }).build();
 
       mocks.access.asset.checkSharedLinkAccess.mockResolvedValue(new Set([asset.id]));
-      mocks.asset.getForThumbnail.mockResolvedValue({ ...asset, path: asset.files[0].path });
+      mocks.asset.getForThumbnail.mockResolvedValue({
+        ...asset,
+        path: asset.files[0].path,
+        isEdited: asset.files[0].isEdited,
+      });
 
       const auth = AuthFactory.from().sharedLink({ showExif: false }).build();
 
@@ -778,6 +817,7 @@ describe(AssetMediaService.name, () => {
         new ImmichFileResponse({
           path: asset.files[0].path,
           cacheControl: CacheControl.PrivateWithCache,
+          headers: { 'X-Immich-Media-Kind': asset.files[0].isEdited ? 'edited' : 'original' },
           contentType: 'image/jpeg',
           fileName: `${asset.id}_preview.jpg`,
         }),

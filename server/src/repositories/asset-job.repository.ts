@@ -124,6 +124,7 @@ export class AssetJobRepository {
         'asset.originalPath',
         'asset.ownerId',
         'asset.thumbhash',
+        'asset.checksum',
         'asset.type',
       ])
       .select((eb) =>

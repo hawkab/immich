@@ -30,10 +30,11 @@ import {
 import { AuthRequest } from 'src/middleware/auth.guard.js';
 import { BaseService } from 'src/services/base.service.js';
 import type { UploadFile, UploadRequest } from 'src/types.js';
-import { requireUploadAccess } from 'src/utils/access.js';
+import { isGranted, requireUploadAccess } from 'src/utils/access.js';
 import { asUploadRequest, onBeforeLink } from 'src/utils/asset.util.js';
 import { isAssetChecksumConstraint } from 'src/utils/database.js';
 import { ImmichFileResponse, getFileNameWithoutExtension, getFilenameExtension } from 'src/utils/file.js';
+import { mediaProof, proofForPath } from 'src/utils/media-generation.js';
 import { mimeTypes } from 'src/utils/mime-types.js';
 import { fromChecksum } from 'src/utils/request.js';
 
@@ -272,7 +273,12 @@ export class AssetMediaService extends BaseService {
 
     const edited = isEditedOnly(auth, dto.edited);
     const size = (dto.size ?? AssetMediaSize.THUMBNAIL) as unknown as AssetFileType;
-    const { originalPath, originalFileName, path } = await this.assetRepository.getForThumbnail(id, size, edited);
+    const {
+      originalPath,
+      originalFileName,
+      path,
+      isEdited: fileEdited,
+    } = await this.assetRepository.getForThumbnail(id, size, edited);
 
     if (size === AssetFileType.FullSize && mimeTypes.isWebSupportedImage(originalPath) && !edited) {
       // use original file for web supported images
@@ -291,12 +297,34 @@ export class AssetMediaService extends BaseService {
 
     const fileNameBase = isMetadataHidden(auth) ? id : getFileNameWithoutExtension(originalFileName);
     const fileName = `${fileNameBase}_${size}${getFilenameExtension(path)}`;
+    const headers: Record<string, string> = {};
+    if (typeof fileEdited === 'boolean') {
+      headers['X-Immich-Media-Kind'] = fileEdited ? 'edited' : 'original';
+    }
+    const canReadProof =
+      !auth.sharedLink &&
+      (!auth.apiKey || isGranted({ requested: [Permission.AssetRead], current: auth.apiKey.permissions }));
+    if (canReadProof && fileEdited === true && /_edited_[a-f\d]{64}_[a-f\d-]{36}\.[^/.]+$/.test(path)) {
+      try {
+        const source = await this.assetRepository.getById(id);
+        if (source?.ownerId === auth.user.id) {
+          const edits = await this.assetEditRepository.getAll(id);
+          const proof = proofForPath(path, mediaProof({ ...source, edits }));
+          if (proof) {
+            headers['X-Immich-Media-Proof'] = proof;
+          }
+        }
+      } catch (error) {
+        this.logger.warn(`Rendered-media proof unavailable for asset ${id}`, error);
+      }
+    }
 
     return new ImmichFileResponse({
       fileName,
       path,
       contentType: mimeTypes.lookup(path),
       cacheControl: CacheControl.PrivateWithCache,
+      ...(Object.keys(headers).length > 0 && { headers }),
     });
   }
 

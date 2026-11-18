@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { FACE_THUMBNAIL_SIZE, THUMBNAIL_DECODING_TIER } from 'src/constants.js';
 import { ImagePathOptions, StorageCore, ThumbnailPathEntity } from 'src/cores/storage.core.js';
 import { AssetFile } from 'src/database.js';
@@ -41,6 +42,7 @@ import type {
 import { getAssetFile, getDimensions } from 'src/utils/asset.util.js';
 import { tokenizeForSearch } from 'src/utils/database.js';
 import { checkFaceVisibility, checkOcrVisibility } from 'src/utils/editor.js';
+import { generationPath, mediaProof } from 'src/utils/media-generation.js';
 import { BaseConfig, ThumbnailConfig } from 'src/utils/media.js';
 import { mimeTypes } from 'src/utils/mime-types.js';
 import { batched, clamp } from 'src/utils/misc.js';
@@ -163,10 +165,10 @@ export class MediaService extends BaseService {
     }
 
     const generated = await this.generateEditedThumbnails(asset, config);
-    await this.syncFiles(
-      asset.files.filter((file) => file.isEdited),
-      generated?.files ?? [],
-    );
+    if (!(await this.syncEditedFiles(asset, generated?.files ?? []))) {
+      return JobStatus.Skipped;
+    }
+    await this.updateEditedVisibility(asset);
 
     let thumbhash: Buffer | undefined = generated?.thumbhash;
     if (!thumbhash) {
@@ -220,7 +222,14 @@ export class MediaService extends BaseService {
       generated.files.push(...editedGenerated.files);
     }
 
-    await this.syncFiles(asset.files, generated.files);
+    await this.syncFiles(
+      asset.files.filter((file) => !file.isEdited),
+      generated.files.filter((file) => !file.isEdited),
+    );
+    if (!(await this.syncEditedFiles(asset, editedGenerated?.files ?? []))) {
+      return JobStatus.Skipped;
+    }
+    await this.updateEditedVisibility(asset);
     const thumbhash = editedGenerated?.thumbhash || generated.thumbhash;
 
     if (!asset.thumbhash || Buffer.compare(asset.thumbhash, thumbhash) !== 0) {
@@ -289,6 +298,18 @@ export class MediaService extends BaseService {
   }
 
   private async generateImageThumbnails(asset: ThumbnailAsset, { image }: SystemConfig, useEdits: boolean = false) {
+    const generation = useEdits ? mediaProof(asset).generation : undefined;
+    const producer = useEdits ? randomUUID() : undefined;
+    const staged: { source: string; target: string }[] = [];
+    const outputPath = (file: UpsertFileOptions) => {
+      if (!useEdits) {
+        return file.path;
+      }
+      file.path = generationPath(file.path, generation!, producer!);
+      const source = generationPath(file.path, 'stage', randomUUID());
+      staged.push({ source, target: file.path });
+      return source;
+    };
     // Handle embedded preview extraction for RAW files
     const { info, data, colorspace, generateFullsize, convertFullsize, extracted, isTransparent } =
       await this.extractOriginalImage(asset, image, useEdits);
@@ -313,6 +334,8 @@ export class MediaService extends BaseService {
       isProgressive: !!image.thumbnail.progressive && thumbnailFormat === ImageFormat.Jpeg,
       isTransparent,
     });
+    const previewOutput = outputPath(previewFile);
+    const thumbnailOutput = outputPath(thumbnailFile);
     this.storageCore.ensureFolders(previewFile.path);
 
     // generate final images
@@ -327,11 +350,12 @@ export class MediaService extends BaseService {
     const previewOptions = { ...image.preview, ...baseOptions, format: previewFormat, decodingTier: 0 } as const;
     const promises = [
       this.mediaRepository.generateThumbhash(decoded, baseOptions),
-      this.mediaRepository.generateThumbnail(decoded, thumbnailOptions, thumbnailFile.path),
-      this.mediaRepository.generateThumbnail(decoded, previewOptions, previewFile.path),
+      this.mediaRepository.generateThumbnail(decoded, thumbnailOptions, thumbnailOutput),
+      this.mediaRepository.generateThumbnail(decoded, previewOptions, previewOutput),
     ];
 
     let fullsizeFile: UpsertFileOptions | undefined;
+    let fullsizeOutput: string | undefined;
     if (convertFullsize) {
       const fullsizeFormat = image.fullsize.format;
       this.warnOnTransparencyLoss(isTransparent, fullsizeFormat, asset.id);
@@ -350,7 +374,8 @@ export class MediaService extends BaseService {
         progressive: image.fullsize.progressive,
         decodingTier: 0,
       } as const;
-      promises.push(this.mediaRepository.generateThumbnail(decoded, fullsizeOptions, fullsizeFile.path));
+      fullsizeOutput = outputPath(fullsizeFile);
+      promises.push(this.mediaRepository.generateThumbnail(decoded, fullsizeOptions, fullsizeOutput));
     } else if (generateFullsize && extracted && extracted.format === RawExtractedFormat.Jpeg) {
       fullsizeFile = this.getImageFile(asset, {
         fileType: AssetFileType.FullSize,
@@ -372,16 +397,40 @@ export class MediaService extends BaseService {
       );
     }
 
-    const outputs = await Promise.all(promises);
+    const completed = await Promise.allSettled(promises);
+    const failure = completed.find((result) => result.status === 'rejected');
+    if (failure?.status === 'rejected') {
+      await Promise.allSettled(staged.map(({ source }) => this.storageRepository.unlink(source)));
+      throw failure.reason;
+    }
+    const outputs = completed.map((result) => {
+      if (result.status === 'fulfilled') {
+        return result.value;
+      }
+      throw result.reason;
+    });
 
     if (asset.exifInfo.projectionType === 'EQUIRECTANGULAR') {
       const promises = [
-        this.mediaRepository.copyTagGroup('XMP-GPano', asset.originalPath, previewFile.path),
+        this.mediaRepository.copyTagGroup('XMP-GPano', asset.originalPath, previewOutput),
         fullsizeFile
-          ? this.mediaRepository.copyTagGroup('XMP-GPano', asset.originalPath, fullsizeFile.path)
+          ? this.mediaRepository.copyTagGroup('XMP-GPano', asset.originalPath, fullsizeOutput ?? fullsizeFile.path)
           : Promise.resolve(),
       ];
       await Promise.all(promises);
+    }
+    const renamed = await Promise.allSettled(
+      staged.map(({ source, target }) => this.storageRepository.rename(source, target)),
+    );
+    const renameFailure = renamed.find((result) => result.status === 'rejected');
+    if (renameFailure?.status === 'rejected') {
+      await Promise.allSettled(
+        staged.flatMap(({ source, target }) => [
+          this.storageRepository.unlink(source),
+          this.storageRepository.unlink(target),
+        ]),
+      );
+      throw renameFailure.reason;
     }
 
     const decodedDimensions = { width: info.width, height: info.height };
@@ -831,12 +880,40 @@ export class MediaService extends BaseService {
     }
   }
 
+  private async syncEditedFiles(asset: ThumbnailAsset, files: UpsertFileOptions[]) {
+    if (asset.edits.length === 0 && asset.files.every((file) => !file.isEdited)) {
+      return true;
+    }
+    const result = await this.assetRepository.replaceEditedFiles(
+      asset,
+      files.filter((file) => file.isEdited),
+    );
+    if (!result.applied) {
+      const discarded = files.filter((file) => file.isEdited).map((file) => file.path);
+      if (discarded.length > 0) {
+        await this.jobRepository.queue({ name: JobName.FileDelete, data: { files: discarded } });
+      }
+      await this.jobRepository.queue({ name: JobName.AssetEditThumbnailGeneration, data: { id: asset.id } });
+      return false;
+    }
+    if (result.obsoletePaths.length > 0) {
+      await this.jobRepository.queue({ name: JobName.FileDelete, data: { files: result.obsoletePaths } });
+    }
+    return true;
+  }
+
   private async generateEditedThumbnails(asset: ThumbnailAsset, config: SystemConfig) {
     if (asset.type !== AssetType.Image || (asset.files.length === 0 && asset.edits.length === 0)) {
       return;
     }
 
-    const generated = asset.edits.length > 0 ? await this.generateImageThumbnails(asset, config, true) : undefined;
+    return asset.edits.length > 0 ? this.generateImageThumbnails(asset, config, true) : undefined;
+  }
+
+  private async updateEditedVisibility(asset: ThumbnailAsset) {
+    if (asset.type !== AssetType.Image || (asset.files.length === 0 && asset.edits.length === 0)) {
+      return;
+    }
 
     const crop = asset.edits.find((e) => e.action === AssetEditAction.Crop);
     const cropBox = crop
@@ -860,8 +937,6 @@ export class MediaService extends BaseService {
       .flatMap(({ text }) => tokenizeForSearch(text))
       .join(' ');
     await this.ocrRepository.updateOcrVisibilities(asset.id, ocrStatuses.visible, ocrStatuses.hidden, searchText);
-
-    return generated;
   }
 
   private warnOnTransparencyLoss(isTransparent: boolean, format: ImageFormat, assetId: string) {

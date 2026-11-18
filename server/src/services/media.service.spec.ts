@@ -42,6 +42,7 @@ describe(MediaService.name, () => {
 
   beforeEach(() => {
     ({ sut, mocks } = newTestService(MediaService));
+    mocks.asset.replaceEditedFiles.mockResolvedValue({ applied: true, obsoletePaths: [] });
   });
 
   it('should be defined', () => {
@@ -1450,13 +1451,72 @@ describe(MediaService.name, () => {
 
       await sut.handleAssetEditThumbnailGeneration({ id: asset.id });
 
-      expect(mocks.asset.upsertFiles).toHaveBeenCalledWith(
+      expect(mocks.asset.replaceEditedFiles).toHaveBeenCalledWith(
+        expect.objectContaining({ id: asset.id }),
         expect.arrayContaining([
           expect.objectContaining({ type: AssetFileType.FullSize, isEdited: true }),
           expect.objectContaining({ type: AssetFileType.Preview, isEdited: true }),
           expect.objectContaining({ type: AssetFileType.Thumbnail, isEdited: true }),
         ]),
       );
+    });
+
+    it('should not publish or update metadata from a stale edited generation and should queue the current job', async () => {
+      const asset = AssetFactory.from().exif().edit().build();
+      mocks.assetJob.getForGenerateThumbnailJob.mockResolvedValue(getForGenerateThumbnail(asset));
+      mocks.asset.replaceEditedFiles.mockResolvedValue({ applied: false, obsoletePaths: [] });
+
+      await expect(sut.handleAssetEditThumbnailGeneration({ id: asset.id })).resolves.toBe(JobStatus.Skipped);
+      expect(mocks.asset.update).not.toHaveBeenCalled();
+      expect(mocks.asset.upsertFiles).not.toHaveBeenCalled();
+      expect(mocks.person.updateVisibility).not.toHaveBeenCalled();
+      expect(mocks.ocr.updateOcrVisibilities).not.toHaveBeenCalled();
+      expect(mocks.job.queue).toHaveBeenCalledWith({
+        name: JobName.AssetEditThumbnailGeneration,
+        data: { id: asset.id },
+      });
+      const discarded = mocks.job.queue.mock.calls.find(([job]) => job.name === JobName.FileDelete);
+      expect(discarded?.[0]).toMatchObject({
+        name: JobName.FileDelete,
+        data: { files: expect.arrayContaining([expect.stringMatching(/_edited_[a-f\d]{64}_[a-f\d-]{36}\./)]) },
+      });
+    });
+
+    it('should wait for all atomic derivative renames before publishing any edited file pointer', async () => {
+      const asset = AssetFactory.from().exif().edit().build();
+      mocks.assetJob.getForGenerateThumbnailJob.mockResolvedValue(getForGenerateThumbnail(asset));
+      const { promise: gate, resolve: release } = Promise.withResolvers<void>();
+      const { promise: allStarted, resolve: started } = Promise.withResolvers<void>();
+      let count = 0;
+      mocks.storage.rename.mockImplementation(() => {
+        if (++count === 3) {
+          started();
+        }
+        return gate;
+      });
+      const rendering = sut.handleAssetEditThumbnailGeneration({ id: asset.id });
+      await allStarted;
+      expect(mocks.asset.replaceEditedFiles).not.toHaveBeenCalled();
+      release();
+      await rendering;
+      expect(mocks.asset.replaceEditedFiles).toHaveBeenCalledOnce();
+      for (const [source, target] of mocks.storage.rename.mock.calls) {
+        expect(source).toContain('_stage_');
+        expect(target).not.toContain('_stage_');
+      }
+    });
+
+    it('should preserve current pointers and clean only its unpublished derivatives if an atomic rename fails', async () => {
+      const asset = AssetFactory.from().exif().edit().build();
+      mocks.assetJob.getForGenerateThumbnailJob.mockResolvedValue(getForGenerateThumbnail(asset));
+      mocks.storage.rename.mockRejectedValueOnce(new Error('rename failed'));
+      await expect(sut.handleAssetEditThumbnailGeneration({ id: asset.id })).rejects.toThrow('rename failed');
+      expect(mocks.asset.replaceEditedFiles).not.toHaveBeenCalled();
+      expect(mocks.storage.unlink).toHaveBeenCalledTimes(6);
+      for (const [path] of mocks.storage.unlink.mock.calls) {
+        expect(path).toMatch(/_edited_[a-f\d]{64}_/);
+        expect(path).not.toEqual(asset.originalPath);
+      }
     });
 
     it('should apply edits when generating thumbnails', async () => {
@@ -1493,6 +1553,10 @@ describe(MediaService.name, () => {
         ])
         .build();
       mocks.assetJob.getForGenerateThumbnailJob.mockResolvedValue(getForGenerateThumbnail(asset));
+      mocks.asset.replaceEditedFiles.mockResolvedValue({
+        applied: true,
+        obsoletePaths: ['edited1.jpg', 'edited2.jpg', 'edited3.jpg'],
+      });
 
       const status = await sut.handleAssetEditThumbnailGeneration({ id: asset.id });
 
@@ -1520,17 +1584,17 @@ describe(MediaService.name, () => {
       expect(mocks.media.generateThumbnail).toHaveBeenCalledWith(
         { data: rawBuffer, info: rawInfo },
         expect.anything(),
-        expect.stringContaining('preview_edited.jpeg'),
+        expect.stringMatching(/preview_edited_[a-f\d]{64}_[a-f\d-]{36}_stage_[a-f\d-]{36}\.jpeg$/),
       );
       expect(mocks.media.generateThumbnail).toHaveBeenCalledWith(
         { data: rawBuffer, info: rawInfo },
         expect.anything(),
-        expect.stringContaining('thumbnail_edited.webp'),
+        expect.stringMatching(/thumbnail_edited_[a-f\d]{64}_[a-f\d-]{36}_stage_[a-f\d-]{36}\.webp$/),
       );
       expect(mocks.media.generateThumbnail).toHaveBeenCalledWith(
         { data: rawBuffer, info: rawInfo },
         expect.anything(),
-        expect.stringContaining('fullsize_edited.jpeg'),
+        expect.stringMatching(/fullsize_edited_[a-f\d]{64}_[a-f\d-]{36}_stage_[a-f\d-]{36}\.jpeg$/),
       );
     });
 
