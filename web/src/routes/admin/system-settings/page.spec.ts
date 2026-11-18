@@ -5,7 +5,8 @@ import { page, userEvent } from 'vitest/browser';
 import Page from './+page.svelte';
 import { load } from './+page.ts';
 
-test.beforeEach(async ({ router, render, app }) => {
+test.beforeEach(async ({ data, router, render, app }) => {
+  data.adminConfig.machineLearning.enabled = true;
   await router.goto(Route.systemSettings());
   await render(Page, load);
   await app.admin.settings.open('admin.user_settings');
