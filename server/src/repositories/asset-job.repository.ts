@@ -328,6 +328,7 @@ export class AssetJobRepository {
       .select(['asset.id'])
       .where('asset.type', '=', sql.lit(AssetType.Video))
       .where('asset.deletedAt', 'is', null)
+      .where('asset.visibility', '!=', sql.lit(AssetVisibility.Hidden))
       .where('asset.isOffline', '=', false)
       .$if(!force, (qb) =>
         qb.where(sql<boolean>`not exists (
