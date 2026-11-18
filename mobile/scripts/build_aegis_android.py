@@ -63,6 +63,7 @@ def main():
     verify_source(source, commit)
     environment.pop('C_INCLUDE_PATH', None)
     run('flutter', 'build', 'apk', '--release', '--target-platform', 'android-arm64',
+        '-P', 'disable-abi-filtering=true',
         '--dart-define=AEGIS_BUILD=true', cwd=mobile, env=environment)
     verify_source(source, commit)
     sdk = Path(os.environ.get('ANDROID_HOME') or os.environ['ANDROID_SDK_ROOT'])
