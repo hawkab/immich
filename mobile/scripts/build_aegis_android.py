@@ -81,7 +81,7 @@ def main():
     with zipfile.ZipFile(apk) as archive:
         abis = sorted({name.split('/')[1] for name in archive.namelist() if name.startswith('lib/')})
     if abis != ['arm64-v8a']:
-        raise RuntimeError('Unexpected native ABI set in the Pixel release')
+        raise RuntimeError(f'Unexpected native ABI set in the Pixel release: {abis}')
     args.output.mkdir(parents=True, exist_ok=True)
     target = args.output / 'immich-aegis-arm64.apk'
     shutil.copyfile(apk, target)
