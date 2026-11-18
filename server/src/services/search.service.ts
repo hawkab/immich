@@ -31,6 +31,7 @@ import { isSmartSearchEnabled } from 'src/utils/misc.js';
 import { decodeSearchCursor, encodeSearchCursor } from 'src/utils/search-cursor.js';
 import { applyLockedVisibilityPolicy, collectFilterIds } from 'src/utils/search-filter.js';
 import { resolveNamedSearch } from 'src/utils/search-intent.js';
+import { resolveSceneRelation } from 'src/utils/search-scene-relations.js';
 
 @Injectable()
 export class SearchService extends BaseService {
@@ -168,14 +169,16 @@ export class SearchService extends BaseService {
 
   async searchSmart(auth: AuthDto, dto: SmartSearchDto): Promise<SearchResponseDto> {
     const planned = await this.resolveNamedQuery(auth, dto);
+    let scenePersonIds: string[] | undefined;
     if (planned) {
       dto = planned;
+      scenePersonIds = isNewShapeRequest(dto) ? collectFilterIds(dto.filter ?? {}, 'personIds') : dto.personIds;
       if (!dto.query) {
         return this.searchMetadata(auth, dto);
       }
     }
     if (isNewShapeRequest(dto)) {
-      return this.searchSmartV3(auth, dto);
+      return this.searchSmartV3(auth, dto, scenePersonIds);
     }
 
     if (dto.visibility === AssetVisibility.Locked) {
@@ -198,7 +201,7 @@ export class SearchService extends BaseService {
         userIds: await userIds,
         viewingUserId: auth.user.id,
         embedding,
-        ...this.textSearchOptions(dto, machineLearning.clip),
+        ...this.textSearchOptions(dto, machineLearning.clip, scenePersonIds),
         visibility: dto.visibility ?? (auth.session?.hasElevatedPermission ? undefined : 'not-locked'),
       },
     );
@@ -287,7 +290,11 @@ export class SearchService extends BaseService {
     return items.map((item) => mapAsset(item, { auth }));
   }
 
-  private async searchSmartV3(auth: AuthDto, dto: SmartSearchDto): Promise<SearchResponseDto> {
+  private async searchSmartV3(
+    auth: AuthDto,
+    dto: SmartSearchDto,
+    scenePersonIds?: string[],
+  ): Promise<SearchResponseDto> {
     const { machineLearning } = await this.getConfig({ withCache: false });
     if (!isSmartSearchEnabled(machineLearning)) {
       throw new BadRequestException('Smart search is not enabled');
@@ -305,7 +312,7 @@ export class SearchService extends BaseService {
         filter,
         withExif: dto.withExif,
         embedding,
-        ...this.textSearchOptions(dto, machineLearning.clip),
+        ...this.textSearchOptions(dto, machineLearning.clip, scenePersonIds),
       },
       scope,
     );
@@ -336,7 +343,11 @@ export class SearchService extends BaseService {
     return { filter: effectiveFilter, scope: { userIds, lockedOwnerId: auth.user.id, viewingUserId: auth.user.id } };
   }
 
-  private textSearchOptions(dto: SmartSearchDto, clip: SystemConfig['machineLearning']['clip']) {
+  private textSearchOptions(
+    dto: SmartSearchDto,
+    clip: SystemConfig['machineLearning']['clip'],
+    scenePersonIds?: string[],
+  ) {
     const configuredThreshold = dto.query ? clip.minSimilarity : null;
     const minSimilarity = dto.minSimilarity === undefined ? configuredThreshold : dto.minSimilarity;
     const sceneQuery =
@@ -347,6 +358,7 @@ export class SearchService extends BaseService {
     return {
       ...(typeof minSimilarity === 'number' && { minSimilarity }),
       ...(sceneQuery && { sceneQuery, includeDepictions: dto.includeDepictions ?? clip.includeDepictions }),
+      ...(sceneQuery && resolveSceneRelation(sceneQuery) && scenePersonIds?.length && { scenePersonIds }),
     };
   }
 
