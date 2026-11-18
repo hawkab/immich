@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Kysely, sql } from 'kysely';
 import { InjectKysely } from 'nestjs-kysely';
 import { AssetFileType, AssetStatus, AssetType, ChecksumAlgorithm } from 'src/enum.js';
+import { editablePartnerAssets } from 'src/repositories/access.repository.js';
 import { DB } from 'src/schema/index.js';
 import { type CompressionDraft } from 'src/utils/video-compression.js';
 
@@ -9,16 +10,11 @@ import { type CompressionDraft } from 'src/utils/video-compression.js';
 export class VideoCompressionRepository {
   constructor(@InjectKysely() private db: Kysely<DB>) {}
 
-  async hasEditAccess(ownerId: string, actorId: string, db: Kysely<DB> = this.db) {
-    if (ownerId === actorId) return true;
-    const grant = await db
-      .selectFrom('partner')
-      .select('canEdit')
-      .where('sharedById', '=', ownerId)
-      .where('sharedWithId', '=', actorId)
-      .forShare()
-      .executeTakeFirst();
-    return grant?.canEdit === true;
+  async hasEditAccess(assetId: string, actorId: string, db: Kysely<DB> = this.db) {
+    const asset = await db.selectFrom('asset').select('ownerId').where('id', '=', assetId).executeTakeFirst();
+    if (!asset) return false;
+    if (asset.ownerId === actorId) return true;
+    return !!(await editablePartnerAssets(db, actorId).where('asset.id', '=', assetId).forShare().executeTakeFirst());
   }
 
   async get(id: string) {
@@ -47,7 +43,7 @@ export class VideoCompressionRepository {
       const asset = await tx.selectFrom('asset').selectAll().where('id', '=', id).forUpdate().executeTakeFirst();
       if (
         !asset ||
-        !(await this.hasEditAccess(asset.ownerId, actorId, tx)) ||
+        !(await this.hasEditAccess(asset.id, actorId, tx)) ||
         asset.libraryId ||
         asset.deletedAt ||
         asset.isOffline ||
@@ -119,7 +115,7 @@ export class VideoCompressionRepository {
       const draft = row?.value as CompressionDraft | undefined;
       if (
         !asset ||
-        !(await this.hasEditAccess(asset.ownerId, actorId, tx)) ||
+        !(await this.hasEditAccess(asset.id, actorId, tx)) ||
         asset.libraryId ||
         asset.deletedAt ||
         asset.isOffline ||

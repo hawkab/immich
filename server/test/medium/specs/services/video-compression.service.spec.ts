@@ -1,4 +1,4 @@
-import { AssetStatus, AssetType } from 'src/enum.js';
+import { AssetStatus, AssetType, AssetVisibility } from 'src/enum.js';
 import { AssetRepository } from 'src/repositories/asset.repository.js';
 import { LoggingRepository } from 'src/repositories/logging.repository.js';
 import { VideoCompressionRepository } from 'src/repositories/video-compression.repository.js';
@@ -43,6 +43,33 @@ const setup = async () => {
 };
 
 describe('durable video compression transactions', () => {
+  it('uses the native shared-edit visibility policy again when saving', async () => {
+    const { ctx, repo, asset, user, draft } = await setup();
+    const { user: editor } = await ctx.newUser();
+    await ctx.database
+      .insertInto('partner')
+      .values({ sharedById: user.id, sharedWithId: editor.id, canEdit: true })
+      .execute();
+    await repo.create(asset.id, editor.id, { ...draft, actorId: editor.id });
+    await repo.update(
+      asset.id,
+      draft.requestId,
+      { status: 'ready', compressedSize: 100, outputChecksum: Buffer.alloc(20, 3).toString('base64') },
+      ['queued'],
+    );
+    await ctx.database
+      .updateTable('asset')
+      .set({ visibility: AssetVisibility.Locked })
+      .where('id', '=', asset.id)
+      .execute();
+    expect(await repo.commit(asset.id, editor.id, draft.requestId, draft.sourceChecksum)).toBe(false);
+    const current = await ctx.database
+      .selectFrom('asset')
+      .select('originalPath')
+      .where('id', '=', asset.id)
+      .executeTakeFirstOrThrow();
+    expect(current.originalPath).toBe(asset.originalPath);
+  });
   it('inherits the edit grant and charges only the video owner after partner confirmation', async () => {
     const { ctx, repo, asset, user, draft } = await setup();
     const { user: editor } = await ctx.newUser();
