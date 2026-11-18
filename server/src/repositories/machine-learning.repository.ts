@@ -1,8 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { Duration } from 'luxon';
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import { request as httpRequest } from 'node:http';
+import { request as httpsRequest } from 'node:https';
 import { MachineLearningConfig } from 'src/dtos/config.dto.js';
 import { LoggingRepository } from 'src/repositories/logging.repository.js';
+import { TranscriptionProviderError, type TranscriptionConfig } from 'src/utils/transcription.js';
 
 export interface BoundingBox {
   x1: number;
@@ -91,6 +95,74 @@ export class MachineLearningRepository {
 
   constructor(private logger: LoggingRepository) {
     this.logger.setContext(MachineLearningRepository.name);
+  }
+
+  transcribe(audio: Buffer, config: TranscriptionConfig, identity: string): Promise<{ text: string }> {
+    const id = createHash('sha256')
+      .update(identity + '\0' + config.apiKey)
+      .update(audio)
+      .digest('hex');
+    const url = new URL(config.url);
+    const boundary = `immich-${id}`;
+    const fields = [
+      ['model', config.model],
+      ['language', config.language],
+    ].map(([name, value]) =>
+      Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${value}\r\n`),
+    );
+    const body =
+      config.provider === 'gigaam'
+        ? audio
+        : Buffer.concat([
+            ...fields,
+            Buffer.from(
+              `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="audio.wav"\r\nContent-Type: audio/wav\r\n\r\n`,
+            ),
+            audio,
+            Buffer.from(`\r\n--${boundary}--\r\n`),
+          ]);
+    return new Promise((resolve, reject) => {
+      const request = (url.protocol === 'https:' ? httpsRequest : httpRequest)(
+        url,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': config.provider === 'gigaam' ? 'audio/wav' : `multipart/form-data; boundary=${boundary}`,
+            'Content-Length': body.length,
+            'X-Spark-Request-ID': id,
+            'X-Speech-Model': config.model,
+            'X-Speech-Language': config.language,
+            ...(config.apiKey && { Authorization: `Bearer ${config.apiKey}` }),
+          },
+        },
+        (response) => {
+          const chunks: Buffer[] = [];
+          response.on('data', (chunk: Buffer) => {
+            chunks.push(chunk);
+          });
+          response.on('error', reject);
+          response.on('aborted', () =>
+            reject(new Error('Transcription connection closed before the response completed')),
+          );
+          response.on('end', () => {
+            try {
+              if (response.statusCode !== 200) {
+                throw new TranscriptionProviderError(response.statusCode ?? 502);
+              }
+              const result = JSON.parse(Buffer.concat(chunks).toString());
+              if (typeof result.text !== 'string') {
+                throw new TypeError('Transcription provider did not return text');
+              }
+              resolve({ text: result.text.trim() });
+            } catch (error) {
+              reject(error);
+            }
+          });
+        },
+      );
+      request.on('error', reject);
+      request.end(body);
+    });
   }
 
   setup(config: MachineLearningConfig) {

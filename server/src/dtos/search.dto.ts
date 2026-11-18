@@ -390,6 +390,10 @@ const StatisticsSearchSchema = withShapeExclusivity(
 const SmartSearchSchema = withShapeExclusivity(
   BaseSearchWithResultsSchema.extend({
     size: z.int().min(1).max(1000).default(100).describe('Number of results to return'),
+    transcriptOnly: z
+      .boolean()
+      .optional()
+      .describe('Search spoken video words only; also available with speech: or речь: prefix'),
     query: z.string().trim().optional().describe('Natural language search query'),
     queryAssetId: z.uuidv4().optional().describe('Asset ID to use as search reference'),
     language: z.string().optional().describe('Search language code'),

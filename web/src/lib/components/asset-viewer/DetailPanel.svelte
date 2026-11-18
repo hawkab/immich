@@ -5,6 +5,7 @@
   import DetailPanelPeople from '#lib/components/asset-viewer/DetailPanelPeople.svelte';
   import DetailPanelRating from '#lib/components/asset-viewer/DetailPanelStarRating.svelte';
   import DetailPanelTags from '#lib/components/asset-viewer/DetailPanelTags.svelte';
+  import DetailPanelTranscript from '#lib/components/asset-viewer/DetailPanelTranscript.svelte';
   import { timeToLoadTheMap } from '#lib/constants.ts';
   import { assetViewerManager } from '#lib/managers/asset-viewer-manager.svelte.ts';
   import { authManager } from '#lib/managers/auth-manager.svelte.ts';
@@ -139,6 +140,7 @@
     {/if}
 
     <DetailPanelDescription {asset} {isOwner} />
+    <DetailPanelTranscript {asset} />
     <DetailPanelRating {asset} {isOwner} />
     <DetailPanelPeople {asset} {isOwner} {previousRoute} />
 

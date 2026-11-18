@@ -42,6 +42,7 @@ const updatedConfig = Object.freeze<SystemConfig>({
     [QueueName.ThumbnailGeneration]: { concurrency: 3 },
     [QueueName.VideoConversion]: { concurrency: 1 },
     [QueueName.Notification]: { concurrency: 5 },
+    [QueueName.Transcription]: { concurrency: 1 },
     [QueueName.Ocr]: { concurrency: 1 },
     [QueueName.Workflow]: { concurrency: 5 },
     [QueueName.IntegrityCheck]: { concurrency: 1 },
@@ -109,6 +110,14 @@ const updatedConfig = Object.freeze<SystemConfig>({
     },
   },
   machineLearning: {
+    transcription: {
+      enabled: false,
+      provider: 'gigaam',
+      url: 'http://172.30.72.254:8000/v1/audio/transcriptions',
+      model: 'v3_e2e_ctc',
+      language: 'ru',
+      apiKey: '',
+    },
     enabled: true,
     urls: ['http://immich-machine-learning:3003'],
     availabilityChecks: {

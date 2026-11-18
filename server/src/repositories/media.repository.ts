@@ -5,7 +5,7 @@ import { camelCase, upperFirst } from 'lodash-es';
 import { Duration } from 'luxon';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
-import { Writable } from 'node:stream';
+import { PassThrough, Writable } from 'node:stream';
 import sharp, { Sharp } from 'sharp';
 import { ORIENTATION_TO_SHARP_ROTATION } from 'src/constants.js';
 import { Exif } from 'src/database.js';
@@ -40,6 +40,7 @@ import type {
   VideoPacketInfo,
 } from 'src/types.js';
 import { handlePromiseError } from 'src/utils/misc.js';
+import { speechWave } from 'src/utils/transcription.js';
 import { createAffineMatrix } from 'src/utils/transform.js';
 
 const probe = (input: string, options: string[]): Promise<FfprobeData> =>
@@ -269,6 +270,25 @@ export class MediaRepository {
       .toBuffer({ resolveWithObject: true });
 
     return Buffer.from(rgbaToThumbHash(info.width, info.height, data));
+  }
+
+  extractSpeech(input: string, start: number, duration: number): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const output = new PassThrough();
+      const chunks: Buffer[] = [];
+      output.on('data', (chunk: Buffer) => { chunks.push(chunk); });
+      ffmpeg(input, { niceness: 10 })
+        .seekInput(start)
+        .duration(duration)
+        .noVideo()
+        .audioChannels(1)
+        .audioFrequency(16_000)
+        .audioCodec('pcm_s16le')
+        .format('s16le')
+        .on('error', reject)
+        .on('end', () => resolve(speechWave(Buffer.concat(chunks))))
+        .pipe(output);
+    });
   }
 
   async probe(input: string, options?: ProbeOptions): Promise<VideoInfo> {

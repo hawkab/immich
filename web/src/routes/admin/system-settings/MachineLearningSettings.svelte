@@ -73,6 +73,56 @@
       </div>
 
       <SettingAccordion
+        key="video-transcription"
+        title={$t('admin.video_transcription')}
+        subtitle={$t('admin.video_transcription_description')}
+      >
+        <div class="ms-4 mt-4 flex flex-col gap-4">
+          <SettingSwitch
+            title={$t('enabled')}
+            bind:checked={configToEdit.machineLearning.transcription.enabled}
+            {disabled}
+          />
+          <SettingSelect
+            name="transcription-provider"
+            label={$t('admin.transcription_provider')}
+            options={[
+              { value: 'gigaam', text: 'GigaAM / Spark router' },
+              { value: 'openai', text: 'OpenAI-compatible audio API' },
+            ]}
+            bind:value={configToEdit.machineLearning.transcription.provider}
+            {disabled}
+          />
+          <SettingInputField
+            inputType={SettingInputFieldType.TEXT}
+            label={$t('admin.transcription_endpoint')}
+            bind:value={configToEdit.machineLearning.transcription.url}
+            {disabled}
+            required
+          />
+          <SettingInputField
+            inputType={SettingInputFieldType.TEXT}
+            label={$t('admin.transcription_model')}
+            bind:value={configToEdit.machineLearning.transcription.model}
+            {disabled}
+            required
+          />
+          <SettingInputField
+            inputType={SettingInputFieldType.TEXT}
+            label={$t('language')}
+            bind:value={configToEdit.machineLearning.transcription.language}
+            {disabled}
+          />
+          <SettingInputField
+            inputType={SettingInputFieldType.PASSWORD}
+            label={$t('api_key')}
+            bind:value={configToEdit.machineLearning.transcription.apiKey}
+            {disabled}
+          />
+        </div>
+      </SettingAccordion>
+
+      <SettingAccordion
         key="availability-checks"
         title={$t('admin.machine_learning_availability_checks')}
         subtitle={$t('admin.machine_learning_availability_checks_description')}

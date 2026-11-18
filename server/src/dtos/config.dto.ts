@@ -207,6 +207,7 @@ const AdminConfigSchemaWithVisibility = z
         sidecar: AdminConfigJobSettingsSchema,
         library: AdminConfigJobSettingsSchema,
         notifications: AdminConfigJobSettingsSchema,
+        transcription: AdminConfigJobSettingsSchema.default({ concurrency: 1 }),
         ocr: AdminConfigJobSettingsSchema,
         workflow: AdminConfigJobSettingsSchema,
         editor: AdminConfigJobSettingsSchema,
@@ -223,6 +224,30 @@ const AdminConfigSchemaWithVisibility = z
       .object({
         enabled: configBool.describe('Enabled').meta({ visibility: User }),
         urls: z.array(z.string()).min(1).describe('ML service URLs'),
+        transcription: z
+          .object({
+            enabled: z.boolean().default(false),
+            provider: z.enum(['gigaam', 'openai']).default('gigaam'),
+            url: z
+              .url()
+              .refine(
+                (value) => ['http:', 'https:'].includes(new URL(value).protocol),
+                'Use an HTTP(S) transcription URL',
+              )
+              .default('http://172.30.72.254:8000/v1/audio/transcriptions'),
+            model: z.string().min(1).default('v3_e2e_ctc'),
+            language: z.string().default('ru'),
+            apiKey: z.string().default(''),
+          })
+          .default({
+            enabled: false,
+            provider: 'gigaam',
+            url: 'http://172.30.72.254:8000/v1/audio/transcriptions',
+            model: 'v3_e2e_ctc',
+            language: 'ru',
+            apiKey: '',
+          })
+          .meta({ id: 'AdminConfigTranscriptionDto' }),
         availabilityChecks: z
           .object({
             enabled: configBool.describe('Enabled'),
@@ -650,6 +675,7 @@ export const defaults = Object.freeze<SystemConfig>({
     sidecar: { concurrency: 5 },
     library: { concurrency: 5 },
     notifications: { concurrency: 5 },
+    transcription: { concurrency: 1 },
     ocr: { concurrency: 1 },
     workflow: { concurrency: 5 },
     editor: { concurrency: 2 },
@@ -662,6 +688,14 @@ export const defaults = Object.freeze<SystemConfig>({
   machineLearning: {
     enabled: process.env.IMMICH_MACHINE_LEARNING_ENABLED !== 'false',
     urls: [process.env.IMMICH_MACHINE_LEARNING_URL || 'http://immich-machine-learning:3003'],
+    transcription: {
+      enabled: process.env.IMMICH_TRANSCRIPTION_ENABLED === 'true',
+      provider: 'gigaam',
+      url: 'http://172.30.72.254:8000/v1/audio/transcriptions',
+      model: 'v3_e2e_ctc',
+      language: 'ru',
+      apiKey: '',
+    },
     availabilityChecks: {
       enabled: true,
       timeout: 2000,

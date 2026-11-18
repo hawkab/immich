@@ -438,6 +438,8 @@ export type JobItem =
   | { name: JobName.VersionCheck; data: IBaseJob }
 
   // OCR
+  | { name: JobName.TranscriptionQueueAll; data: IBaseJob }
+  | { name: JobName.Transcription; data: IEntityJob }
   | { name: JobName.OcrQueueAll; data: IBaseJob }
   | { name: JobName.Ocr; data: IEntityJob }
 

@@ -22,6 +22,7 @@ import {
   withSearchOrder,
 } from 'src/utils/database.js';
 import { paginationHelper, type PaginationOptions } from 'src/utils/pagination.js';
+import { transcriptMatches } from 'src/utils/transcription.js';
 
 export interface SearchAssetIdOptions {
   checksum?: Buffer;
@@ -92,6 +93,8 @@ export interface SearchExifOptions {
 
 export interface SearchEmbeddingOptions {
   embedding: string;
+  transcriptQuery?: string;
+  transcriptOnly?: boolean;
   userIds: string[];
 }
 
@@ -326,8 +329,19 @@ export class SearchRepository {
       await sql`set local vchordrq.probes = ${sql.lit(probes[VectorIndex.Clip])}`.execute(trx);
       const items = await searchAssetBuilderLegacy(trx, options)
         .select(columns.searchAsset)
-        .innerJoin('smart_search', 'asset.id', 'smart_search.assetId')
-        .orderBy(sql`smart_search.embedding <=> ${options.embedding}`)
+        .leftJoin('smart_search', 'asset.id', 'smart_search.assetId')
+        .where((eb) =>
+          options.transcriptOnly && options.transcriptQuery
+            ? transcriptMatches(options.transcriptQuery)
+            : eb.or([
+                eb('smart_search.assetId', 'is not', null),
+                ...(options.transcriptQuery ? [transcriptMatches(options.transcriptQuery)] : []),
+              ]),
+        )
+        .$if(!!options.transcriptQuery, (qb) =>
+          qb.orderBy(sql`case when ${transcriptMatches(options.transcriptQuery!)} then 0 else 1 end`),
+        )
+        .$if(!options.transcriptOnly, (qb) => qb.orderBy(sql`smart_search.embedding <=> ${options.embedding}`))
         .orderBy('asset.id', 'asc')
         .limit(pagination.size + 1)
         .offset((pagination.page - 1) * pagination.size)
@@ -568,15 +582,30 @@ export class SearchRepository {
   @GenerateSql(...searchSmartV3Examples)
   searchSmartV3(
     pagination: PaginationOptions,
-    options: Omit<AssetSearchBuilderV3Options, 'order'> & { embedding: string },
+    options: Omit<AssetSearchBuilderV3Options, 'order'> & {
+      embedding: string;
+      transcriptQuery?: string;
+      transcriptOnly?: boolean;
+    },
     scope: AssetSearchScope,
   ) {
     return this.db.transaction().execute(async (trx) => {
       await sql`set local vchordrq.probes = ${sql.lit(probes[VectorIndex.Clip])}`.execute(trx);
       const items = await searchAssetBuilder(trx, options, scope)
         .select(columns.searchAsset)
-        .innerJoin('smart_search', 'asset.id', 'smart_search.assetId')
-        .orderBy(sql`smart_search.embedding <=> ${options.embedding}`)
+        .leftJoin('smart_search', 'asset.id', 'smart_search.assetId')
+        .where((eb) =>
+          options.transcriptOnly && options.transcriptQuery
+            ? transcriptMatches(options.transcriptQuery)
+            : eb.or([
+                eb('smart_search.assetId', 'is not', null),
+                ...(options.transcriptQuery ? [transcriptMatches(options.transcriptQuery)] : []),
+              ]),
+        )
+        .$if(!!options.transcriptQuery, (qb) =>
+          qb.orderBy(sql`case when ${transcriptMatches(options.transcriptQuery!)} then 0 else 1 end`),
+        )
+        .$if(!options.transcriptOnly, (qb) => qb.orderBy(sql`smart_search.embedding <=> ${options.embedding}`))
         .orderBy('asset.id', 'asc')
         .limit(pagination.take + 1)
         .offset(pagination.skip ?? 0)

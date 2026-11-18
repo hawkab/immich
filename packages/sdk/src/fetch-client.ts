@@ -181,6 +181,7 @@ export type AdminConfigJobDto = {
     sidecar: AdminConfigJobSettingsDto;
     smartSearch: AdminConfigJobSettingsDto;
     thumbnailGeneration: AdminConfigJobSettingsDto;
+    transcription?: AdminConfigJobSettingsDto;
     videoConversion: AdminConfigJobSettingsDto;
     workflow: AdminConfigJobSettingsDto;
 };
@@ -245,6 +246,14 @@ export type AdminConfigOcrDto = {
     /** Name of the model to use */
     modelName: string;
 };
+export type AdminConfigTranscriptionDto = {
+    apiKey?: string;
+    enabled?: boolean;
+    language?: string;
+    model?: string;
+    provider?: Provider;
+    url?: string;
+};
 export type AdminConfigMachineLearningDto = {
     availabilityChecks: AdminConfigMachineLearningAvailabilityChecksDto;
     clip: AdminConfigClipDto;
@@ -253,6 +262,7 @@ export type AdminConfigMachineLearningDto = {
     enabled: boolean;
     facialRecognition: AdminConfigFacialRecognitionDto;
     ocr: AdminConfigOcrDto;
+    transcription?: AdminConfigTranscriptionDto;
     /** ML service URLs */
     urls: string[];
 };
@@ -1816,6 +1826,7 @@ export type QueuesResponseLegacyDto = {
     smartSearch: QueueResponseLegacyDto;
     storageTemplateMigration: QueueResponseLegacyDto;
     thumbnailGeneration: QueueResponseLegacyDto;
+    transcription?: QueueResponseLegacyDto;
     videoConversion: QueueResponseLegacyDto;
     workflow: QueueResponseLegacyDto;
 };
@@ -2736,6 +2747,8 @@ export type SmartSearchDto = {
     takenAfter?: string;
     /** Filter by taken date (before) */
     takenBefore?: string;
+    /** Search spoken video words only; also available with speech: or речь: prefix */
+    transcriptOnly?: boolean;
     /** Filter by trash date (after) */
     trashedAfter?: string;
     /** Filter by trash date (before) */
@@ -8243,6 +8256,10 @@ export enum LogLevel {
     Error = "error",
     Fatal = "fatal"
 }
+export enum Provider {
+    Gigaam = "gigaam",
+    Openai = "openai"
+}
 export enum ReleaseChannel {
     Stable = "stable",
     ReleaseCandidate = "releaseCandidate"
@@ -8585,6 +8602,7 @@ export enum QueueName {
     Notifications = "notifications",
     BackupDatabase = "backupDatabase",
     Ocr = "ocr",
+    Transcription = "transcription",
     Workflow = "workflow",
     IntegrityCheck = "integrityCheck",
     Editor = "editor"
@@ -8687,6 +8705,8 @@ export enum JobName {
     StorageTemplateMigrationSingle = "StorageTemplateMigrationSingle",
     TagCleanup = "TagCleanup",
     VersionCheck = "VersionCheck",
+    TranscriptionQueueAll = "TranscriptionQueueAll",
+    Transcription = "Transcription",
     OcrQueueAll = "OcrQueueAll",
     Ocr = "Ocr",
     WorkflowAssetTrigger = "WorkflowAssetTrigger",

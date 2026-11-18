@@ -245,6 +245,10 @@ export class QueueService extends BaseService {
         return this.jobRepository.queue({ name: JobName.DatabaseBackup, data: { force } });
       }
 
+      case QueueName.Transcription: {
+        return this.jobRepository.queue({ name: JobName.TranscriptionQueueAll, data: { force } });
+      }
+
       case QueueName.Ocr: {
         return this.jobRepository.queue({ name: JobName.OcrQueueAll, data: { force } });
       }

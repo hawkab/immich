@@ -19500,6 +19500,12 @@
           "thumbnailGeneration": {
             "$ref": "#/components/schemas/AdminConfigJobSettingsDto"
           },
+          "transcription": {
+            "$ref": "#/components/schemas/AdminConfigJobSettingsDto",
+            "default": {
+              "concurrency": 1
+            }
+          },
           "videoConversion": {
             "$ref": "#/components/schemas/AdminConfigJobSettingsDto"
           },
@@ -19644,6 +19650,9 @@
           },
           "ocr": {
             "$ref": "#/components/schemas/AdminConfigOcrDto"
+          },
+          "transcription": {
+            "$ref": "#/components/schemas/AdminConfigTranscriptionDto"
           },
           "urls": {
             "description": "ML service URLs",
@@ -20134,6 +20143,50 @@
         "required": [
           "customCss"
         ],
+        "type": "object"
+      },
+      "AdminConfigTranscriptionDto": {
+        "default": {
+          "apiKey": "",
+          "enabled": false,
+          "language": "ru",
+          "model": "v3_e2e_ctc",
+          "provider": "gigaam",
+          "url": "http://172.30.72.254:8000/v1/audio/transcriptions"
+        },
+        "properties": {
+          "apiKey": {
+            "default": "",
+            "type": "string"
+          },
+          "enabled": {
+            "default": false,
+            "type": "boolean",
+            "visibility": "User"
+          },
+          "language": {
+            "default": "ru",
+            "type": "string"
+          },
+          "model": {
+            "default": "v3_e2e_ctc",
+            "minLength": 1,
+            "type": "string"
+          },
+          "provider": {
+            "default": "gigaam",
+            "enum": [
+              "gigaam",
+              "openai"
+            ],
+            "type": "string"
+          },
+          "url": {
+            "default": "http://172.30.72.254:8000/v1/audio/transcriptions",
+            "format": "uri",
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "AdminConfigTrashDto": {
@@ -23367,6 +23420,8 @@
           "StorageTemplateMigrationSingle",
           "TagCleanup",
           "VersionCheck",
+          "TranscriptionQueueAll",
+          "Transcription",
           "OcrQueueAll",
           "Ocr",
           "WorkflowAssetTrigger",
@@ -26984,6 +27039,7 @@
           "notifications",
           "backupDatabase",
           "ocr",
+          "transcription",
           "workflow",
           "integrityCheck",
           "editor"
@@ -27167,6 +27223,9 @@
             "$ref": "#/components/schemas/QueueResponseLegacyDto"
           },
           "thumbnailGeneration": {
+            "$ref": "#/components/schemas/QueueResponseLegacyDto"
+          },
+          "transcription": {
             "$ref": "#/components/schemas/QueueResponseLegacyDto"
           },
           "videoConversion": {
@@ -30042,6 +30101,10 @@
               }
             ],
             "x-immich-state": "Deprecated"
+          },
+          "transcriptOnly": {
+            "description": "Search spoken video words only; also available with speech: or речь: prefix",
+            "type": "boolean"
           },
           "trashedAfter": {
             "deprecated": true,

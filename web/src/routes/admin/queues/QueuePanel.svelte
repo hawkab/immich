@@ -1,10 +1,12 @@
 <script lang="ts">
   import { createPreloadedQuery, executeMutation } from '#lib/queries/client.ts';
+  import { getAdminConfigQuery } from '#lib/queries/config-admin.query.ts';
   import { getUserConfigQuery } from '#lib/queries/config-user.query.ts';
   import { runQueueCommandLegacyMutation } from '#lib/queries/queue.query.ts';
   import { asQueueItem } from '#lib/services/queue.service.ts';
   import { QueueCommand, QueueName, type QueueCommandDto, type QueueResponseDto } from '@immich/sdk';
   import { toastManager } from '@immich/ui';
+  import { createQuery } from '@tanstack/svelte-query';
   import type { Component } from 'svelte';
   import { t } from 'svelte-i18n';
   import QueueCard from './QueueCard.svelte';
@@ -26,6 +28,8 @@
     disabled?: boolean;
     handleCommand?: (jobId: QueueName, jobCommand: QueueCommandDto) => Promise<void>;
   };
+
+  const adminConfig = createQuery(getAdminConfigQuery);
 
   const queueDetails: Partial<Record<QueueName, QueueDetails>> = $derived({
     [QueueName.ThumbnailGeneration]: {
@@ -63,6 +67,11 @@
       allText: $t('reset'),
       missingText: $t('missing'),
       disabled: !machineLearning.facialRecognition.enabled,
+    },
+    [QueueName.Transcription]: {
+      allText: $t('all'),
+      missingText: $t('missing'),
+      disabled: !adminConfig.data?.machineLearning.transcription?.enabled,
     },
     [QueueName.Ocr]: {
       allText: $t('all'),

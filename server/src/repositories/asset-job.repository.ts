@@ -322,6 +322,27 @@ export class AssetJobRepository {
       .executeTakeFirst();
   }
 
+  streamForTranscription(configuration: string, force?: boolean) {
+    return this.db
+      .selectFrom('asset')
+      .select(['asset.id'])
+      .where('asset.type', '=', sql.lit(AssetType.Video))
+      .where('asset.deletedAt', 'is', null)
+      .where('asset.isOffline', '=', false)
+      .$if(!force, (qb) =>
+        qb.where(sql<boolean>`not exists (
+        select 1 from asset_metadata transcript where transcript."assetId" = asset.id
+          and transcript.key = 'org.immich.transcript.v1'
+          and transcript.value->>'schemaVersion' = '1'
+          and transcript.value->>'sourceChecksum' = encode(asset.checksum, 'base64')
+          and transcript.value->>'configuration' = ${configuration}
+          and transcript.value->>'status' in ('complete', 'no_audio')
+      )`),
+      )
+      .orderBy('asset.createdAt', 'desc')
+      .stream();
+  }
+
   @GenerateSql({ params: [], stream: true })
   streamForVideoConversion(force?: boolean) {
     return this.db
