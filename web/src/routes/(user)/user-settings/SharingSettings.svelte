@@ -40,6 +40,7 @@
     sharedWithMe: boolean;
     inTimeline: boolean;
     canEdit: boolean;
+    canDelete: boolean;
   };
 
   let clusterGroupId: string = $state('');
@@ -152,6 +153,16 @@
     }
   };
 
+  const handleDeletePermissionChanged = async (partner: PartnerSharing, canDelete: boolean) => {
+    try {
+      await updatePartnerPermissions({ id: partner.user.id, partnerPermissionsDto: { canDelete } });
+    } catch (error) {
+      handleError(error, $t('errors.something_went_wrong'));
+    } finally {
+      await refreshPartners();
+    }
+  };
+
   const refreshPartners = async () => {
     partners = [];
 
@@ -167,6 +178,7 @@
           user: candidate,
           sharedByMe: true,
           canEdit: candidate.canEdit ?? false,
+          canDelete: candidate.canDelete ?? false,
           sharedWithMe: false,
           inTimeline: candidate.inTimeline ?? false,
         },
@@ -183,6 +195,7 @@
             user: candidate,
             sharedByMe: false,
             canEdit: false,
+            canDelete: false,
             sharedWithMe: true,
             inTimeline: candidate.inTimeline ?? false,
           },
@@ -403,6 +416,12 @@
                   subtitle={$t('partner_allow_editing_description')}
                   checked={partner.canEdit}
                   onToggle={(checked) => handleEditPermissionChanged(partner, checked)}
+                />
+                <SettingSwitch
+                  title={$t('partner_allow_deletion')}
+                  subtitle={$t('partner_allow_deletion_description')}
+                  checked={partner.canDelete}
+                  onToggle={(checked) => handleDeletePermissionChanged(partner, checked)}
                 />
               {/if}
 

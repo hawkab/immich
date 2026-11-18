@@ -71,7 +71,8 @@ export class PartnerController {
   @Authenticated({ permission: Permission.PartnerPermissionsUpdate })
   @Endpoint({
     summary: 'Update permissions granted to a partner',
-    description: 'The sharing owner grants or revokes permission to edit shared photos and manage their faces.',
+    description:
+      'The sharing owner grants or revokes individual permissions to edit shared photos, manage faces, or move shared photos to trash.',
     history: new HistoryBuilder().added('v3.5').beta('v3.5'),
   })
   updatePartnerPermissions(

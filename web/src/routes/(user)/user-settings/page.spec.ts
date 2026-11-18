@@ -37,7 +37,7 @@ test('grants and revokes outgoing partner editing independently of incoming gran
       json: [{ ...partner, canEdit: params.direction !== PartnerDirection.SharedBy || canEdit }],
     }),
     updatePartnerPermissions: ({ body }) => {
-      canEdit = body.canEdit;
+      canEdit = body.canEdit ?? false;
       return { json: { ...partner, canEdit } };
     },
   });
@@ -73,4 +73,41 @@ test('does not offer a grant to an incoming-only partner', async ({ data, router
   await expect
     .element(page.getByRole('switch', { name: 'partner_allow_editing', exact: true }))
     .not.toBeInTheDocument();
+});
+
+test('lets the owner grant and revoke partner deletion independently of timeline settings', async ({
+  data,
+  router,
+  render,
+  settle,
+  api,
+}) => {
+  const partner = factory.user({ name: 'Alice' });
+  let canDelete = false;
+  api.on({
+    getClusterGroupUsers: () => ({ json: [data.user] }),
+    getClusterGroupRequestsForGroup: () => ({ json: [] }),
+    getClusterGroupRequests: () => ({ json: [] }),
+    searchUsers: () => ({ json: [partner] }),
+    getPartners: ({ params }) => ({
+      json: [{ ...partner, canDelete: params.direction === PartnerDirection.SharedBy && canDelete }],
+    }),
+    updatePartnerPermissions: ({ body }) => {
+      canDelete = body.canDelete ?? false;
+      return { json: { ...partner, canDelete } };
+    },
+  });
+  await router.goto(Route.userSettings({ isOpen: OpenQueryParam.SHARING }));
+  await render(Page, load);
+  await page.getByRole('button', { name: 'partners', exact: false }).click();
+  const grant = page.getByRole('switch', { name: 'partner_allow_deletion', exact: true });
+  await expect.element(grant).not.toBeChecked();
+  await grant.click();
+  await settle();
+  expect(api.updatePartnerPermissions).toHaveBeenCalledWith({ params: { id: partner.id }, body: { canDelete: true } });
+  await expect.element(grant).toBeChecked();
+  expect(api.updatePartner).not.toHaveBeenCalled();
+  await grant.click();
+  await settle();
+  expect(api.updatePartnerPermissions).toHaveBeenCalledWith({ params: { id: partner.id }, body: { canDelete: false } });
 });

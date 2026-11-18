@@ -9,6 +9,7 @@
   import ButtonContextMenu from '#lib/components/shared-components/context-menu/ButtonContextMenu.svelte';
   import { assetViewerManager } from '#lib/managers/asset-viewer-manager.svelte.ts';
   import { authManager } from '#lib/managers/auth-manager.svelte.ts';
+  import { featureFlagsManager } from '#lib/managers/feature-flags-manager.svelte.ts';
   import { languageManager } from '#lib/managers/language-manager.svelte.ts';
   import { getAlbumAssetActions } from '#lib/services/album.service.ts';
   import { getGlobalActions } from '#lib/services/app.service.ts';
@@ -118,7 +119,7 @@
     <ActionButton action={Actions.Unfavorite} />
     <ActionButton action={Actions.Edit} />
 
-    {#if isOwner}
+    {#if !sharedLink && (isOwner || (asset.canDelete === true && !asset.isTrashed && featureFlagsManager.value.trash))}
       <DeleteAction {asset} {onAction} {preAction} {onUndoDelete} />
     {/if}
 

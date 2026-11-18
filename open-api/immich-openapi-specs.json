@@ -9821,7 +9821,7 @@
     },
     "/partners/{id}/permissions": {
       "put": {
-        "description": "The sharing owner grants or revokes permission to edit shared photos and manage their faces.",
+        "description": "The sharing owner grants or revokes individual permissions to edit shared photos, manage faces, or move shared photos to trash.",
         "operationId": "updatePartnerPermissions",
         "parameters": [
           {
@@ -21904,6 +21904,10 @@
       },
       "AssetResponseDto": {
         "properties": {
+          "canDelete": {
+            "description": "Whether the viewer may move this asset to trash",
+            "type": "boolean"
+          },
           "canEdit": {
             "description": "Whether the current user may edit this photo and its faces",
             "type": "boolean"
@@ -25664,14 +25668,15 @@
       },
       "PartnerPermissionsDto": {
         "properties": {
+          "canDelete": {
+            "description": "Allow the recipient to trash shared photos and restore them",
+            "type": "boolean"
+          },
           "canEdit": {
             "description": "Allow the recipient to edit shared photos and manage their faces",
             "type": "boolean"
           }
         },
-        "required": [
-          "canEdit"
-        ],
         "type": "object"
       },
       "PartnerResponseDto": {
@@ -25679,6 +25684,10 @@
         "properties": {
           "avatarColor": {
             "$ref": "#/components/schemas/UserAvatarColor"
+          },
+          "canDelete": {
+            "description": "Owner-granted permission to trash shared photos",
+            "type": "boolean"
           },
           "canEdit": {
             "description": "Permission granted by the sharing owner to edit photos and faces",
@@ -26145,6 +26154,8 @@
           "asset.read",
           "asset.update",
           "asset.delete",
+          "asset.trash",
+          "asset.restore",
           "asset.statistics",
           "asset.share",
           "asset.view",

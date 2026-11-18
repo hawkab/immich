@@ -43,6 +43,9 @@ describe(AssetService.name, () => {
 
   beforeEach(() => {
     ({ sut, mocks } = newTestService(AssetService));
+    mocks.asset.getOwnership.mockImplementation((ids) =>
+      Promise.resolve(ids.map((id) => ({ id, ownerId: 'user-id' }))),
+    );
   });
 
   describe('getStatistics', () => {

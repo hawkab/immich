@@ -3,7 +3,7 @@ import { sql, type Kysely, type NotNull } from 'kysely';
 import { InjectKysely } from 'nestjs-kysely';
 import { ChunkedSet, DummyValue, GenerateSql } from 'src/decorators.js';
 import { PersonUserRole } from 'src/dtos/person.dto.js';
-import { AlbumUserRole, AssetVisibility } from 'src/enum.js';
+import { AlbumUserRole, AssetStatus, AssetVisibility } from 'src/enum.js';
 import { PersonId } from 'src/repositories/person.repository.js';
 import { DB } from 'src/schema/index.js';
 import { asUuid } from 'src/utils/database.js';
@@ -154,6 +154,29 @@ class AlbumAccess {
 
 class AssetAccess {
   constructor(private db: Kysely<DB>) {}
+
+  @GenerateSql({ params: [DummyValue.UUID, DummyValue.UUID_SET, false] })
+  @ChunkedSet({ paramIndex: 1 })
+  async checkPartnerDeleteAccess(userId: string, assetIds: Set<string>, trashed = false) {
+    if (assetIds.size === 0) {
+      return new Set<string>();
+    }
+    return this.db
+      .selectFrom('partner')
+      .innerJoin('user as sharedBy', (join) =>
+        join.onRef('sharedBy.id', '=', 'partner.sharedById').on('sharedBy.deletedAt', 'is', null),
+      )
+      .innerJoin('asset', 'asset.ownerId', 'sharedBy.id')
+      .select('asset.id')
+      .where('partner.sharedWithId', '=', userId)
+      .where('partner.canDelete', '=', true)
+      .where('asset.id', 'in', [...assetIds])
+      .where('asset.visibility', '=', AssetVisibility.Timeline)
+      .where('asset.status', '=', trashed ? AssetStatus.Trashed : AssetStatus.Active)
+      .where('asset.deletedAt', trashed ? 'is not' : 'is', null)
+      .execute()
+      .then((assets) => new Set(assets.map((asset) => asset.id)));
+  }
 
   @GenerateSql({ params: [DummyValue.UUID, DummyValue.UUID_SET] })
   @ChunkedSet({ paramIndex: 1 })

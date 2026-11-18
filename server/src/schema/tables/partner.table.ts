@@ -47,6 +47,9 @@ export class PartnerTable {
   @Column({ type: 'boolean', default: false })
   canEdit!: Generated<boolean>;
 
+  @Column({ type: 'boolean', default: false })
+  canDelete!: Generated<boolean>;
+
   @UpdateIdColumn({ index: true })
   updateId!: Generated<string>;
 }

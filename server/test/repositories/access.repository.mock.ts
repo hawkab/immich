@@ -28,6 +28,8 @@ export const newAccessRepositoryMock = (): IAccessRepositoryMock => {
 
     asset: {
       checkPartnerEditAccess: vitest.fn().mockResolvedValue(new Set()),
+
+      checkPartnerDeleteAccess: vitest.fn().mockResolvedValue(new Set()),
       checkOwnerAccess: vitest.fn().mockResolvedValue(new Set()),
       checkAlbumAccess: vitest.fn().mockResolvedValue(new Set()),
       checkPartnerAccess: vitest.fn().mockResolvedValue(new Set()),

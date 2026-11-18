@@ -67,7 +67,7 @@ export class PartnerService extends BaseService {
     await this.requireAccess({ auth, permission: Permission.PartnerPermissionsUpdate, ids: [sharedWithId] });
     const partner = await this.partnerRepository.update(
       { sharedById: auth.user.id, sharedWithId },
-      { canEdit: dto.canEdit },
+      { canEdit: dto.canEdit, canDelete: dto.canDelete },
     );
     return this.mapPartner(partner, SharingDirection.SharedBy);
   }
@@ -77,6 +77,6 @@ export class PartnerService extends BaseService {
     const sharedUser = direction === SharingDirection.SharedBy ? partner.sharedWith : partner.sharedBy;
     const user = mapUser(sharedUser);
 
-    return { ...user, inTimeline: partner.inTimeline, canEdit: partner.canEdit };
+    return { ...user, inTimeline: partner.inTimeline, canEdit: partner.canEdit, canDelete: partner.canDelete };
   }
 }

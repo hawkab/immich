@@ -1320,6 +1320,8 @@ export type TagResponseDto = {
     value: string;
 };
 export type AssetResponseDto = {
+    /** Whether the viewer may move this asset to trash */
+    canDelete?: boolean;
     /** Whether the current user may edit this photo and its faces */
     canEdit?: boolean;
     /** Base64 encoded SHA1 hash */
@@ -2038,6 +2040,8 @@ export type OAuthCallbackDto = {
 };
 export type PartnerResponseDto = {
     avatarColor: UserAvatarColor;
+    /** Owner-granted permission to trash shared photos */
+    canDelete?: boolean;
     /** Permission granted by the sharing owner to edit photos and faces */
     canEdit?: boolean;
     /** User email */
@@ -2062,8 +2066,10 @@ export type PartnerUpdateDto = {
     inTimeline: boolean;
 };
 export type PartnerPermissionsDto = {
+    /** Allow the recipient to trash shared photos and restore them */
+    canDelete?: boolean;
     /** Allow the recipient to edit shared photos and manage their faces */
-    canEdit: boolean;
+    canEdit?: boolean;
 };
 export type PasskeyResponseDto = {
     /** Creation date */
@@ -8439,6 +8445,8 @@ export enum Permission {
     AssetRead = "asset.read",
     AssetUpdate = "asset.update",
     AssetDelete = "asset.delete",
+    AssetTrash = "asset.trash",
+    AssetRestore = "asset.restore",
     AssetStatistics = "asset.statistics",
     AssetShare = "asset.share",
     AssetView = "asset.view",

@@ -72,3 +72,19 @@ In order to remove a partner, you can go to `User > Account Settings > Sharing` 
 ## Building This Fork
 
 This branch backports the permission to Immich 3.4.1. With Docker and the pinned mise tools installed, run `bash docker/build-partner-edit.sh` from a clean, signed checkout. The recipe verifies the official base image identity and unchanged runtime dependencies, builds the source with mise, and replaces the server and web assets. Existing native dependencies, plugins, CLI and machine-learning images remain from the official release. `BASE_IMAGE` may name a locally cached copy of the same verified base image.
+
+## Permission to delete shared photos
+
+The sharing owner can grant **Allow moving shared photos to trash** in
+**User settings → Sharing → Partners**. This permission is off by default and
+is independent of photo and face editing. A recipient cannot grant it to themselves.
+
+An authorized partner sees the usual delete button in the photo viewer and can
+also select multiple photos in the partner timeline. Deletion moves the original
+to its owner's trash; the usual Undo action restores it. Both accounts receive
+updates. Revoking the grant or stopping sharing takes effect on the next request.
+
+This grant does not allow permanent deletion, emptying another user's trash,
+editing metadata, or accessing their archive or locked folder. Server trash must
+be enabled to keep partner deletion recoverable. Existing mobile deletion rules
+and the physical files on either phone are unchanged.

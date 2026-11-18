@@ -71,6 +71,22 @@ where
   "shared_link"."id" = $1
   and "shared_link"."albumId" in ($2)
 
+-- AccessRepository.asset.checkPartnerDeleteAccess
+select
+  "asset"."id"
+from
+  "partner"
+  inner join "user" as "sharedBy" on "sharedBy"."id" = "partner"."sharedById"
+  and "sharedBy"."deletedAt" is null
+  inner join "asset" on "asset"."ownerId" = "sharedBy"."id"
+where
+  "partner"."sharedWithId" = $1
+  and "partner"."canDelete" = $2
+  and "asset"."id" in ($3)
+  and "asset"."visibility" = $4
+  and "asset"."status" = $5
+  and "asset"."deletedAt" is null
+
 -- AccessRepository.asset.checkPartnerEditAccess
 select
   "asset"."id"

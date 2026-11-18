@@ -14,16 +14,31 @@
     onUndoDelete?: OnUndoDelete | undefined;
     menuItem?: boolean;
     force?: boolean;
+    partnerOwnerId?: string;
   };
 
-  let { onAssetDelete, onUndoDelete = undefined, menuItem = false, force: forceRequested }: Props = $props();
+  let {
+    onAssetDelete,
+    onUndoDelete = undefined,
+    menuItem = false,
+    force: forceRequested,
+    partnerOwnerId,
+  }: Props = $props();
 
-  const force = $derived(forceRequested || !featureFlagsManager.value.trash);
+  const force = $derived(!partnerOwnerId && (forceRequested || !featureFlagsManager.value.trash));
   let label = $derived(force ? $t('permanently_delete') : $t('delete'));
   let loading = $state(false);
 
   const onAction = async () => {
-    const assets = assetMultiSelectManager.ownedAssets;
+    if (partnerOwnerId && !featureFlagsManager.value.trash) {
+      return;
+    }
+    const assets = partnerOwnerId
+      ? assetMultiSelectManager.assets.filter((asset) => asset.ownerId === partnerOwnerId && !asset.isTrashed)
+      : assetMultiSelectManager.ownedAssets;
+    if (assets.length === 0) {
+      return;
+    }
 
     if (force && $showDeleteModal) {
       const confirmed = await modalManager.show(AssetDeleteConfirmModal, { size: assets.length });

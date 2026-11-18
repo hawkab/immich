@@ -5,6 +5,7 @@ import { AuthDto } from 'src/dtos/auth.dto.js';
 import { TrashResponseDto } from 'src/dtos/trash.dto.js';
 import { JobName, JobStatus, Permission, QueueName } from 'src/enum.js';
 import { BaseService } from 'src/services/base.service.js';
+import { assetEventRecipients } from 'src/utils/asset-ownership.js';
 import { batched } from 'src/utils/misc.js';
 
 @Injectable()
@@ -15,9 +16,12 @@ export class TrashService extends BaseService {
       return { count: 0 };
     }
 
-    await this.requireAccess({ auth, permission: Permission.AssetDelete, ids });
+    await this.requireAccess({ auth, permission: Permission.AssetRestore, ids });
+    const assets = await this.assetRepository.getOwnership(ids);
     await this.trashRepository.restoreAll(ids);
-    await this.eventRepository.emit('AssetRestoreAll', { assetIds: ids, userId: auth.user.id });
+    for (const [userId, assetIds] of assetEventRecipients(assets, auth.user.id)) {
+      await this.eventRepository.emit('AssetRestoreAll', { assetIds, userId });
+    }
 
     this.logger.log(`Restored ${ids.length} asset(s) from trash`);
 

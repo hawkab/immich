@@ -4,6 +4,7 @@ import { PartnerController } from 'src/controllers/partner.controller.js';
 import { LoggingRepository } from 'src/repositories/logging.repository.js';
 import { PartnerService } from 'src/services/partner.service.js';
 import { errorDto } from 'test/medium/responses.js';
+import { newUuid } from 'test/small.factory.js';
 import { ControllerContext, automock, controllerSetup, mockBaseService } from 'test/utils.js';
 
 describe(PartnerController.name, () => {
@@ -45,6 +46,28 @@ describe(PartnerController.name, () => {
           { path: ['direction'], message: expect.stringContaining('Invalid option: expected one of') },
         ]),
       );
+    });
+  });
+
+  describe('PUT /partners/:id/permissions', () => {
+    it.each([{}, { canDelete: 'yes' }, { canDelete: null }])('rejects an invalid grant: %j', async (body) => {
+      const response = await request(ctx.getHttpServer())
+        .put(`/partners/${newUuid()}/permissions`)
+        .set('Authorization', 'Bearer token')
+        .send(body);
+      expect(response.status).toBe(400);
+      expect(service.updatePermissions).not.toHaveBeenCalled();
+    });
+
+    it('accepts an explicit boolean grant', async () => {
+      const id = newUuid();
+      service.updatePermissions.mockResolvedValue({} as never);
+      const response = await request(ctx.getHttpServer())
+        .put(`/partners/${id}/permissions`)
+        .set('Authorization', 'Bearer token')
+        .send({ canDelete: false });
+      expect(response.status).toBe(200);
+      expect(service.updatePermissions).toHaveBeenCalledWith(undefined, id, { canDelete: false });
     });
   });
 

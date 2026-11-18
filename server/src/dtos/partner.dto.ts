@@ -17,7 +17,11 @@ const PartnerUpdateSchema = z
 
 const PartnerPermissionsSchema = z
   .object({
-    canEdit: z.boolean().describe('Allow the recipient to edit shared photos and manage their faces'),
+    canEdit: z.boolean().optional().describe('Allow the recipient to edit shared photos and manage their faces'),
+    canDelete: z.boolean().optional().describe('Allow the recipient to trash shared photos and restore them'),
+  })
+  .refine((grant) => grant.canEdit !== undefined || grant.canDelete !== undefined, {
+    message: 'Specify at least one partner permission',
   })
   .meta({ id: 'PartnerPermissionsDto' });
 
@@ -30,6 +34,7 @@ const PartnerSearchSchema = z
 const PartnerResponseSchema = UserResponseSchema.extend({
   inTimeline: z.boolean().optional().describe('Show in timeline'),
   canEdit: z.boolean().optional().describe('Permission granted by the sharing owner to edit photos and faces'),
+  canDelete: z.boolean().optional().describe('Owner-granted permission to trash shared photos'),
 })
   .describe('Partner response')
   .meta({ id: 'PartnerResponseDto' });

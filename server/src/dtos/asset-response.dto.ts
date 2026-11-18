@@ -96,6 +96,7 @@ export const AssetResponseSchema = SanitizedAssetResponseSchema.extend(
     isFavorite: z.boolean().describe('Is favorite'),
     isArchived: z.boolean().describe('Is archived'),
     isTrashed: z.boolean().describe('Is trashed'),
+    canDelete: z.boolean().optional().describe('Whether the viewer may move this asset to trash'),
     isOffline: z.boolean().describe('Is offline'),
     visibility: AssetVisibilitySchema,
     exifInfo: ExifResponseSchema.optional(),

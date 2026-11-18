@@ -149,6 +149,8 @@ export enum Permission {
   AssetRead = 'asset.read',
   AssetUpdate = 'asset.update',
   AssetDelete = 'asset.delete',
+  AssetTrash = 'asset.trash',
+  AssetRestore = 'asset.restore',
   AssetStatistics = 'asset.statistics',
   AssetShare = 'asset.share',
   AssetView = 'asset.view',
