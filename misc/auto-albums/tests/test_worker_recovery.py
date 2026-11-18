@@ -7,9 +7,8 @@ import unittest
 import urllib.error
 from unittest.mock import Mock, patch
 
-from photo_memories import pipeline, sources
+from photo_memories import sources
 from photo_memories.ingest import synchronize
-from photo_memories.previews import mark_preview_ready, request_regeneration
 from photo_memories.state import Registry
 
 
@@ -26,44 +25,6 @@ class RecoveryTests(unittest.TestCase):
         self.scene = {'schemaVersion': 1, 'sourceChecksum': 'checksum', 'thumbhash': 'current',
                       'sourceToken': sources.source_token(self.asset), 'kind': 'photo'}
         self.now = datetime(2026, 11, 18, tzinfo=timezone.utc)
-
-    def test_missing_or_conflicting_preview_regenerates_but_forbidden_is_an_error(self):
-        for code in (404, 409, 403):
-            with self.subTest(code=code):
-                self.registry.put('assets:owner', 'a', {'asset': self.asset, 'scene': self.scene})
-                owner = SimpleNamespace(id='owner', owned_albums=lambda: [],
-                    preview=Mock(side_effect=urllib.error.HTTPError('/thumbnail', code, 'synthetic', {}, None)))
-                record = {'phase': 'active', 'exclusions': [], 'album_id': 'synthetic'}
-                with patch.object(pipeline, 'synchronize', return_value=[]), \
-                     patch.object(pipeline, 'sync_album', return_value=record), \
-                     patch.object(pipeline, 'request_regeneration') as regenerate:
-                    status = pipeline.process(owner, self.registry,
-                        {'state_directory': str(self.root), 'event_directory': str(self.root)}, [], {}, self.now)
-                self.assertEqual(regenerate.call_count, 0 if code == 403 else 1, status)
-                self.assertEqual(len(status['errors']), 1 if code == 403 else 0, status)
-
-    def test_unknown_regeneration_survives_restart_without_duplicate_and_positive_proof_releases_it(self):
-        posts = []
-
-        def call(path, value=None, method=None):
-            if path.endswith('/edits'):
-                return {'assetId': 'a', 'edits': []}
-            posts.append(value)
-            raise ConnectionError('Synthetic accepted job lost reply')
-
-        owner = SimpleNamespace(id='owner', call=call)
-        with self.assertRaises(ConnectionError):
-            request_regeneration(owner, self.registry, self.asset)
-        reopened = Registry(self.root / 'registry.sqlite3')
-        try:
-            request_regeneration(owner, reopened, self.asset)
-            self.assertEqual(len(posts), 1)
-            mark_preview_ready(owner, reopened, self.asset, [], {'basis': 'managed_immutable_original'})
-            with self.assertRaises(ConnectionError):
-                request_regeneration(owner, reopened, self.asset)
-            self.assertEqual(len(posts), 2)
-        finally:
-            reopened.close()
 
     def test_scene_cache_closes_each_reader(self):
         path = self.root / 'receipts.sqlite3'

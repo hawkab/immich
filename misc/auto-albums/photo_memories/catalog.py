@@ -2,6 +2,7 @@ from collections import defaultdict
 import re
 
 from .sources import captured, current_scene, digest, logical_edits
+from .policy import burial_context
 
 MONTHS = ('январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август',
           'сентябрь', 'октябрь', 'ноябрь', 'декабрь')
@@ -21,18 +22,19 @@ THEMES = (
 def classification(asset, scene):
     if not current_scene(asset, scene):
         scene = {}
+    if burial_context(scene):
+        return []
     kind = scene.get('kind', '')
     filename = asset.get('originalFileName', '').casefold()
     technical = kind in ('screenshot', 'document') or filename.startswith(('screenshot', 'скриншот'))
     if technical:
         return ['technical']
     facts = scene.get('facts') or [scene.get('visionText', scene.get('searchText', ''))]
-    represented = scene.get('depictedOnly', [])
     if not isinstance(facts, list) or any(not isinstance(fact, str) for fact in facts):
         facts = []
     actual = ' '.join(facts)
     themes = [key for key, _, pattern in THEMES if re.search(pattern, actual.casefold())]
-    if kind == 'drawing' or represented:
+    if kind == 'drawing':
         themes.append('creative')
     return sorted(set(themes))
 
@@ -41,17 +43,19 @@ def plan_buckets(assets, scenes):
     groups = {}
     cities = defaultdict(list)
 
-    def add(key, title, theme, asset, render=True):
+    def add(key, title, theme, asset):
         group = groups.setdefault(key, {'key': key, 'title': title, 'theme': theme,
-                                         'render': render, 'assets': []})
+                                         'assets': []})
         group['assets'].append(asset)
 
     titles = {key: title for key, title, _ in THEMES}
     for asset in assets:
+        if not current_scene(asset, scenes.get(asset['id'])) or burial_context(scenes[asset['id']]):
+            continue
         date = captured(asset)
         themes = classification(asset, scenes.get(asset['id']))
         if themes == ['technical']:
-            add(f'technical:{date.year}', f'Документы и скриншоты · {date.year}', 'technical', asset, False)
+            add(f'technical:{date.year}', f'Документы и скриншоты · {date.year}', 'technical', asset)
             continue
         add(f'month:{date:%Y-%m}', f'Моменты · {MONTHS[date.month - 1]} {date.year}', 'family', asset)
         for theme in themes:
@@ -71,15 +75,3 @@ def plan_buckets(assets, scenes):
                                          (a.get('exifInfo') or {}).get('rating'), captured(a).isoformat())
                                         for a in group['assets']])
     return groups
-
-
-def curate(assets):
-    chosen = {}
-    for asset in assets:
-        key = asset.get('duplicateId') or asset.get('checksum') or asset['id']
-        old = chosen.get(key)
-        score = (bool(asset.get('isFavorite')), (asset.get('exifInfo') or {}).get('rating') or 0,
-                 (asset.get('width') or 0) * (asset.get('height') or 0), asset['id'])
-        if old is None or score > old[0]:
-            chosen[key] = (score, asset)
-    return sorted((value[1] for value in chosen.values()), key=lambda a: (captured(a), a['id']))
