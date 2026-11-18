@@ -68,7 +68,8 @@ describe('authentication settings', () => {
 });
 
 describe('video transcription settings', () => {
-  test('exposes Raspberry GigaAM defaults and an editable provider', async ({ router, render, app }) => {
+  test('exposes Raspberry GigaAM defaults and an editable provider', async ({ data, router, render, app }) => {
+    data.adminConfig.machineLearning.enabled = true;
     await router.goto(Route.systemSettings());
     await render(Page, load);
     await app.admin.settings.open('admin.machine_learning_settings');
