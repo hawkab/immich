@@ -1306,6 +1306,8 @@ export type TagResponseDto = {
     value: string;
 };
 export type AssetResponseDto = {
+    /** Whether the viewer may move this asset to trash */
+    canDelete?: boolean;
     /** Base64 encoded SHA1 hash */
     checksum: string;
     /** The UTC timestamp when the asset was originally uploaded to Immich. */
@@ -2002,6 +2004,8 @@ export type OAuthCallbackDto = {
 };
 export type PartnerResponseDto = {
     avatarColor: UserAvatarColor;
+    /** Owner-granted permission to trash shared photos */
+    canDelete?: boolean;
     /** User email */
     email: string;
     /** User ID */
@@ -2022,6 +2026,10 @@ export type PartnerCreateDto = {
 export type PartnerUpdateDto = {
     /** Show partner assets in timeline */
     inTimeline: boolean;
+};
+export type PartnerPermissionsDto = {
+    /** Allow the recipient to move shared photos to trash and restore them */
+    canDelete: boolean;
 };
 export type PasskeyResponseDto = {
     /** Creation date */
@@ -6199,6 +6207,22 @@ export function updatePartner({ id, partnerUpdateDto }: {
     })));
 }
 /**
+ * Update partner permissions
+ */
+export function updatePartnerPermissions({ id, partnerPermissionsDto }: {
+    id: string;
+    partnerPermissionsDto: PartnerPermissionsDto;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchJson<{
+        status: 200;
+        data: PartnerResponseDto;
+    }>(`/partners/${encodeURIComponent(id)}/permissions`, oazapfts.json({
+        ...opts,
+        method: "PUT",
+        body: partnerPermissionsDto
+    })));
+}
+/**
  * Search passkeys
  */
 export function searchPasskeys({ id }: {
@@ -8336,6 +8360,8 @@ export enum Permission {
     AssetRead = "asset.read",
     AssetUpdate = "asset.update",
     AssetDelete = "asset.delete",
+    AssetTrash = "asset.trash",
+    AssetRestore = "asset.restore",
     AssetStatistics = "asset.statistics",
     AssetShare = "asset.share",
     AssetView = "asset.view",
@@ -8410,6 +8436,7 @@ export enum Permission {
     PartnerCreate = "partner.create",
     PartnerRead = "partner.read",
     PartnerUpdate = "partner.update",
+    PartnerPermissionsUpdate = "partner.permissions.update",
     PartnerDelete = "partner.delete",
     PasskeyRead = "passkey.read",
     PasskeyUpdate = "passkey.update",

@@ -5,6 +5,7 @@ import type { RepositoryInterface } from 'src/types.js';
 export const newAssetRepositoryMock = (): Mocked<RepositoryInterface<AssetRepository>> => {
   return {
     create: vitest.fn(),
+    getOwnership: vitest.fn().mockResolvedValue([]),
     createAll: vitest.fn(),
     upsertExif: vitest.fn(),
     updateAllExif: vitest.fn(),

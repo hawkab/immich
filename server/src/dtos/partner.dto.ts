@@ -15,6 +15,12 @@ const PartnerUpdateSchema = z
   })
   .meta({ id: 'PartnerUpdateDto' });
 
+const PartnerPermissionsSchema = z
+  .object({
+    canDelete: z.boolean().describe('Allow the recipient to move shared photos to trash and restore them'),
+  })
+  .meta({ id: 'PartnerPermissionsDto' });
+
 const PartnerSearchSchema = z
   .object({
     direction: PartnerDirectionSchema,
@@ -23,11 +29,13 @@ const PartnerSearchSchema = z
 
 const PartnerResponseSchema = UserResponseSchema.extend({
   inTimeline: z.boolean().optional().describe('Show in timeline'),
+  canDelete: z.boolean().optional().describe('Owner-granted permission to trash shared photos'),
 })
   .describe('Partner response')
   .meta({ id: 'PartnerResponseDto' });
 
 export class PartnerCreateDto extends createZodDto(PartnerCreateSchema) {}
 export class PartnerUpdateDto extends createZodDto(PartnerUpdateSchema) {}
+export class PartnerPermissionsDto extends createZodDto(PartnerPermissionsSchema) {}
 export class PartnerSearchDto extends createZodDto(PartnerSearchSchema) {}
 export class PartnerResponseDto extends createZodDto(PartnerResponseSchema) {}

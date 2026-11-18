@@ -215,6 +215,17 @@ const checkOtherAccess = async (access: AccessRepository, request: OtherAccessRe
       return await access.asset.checkOwnerAccess(auth.user.id, ids, auth.session?.hasElevatedPermission);
     }
 
+    case Permission.AssetTrash:
+    case Permission.AssetRestore: {
+      const owned = await access.asset.checkOwnerAccess(auth.user.id, ids, auth.session?.hasElevatedPermission);
+      const shared = await access.asset.checkPartnerDeleteAccess(
+        auth.user.id,
+        ids.difference(owned),
+        permission === Permission.AssetRestore,
+      );
+      return owned.union(shared);
+    }
+
     case Permission.AssetDelete: {
       return await access.asset.checkOwnerAccess(auth.user.id, ids, auth.session?.hasElevatedPermission);
     }
@@ -391,6 +402,10 @@ const checkOtherAccess = async (access: AccessRepository, request: OtherAccessRe
 
     case Permission.ClusterGroupRequestRead: {
       return access.clusterGroupRequest.checkOwnerAccess(auth.user.id, ids);
+    }
+
+    case Permission.PartnerPermissionsUpdate: {
+      return access.partner.checkOwnerAccess(auth.user.id, ids);
     }
 
     case Permission.PartnerUpdate: {

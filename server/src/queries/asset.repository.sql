@@ -299,6 +299,15 @@ where
 limit
   $2
 
+-- AssetRepository.getOwnership
+select
+  "id",
+  "ownerId"
+from
+  "asset"
+where
+  "id" = any ($1::uuid[])
+
 -- AssetRepository.updateAll
 update "asset"
 set

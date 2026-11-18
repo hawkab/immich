@@ -622,6 +622,12 @@ export class AssetRepository {
       .executeTakeFirst();
   }
 
+  @GenerateSql({ params: [[DummyValue.UUID]] })
+  @Chunked()
+  getOwnership(ids: string[]) {
+    return this.db.selectFrom('asset').select(['id', 'ownerId']).where('id', '=', anyUuid(ids)).execute();
+  }
+
   @GenerateSql({ params: [[DummyValue.UUID], {}] })
   @Chunked()
   async updateAll(ids: string[], options: Updateable<AssetTable>): Promise<void> {

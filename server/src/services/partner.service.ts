@@ -1,7 +1,13 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Partner } from 'src/database.js';
 import { AuthDto } from 'src/dtos/auth.dto.js';
-import { PartnerCreateDto, PartnerResponseDto, PartnerSearchDto, PartnerUpdateDto } from 'src/dtos/partner.dto.js';
+import {
+  PartnerCreateDto,
+  PartnerPermissionsDto,
+  PartnerResponseDto,
+  PartnerSearchDto,
+  PartnerUpdateDto,
+} from 'src/dtos/partner.dto.js';
 import { mapUser } from 'src/dtos/user.dto.js';
 import { Permission, SharingDirection } from 'src/enum.js';
 import { PartnerIds } from 'src/repositories/partner.repository.js';
@@ -53,11 +59,24 @@ export class PartnerService extends BaseService {
     return this.mapPartner(entity, SharingDirection.SharedWith);
   }
 
+  async updatePermissions(
+    auth: AuthDto,
+    sharedWithId: string,
+    dto: PartnerPermissionsDto,
+  ): Promise<PartnerResponseDto> {
+    await this.requireAccess({ auth, permission: Permission.PartnerPermissionsUpdate, ids: [sharedWithId] });
+    const partner = await this.partnerRepository.update(
+      { sharedById: auth.user.id, sharedWithId },
+      { canDelete: dto.canDelete },
+    );
+    return this.mapPartner(partner, SharingDirection.SharedBy);
+  }
+
   private mapPartner(partner: Partner, direction: SharingDirection): PartnerResponseDto {
     // this is opposite to return the non-me user of the "partner"
     const sharedUser = direction === SharingDirection.SharedBy ? partner.sharedWith : partner.sharedBy;
     const user = mapUser(sharedUser);
 
-    return { ...user, inTimeline: partner.inTimeline };
+    return { ...user, inTimeline: partner.inTimeline, canDelete: partner.canDelete };
   }
 }

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { AssetAction } from '#lib/constants.ts';
+  import { authManager } from '#lib/managers/auth-manager.svelte.ts';
   import { featureFlagsManager } from '#lib/managers/feature-flags-manager.svelte.ts';
   import AssetDeleteConfirmModal from '#lib/modals/AssetDeleteConfirmModal.svelte';
   import { showDeleteModal } from '#lib/stores/preferences.store.ts';
@@ -21,9 +22,13 @@
 
   let { asset, onAction, preAction, onUndoDelete = undefined }: Props = $props();
 
-  const forceDefault = $derived(asset.isTrashed || !featureFlagsManager.value.trash);
+  const isOwner = $derived(authManager.authenticated && asset.ownerId === authManager.user.id);
+  const forceDefault = $derived(isOwner && (asset.isTrashed || !featureFlagsManager.value.trash));
 
   const trashOrDelete = async (forceRequest?: boolean) => {
+    if (!isOwner && (forceRequest || !asset.canDelete || asset.isTrashed || !featureFlagsManager.value.trash)) {
+      return;
+    }
     const timelineAsset = toTimelineAsset(asset);
     const force = forceDefault || forceRequest;
 

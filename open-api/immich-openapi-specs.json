@@ -9696,6 +9696,73 @@
         "x-immich-state": "Stable"
       }
     },
+    "/partners/{id}/permissions": {
+      "put": {
+        "description": "Allow the sharing owner to grant or revoke permission to trash shared photos.",
+        "operationId": "updatePartnerPermissions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartnerPermissionsDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartnerResponseDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Update partner permissions",
+        "tags": [
+          "Partners"
+        ],
+        "x-immich-history": [
+          {
+            "state": "Added",
+            "version": "v3.4.1"
+          },
+          {
+            "state": "Beta",
+            "version": "v3.4.1"
+          }
+        ],
+        "x-immich-permission": "partner.permissions.update",
+        "x-immich-state": "Beta"
+      }
+    },
     "/passkeys": {
       "get": {
         "description": "Search the passkeys of the current user.",
@@ -21650,6 +21717,10 @@
       },
       "AssetResponseDto": {
         "properties": {
+          "canDelete": {
+            "description": "Whether the viewer may move this asset to trash",
+            "type": "boolean"
+          },
           "checksum": {
             "description": "Base64 encoded SHA1 hash",
             "type": "string"
@@ -25455,11 +25526,27 @@
         ],
         "type": "string"
       },
+      "PartnerPermissionsDto": {
+        "properties": {
+          "canDelete": {
+            "description": "Allow the recipient to move shared photos to trash and restore them",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "canDelete"
+        ],
+        "type": "object"
+      },
       "PartnerResponseDto": {
         "description": "Partner response",
         "properties": {
           "avatarColor": {
             "$ref": "#/components/schemas/UserAvatarColor"
+          },
+          "canDelete": {
+            "description": "Owner-granted permission to trash shared photos",
+            "type": "boolean"
           },
           "email": {
             "description": "User email",
@@ -25940,6 +26027,8 @@
           "asset.read",
           "asset.update",
           "asset.delete",
+          "asset.trash",
+          "asset.restore",
           "asset.statistics",
           "asset.share",
           "asset.view",
@@ -26014,6 +26103,7 @@
           "partner.create",
           "partner.read",
           "partner.update",
+          "partner.permissions.update",
           "partner.delete",
           "passkey.read",
           "passkey.update",

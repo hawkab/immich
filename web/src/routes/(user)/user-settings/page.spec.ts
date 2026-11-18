@@ -4,7 +4,7 @@ import { factory } from '#test/unit/factories.ts';
 import { test } from '#test/unit/fixtures.ts';
 import { PartnerDirection } from '@immich/sdk';
 import { expect } from 'vitest';
-import { userEvent } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import Page from './+page.svelte';
 import { load } from './+page.ts';
 
@@ -354,4 +354,41 @@ test('reruns facial recognition for the cluster group', async ({ data, router, r
   await settle();
 
   expect(api.clusterGroupRegeneratePeople).toHaveBeenCalledWith({ params: { id: data.user.clusterGroupId } });
+});
+
+test('lets the owner grant and revoke partner deletion independently of timeline settings', async ({
+  data,
+  router,
+  render,
+  settle,
+  api,
+}) => {
+  const partner = factory.user({ name: 'Alice' });
+  let canDelete = false;
+  api.on({
+    getClusterGroupUsers: () => ({ json: [data.user] }),
+    getClusterGroupRequestsForGroup: () => ({ json: [] }),
+    getClusterGroupRequests: () => ({ json: [] }),
+    searchUsers: () => ({ json: [partner] }),
+    getPartners: ({ params }) => ({
+      json: [{ ...partner, canDelete: params.direction === PartnerDirection.SharedBy && canDelete }],
+    }),
+    updatePartnerPermissions: ({ body }) => {
+      canDelete = body.canDelete;
+      return { json: { ...partner, canDelete } };
+    },
+  });
+  await router.goto(Route.userSettings({ isOpen: OpenQueryParam.SHARING }));
+  await render(Page, load);
+  await page.getByRole('button', { name: 'partners', exact: false }).click();
+  const grant = page.getByRole('switch', { name: 'partner_allow_deletion', exact: true });
+  await expect.element(grant).not.toBeChecked();
+  await grant.click();
+  await settle();
+  expect(api.updatePartnerPermissions).toHaveBeenCalledWith({ params: { id: partner.id }, body: { canDelete: true } });
+  await expect.element(grant).toBeChecked();
+  expect(api.updatePartner).not.toHaveBeenCalled();
+  await grant.click();
+  await settle();
+  expect(api.updatePartnerPermissions).toHaveBeenCalledWith({ params: { id: partner.id }, body: { canDelete: false } });
 });

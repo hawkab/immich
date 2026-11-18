@@ -21,6 +21,9 @@ describe(TrashService.name, () => {
 
   beforeEach(() => {
     ({ sut, mocks } = newTestService(TrashService));
+    mocks.asset.getOwnership.mockImplementation((ids) =>
+      Promise.resolve(ids.map((id) => ({ id, ownerId: 'user-id' }))),
+    );
   });
 
   describe('restoreAssets', () => {

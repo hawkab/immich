@@ -24,6 +24,7 @@
     removePartner,
     searchUsers,
     updatePartner,
+    updatePartnerPermissions,
     type ClusterGroupRequestResponseDto,
     type PartnerResponseDto,
     type UserResponseDto,
@@ -36,6 +37,7 @@
   type PartnerSharing = {
     user: UserResponseDto;
     sharedByMe: boolean;
+    canDelete: boolean;
     sharedWithMe: boolean;
     inTimeline: boolean;
   };
@@ -140,6 +142,16 @@
     }
   };
 
+  const handleDeletePermissionChanged = async (partner: PartnerSharing, canDelete: boolean) => {
+    try {
+      await updatePartnerPermissions({ id: partner.user.id, partnerPermissionsDto: { canDelete } });
+    } catch (error) {
+      handleError(error, $t('errors.something_went_wrong'));
+    } finally {
+      await refreshPartners();
+    }
+  };
+
   const refreshPartners = async () => {
     partners = [];
 
@@ -154,6 +166,7 @@
         {
           user: candidate,
           sharedByMe: true,
+          canDelete: candidate.canDelete ?? false,
           sharedWithMe: false,
           inTimeline: candidate.inTimeline ?? false,
         },
@@ -169,6 +182,7 @@
           {
             user: candidate,
             sharedByMe: false,
+            canDelete: false,
             sharedWithMe: true,
             inTimeline: candidate.inTimeline ?? false,
           },
@@ -384,6 +398,12 @@
                     {$t('partner_can_access_location')}
                   </li>
                 </ul>
+                <SettingSwitch
+                  title={$t('partner_allow_deletion')}
+                  subtitle={$t('partner_allow_deletion_description')}
+                  checked={partner.canDelete}
+                  onToggle={(checked) => handleDeletePermissionChanged(partner, checked)}
+                />
               {/if}
 
               <!-- this user is sharing assets with me -->

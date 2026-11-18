@@ -40,6 +40,7 @@ import {
 import { BaseService } from 'src/services/base.service.js';
 import type { JobItem, JobOf } from 'src/types.js';
 import { requireElevatedPermission } from 'src/utils/access.js';
+import { assetEventRecipients } from 'src/utils/asset-ownership.js';
 import {
   getAssetFiles,
   getDimensions,
@@ -80,7 +81,12 @@ export class AssetService extends BaseService {
       throw new BadRequestException('Asset not found');
     }
 
-    return mapAsset(asset, { withStack: true, auth });
+    const response = mapAsset(asset, { withStack: true, auth });
+    if (auth.sharedLink) {
+      return response;
+    }
+    const deletable = await this.checkAccess({ auth, permission: Permission.AssetTrash, ids: [id] });
+    return { ...response, canDelete: deletable.has(id) };
   }
 
   async update(auth: AuthDto, id: string, dto: UpdateAssetDto): Promise<AssetResponseDto> {
@@ -374,15 +380,21 @@ export class AssetService extends BaseService {
   async deleteAll(auth: AuthDto, dto: AssetBulkDeleteDto): Promise<void> {
     const { ids, force } = dto;
 
-    await this.requireAccess({ auth, permission: Permission.AssetDelete, ids });
+    await this.requireAccess({ auth, permission: force ? Permission.AssetDelete : Permission.AssetTrash, ids });
+    const assets = await this.assetRepository.getOwnership(ids);
+    if (!force && assets.some(({ ownerId }) => ownerId !== auth.user.id)) {
+      const config = await this.getConfig({ withCache: false });
+      if (!config.trash.enabled) {
+        throw new BadRequestException('Partner deletion requires trash to be enabled');
+      }
+    }
     await this.assetRepository.updateAll(ids, {
       deletedAt: new Date(),
       status: force ? AssetStatus.Deleted : AssetStatus.Trashed,
     });
-    await this.eventRepository.emit(force ? 'AssetDeleteAll' : 'AssetTrashAll', {
-      assetIds: ids,
-      userId: auth.user.id,
-    });
+    for (const [userId, assetIds] of assetEventRecipients(assets, auth.user.id)) {
+      await this.eventRepository.emit(force ? 'AssetDeleteAll' : 'AssetTrashAll', { assetIds, userId });
+    }
   }
 
   async getMetadata(auth: AuthDto, id: string): Promise<AssetMetadataResponseDto[]> {

@@ -149,6 +149,8 @@ export enum Permission {
   AssetRead = 'asset.read',
   AssetUpdate = 'asset.update',
   AssetDelete = 'asset.delete',
+  AssetTrash = 'asset.trash',
+  AssetRestore = 'asset.restore',
   AssetStatistics = 'asset.statistics',
   AssetShare = 'asset.share',
   AssetView = 'asset.view',
@@ -247,6 +249,7 @@ export enum Permission {
   PartnerCreate = 'partner.create',
   PartnerRead = 'partner.read',
   PartnerUpdate = 'partner.update',
+  PartnerPermissionsUpdate = 'partner.permissions.update',
   PartnerDelete = 'partner.delete',
 
   PasskeyRead = 'passkey.read',
