@@ -4426,6 +4426,316 @@
         "x-immich-state": "Stable"
       }
     },
+    "/assets/{id}/compression": {
+      "get": {
+        "description": "Read the current owner-only compression draft without changing the original.",
+        "operationId": "getVideoCompression",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoCompressionResponseDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Get video compression preview",
+        "tags": [
+          "Assets"
+        ],
+        "x-immich-history": [
+          {
+            "version": "v3.4.1",
+            "state": "Added"
+          }
+        ],
+        "x-immich-permission": "asset.update"
+      },
+      "post": {
+        "description": "Encode a full preview without replacing the original.",
+        "operationId": "createVideoCompression",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VideoCompressionCreateDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoCompressionResponseDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Prepare video compression preview",
+        "tags": [
+          "Assets"
+        ],
+        "x-immich-history": [
+          {
+            "version": "v3.4.1",
+            "state": "Added"
+          }
+        ],
+        "x-immich-permission": "asset.update"
+      }
+    },
+    "/assets/{id}/compression/confirm": {
+      "post": {
+        "description": "Irreversibly replace the original with the explicitly confirmed preview.",
+        "operationId": "confirmVideoCompression",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VideoCompressionConfirmDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoCompressionResponseDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Replace original with compressed video",
+        "tags": [
+          "Assets"
+        ],
+        "x-immich-history": [
+          {
+            "version": "v3.4.1",
+            "state": "Added"
+          }
+        ],
+        "x-immich-permission": "asset.delete"
+      }
+    },
+    "/assets/{id}/compression/discard": {
+      "post": {
+        "description": "Cancel a draft and remove its temporary output while preserving the original.",
+        "operationId": "discardVideoCompression",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VideoCompressionRequestDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoCompressionResponseDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Discard video compression preview",
+        "tags": [
+          "Assets"
+        ],
+        "x-immich-history": [
+          {
+            "version": "v3.4.1",
+            "state": "Added"
+          }
+        ],
+        "x-immich-permission": "asset.update"
+      }
+    },
+    "/assets/{id}/compression/preview": {
+      "get": {
+        "description": "Stream the ready preview bound to this original and request.",
+        "operationId": "playVideoCompression",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "query",
+            "description": "Idempotency key for this preview",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "sourceChecksum",
+            "required": true,
+            "in": "query",
+            "description": "Original asset SHA1 in base64",
+            "schema": {
+              "pattern": "^[A-Za-z0-9+/]{27}=$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Play compressed video preview",
+        "tags": [
+          "Assets"
+        ],
+        "x-immich-history": [
+          {
+            "version": "v3.4.1",
+            "state": "Added"
+          }
+        ],
+        "x-immich-permission": "asset.download"
+      }
+    },
     "/assets/{id}/edits": {
       "delete": {
         "description": "Removes all edit actions (crop, rotate, mirror) associated with the specified asset.",
@@ -23634,6 +23944,7 @@
           "StorageTemplateMigrationSingle",
           "TagCleanup",
           "VersionCheck",
+          "VideoCompress",
           "TranscriptionQueueAll",
           "Transcription",
           "TranscriptSearch",
@@ -34870,6 +35181,147 @@
           "av1"
         ],
         "type": "string"
+      },
+      "VideoCompressionConfirmDto": {
+        "properties": {
+          "confirmation": {
+            "description": "Explicit irreversible replacement confirmation",
+            "enum": [
+              "replace-original"
+            ],
+            "type": "string"
+          },
+          "requestId": {
+            "description": "Idempotency key for this preview",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "sourceChecksum": {
+            "description": "Original asset SHA1 in base64",
+            "pattern": "^[A-Za-z0-9+/]{27}=$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "confirmation",
+          "requestId",
+          "sourceChecksum"
+        ],
+        "type": "object"
+      },
+      "VideoCompressionCreateDto": {
+        "properties": {
+          "quality": {
+            "description": "Higher values retain more quality",
+            "maximum": 100,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "requestId": {
+            "description": "Idempotency key for this preview",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "sourceChecksum": {
+            "description": "Original asset SHA1 in base64",
+            "pattern": "^[A-Za-z0-9+/]{27}=$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "quality",
+          "requestId",
+          "sourceChecksum"
+        ],
+        "type": "object"
+      },
+      "VideoCompressionPreview": {
+        "properties": {
+          "compressedSize": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+          },
+          "error": {
+            "type": "string"
+          },
+          "originalSize": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+          },
+          "quality": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+          },
+          "requestId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "sourceChecksum": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "processing",
+              "ready",
+              "failed",
+              "saving",
+              "committed",
+              "discarded"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "originalSize",
+          "quality",
+          "requestId",
+          "sourceChecksum",
+          "status"
+        ],
+        "type": "object"
+      },
+      "VideoCompressionRequestDto": {
+        "properties": {
+          "requestId": {
+            "description": "Idempotency key for this preview",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "sourceChecksum": {
+            "description": "Original asset SHA1 in base64",
+            "pattern": "^[A-Za-z0-9+/]{27}=$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "requestId",
+          "sourceChecksum"
+        ],
+        "type": "object"
+      },
+      "VideoCompressionResponseDto": {
+        "properties": {
+          "draft": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VideoCompressionPreview"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "required": [
+          "draft"
+        ],
+        "type": "object"
       },
       "VideoContainer": {
         "description": "Accepted video containers",

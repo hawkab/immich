@@ -437,6 +437,7 @@ export type JobItem =
   | { name: JobName.VersionCheck; data: IBaseJob }
 
   // OCR
+  | { name: JobName.VideoCompress; data: IEntityJob }
   | { name: JobName.TranscriptionQueueAll; data: IBaseJob }
   | { name: JobName.Transcription; data: IEntityJob }
   | { name: JobName.TranscriptSearch; data: IEntityJob }

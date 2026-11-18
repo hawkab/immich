@@ -1400,6 +1400,40 @@ export type UpdateAssetDto = {
     rating?: number | null;
     visibility?: AssetVisibility;
 };
+export type VideoCompressionPreview = {
+    compressedSize?: number;
+    error?: string;
+    originalSize: number;
+    quality: number;
+    requestId: string;
+    sourceChecksum: string;
+    status: Status;
+};
+export type VideoCompressionResponseDto = {
+    draft: (VideoCompressionPreview) | null;
+};
+export type VideoCompressionCreateDto = {
+    /** Higher values retain more quality */
+    quality: number;
+    /** Idempotency key for this preview */
+    requestId: string;
+    /** Original asset SHA1 in base64 */
+    sourceChecksum: string;
+};
+export type VideoCompressionConfirmDto = {
+    /** Explicit irreversible replacement confirmation */
+    confirmation: Confirmation;
+    /** Idempotency key for this preview */
+    requestId: string;
+    /** Original asset SHA1 in base64 */
+    sourceChecksum: string;
+};
+export type VideoCompressionRequestDto = {
+    /** Idempotency key for this preview */
+    requestId: string;
+    /** Original asset SHA1 in base64 */
+    sourceChecksum: string;
+};
 export type CropParameters = {
     /** Height of the crop */
     height: number;
@@ -5038,6 +5072,85 @@ export function updateAsset({ id, updateAssetDto }: {
     })));
 }
 /**
+ * Get video compression preview
+ */
+export function getVideoCompression({ id }: {
+    id: string;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchJson<{
+        status: 200;
+        data: VideoCompressionResponseDto;
+    }>(`/assets/${encodeURIComponent(id)}/compression`, {
+        ...opts
+    }));
+}
+/**
+ * Prepare video compression preview
+ */
+export function createVideoCompression({ id, videoCompressionCreateDto }: {
+    id: string;
+    videoCompressionCreateDto: VideoCompressionCreateDto;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchJson<{
+        status: 201;
+        data: VideoCompressionResponseDto;
+    }>(`/assets/${encodeURIComponent(id)}/compression`, oazapfts.json({
+        ...opts,
+        method: "POST",
+        body: videoCompressionCreateDto
+    })));
+}
+/**
+ * Replace original with compressed video
+ */
+export function confirmVideoCompression({ id, videoCompressionConfirmDto }: {
+    id: string;
+    videoCompressionConfirmDto: VideoCompressionConfirmDto;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchJson<{
+        status: 201;
+        data: VideoCompressionResponseDto;
+    }>(`/assets/${encodeURIComponent(id)}/compression/confirm`, oazapfts.json({
+        ...opts,
+        method: "POST",
+        body: videoCompressionConfirmDto
+    })));
+}
+/**
+ * Discard video compression preview
+ */
+export function discardVideoCompression({ id, videoCompressionRequestDto }: {
+    id: string;
+    videoCompressionRequestDto: VideoCompressionRequestDto;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchJson<{
+        status: 201;
+        data: VideoCompressionResponseDto;
+    }>(`/assets/${encodeURIComponent(id)}/compression/discard`, oazapfts.json({
+        ...opts,
+        method: "POST",
+        body: videoCompressionRequestDto
+    })));
+}
+/**
+ * Play compressed video preview
+ */
+export function playVideoCompression({ id, requestId, sourceChecksum }: {
+    id: string;
+    requestId: string;
+    sourceChecksum: string;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchBlob<{
+        status: 200;
+        data: Blob;
+    }>(`/assets/${encodeURIComponent(id)}/compression/preview${QS.query(QS.explode({
+        requestId,
+        sourceChecksum
+    }))}`, {
+        ...opts
+    }));
+}
+/**
  * Remove edits from an existing asset
  */
 export function removeAssetEdits({ id }: {
@@ -8644,6 +8757,18 @@ export enum AssetTypeEnum {
     Audio = "AUDIO",
     Other = "OTHER"
 }
+export enum Status {
+    Queued = "queued",
+    Processing = "processing",
+    Ready = "ready",
+    Failed = "failed",
+    Saving = "saving",
+    Committed = "committed",
+    Discarded = "discarded"
+}
+export enum Confirmation {
+    ReplaceOriginal = "replace-original"
+}
 export enum AssetEditAction {
     Crop = "crop",
     Rotate = "rotate",
@@ -8809,6 +8934,7 @@ export enum JobName {
     StorageTemplateMigrationSingle = "StorageTemplateMigrationSingle",
     TagCleanup = "TagCleanup",
     VersionCheck = "VersionCheck",
+    VideoCompress = "VideoCompress",
     TranscriptionQueueAll = "TranscriptionQueueAll",
     Transcription = "Transcription",
     TranscriptSearch = "TranscriptSearch",

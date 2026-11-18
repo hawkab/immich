@@ -965,6 +965,7 @@ export enum JobName {
   VersionCheck = 'VersionCheck',
 
   // OCR
+  VideoCompress = 'VideoCompress',
   TranscriptionQueueAll = 'TranscriptionQueueAll',
   Transcription = 'Transcription',
   TranscriptSearch = 'TranscriptSearch',
