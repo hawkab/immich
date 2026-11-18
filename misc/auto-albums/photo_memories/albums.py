@@ -2,7 +2,9 @@ import uuid
 
 
 def member_ids(album):
-    return {asset['id'] for asset in album.get('assets', [])}
+    if not isinstance(album.get('assets'), list):
+        raise ValueError('Album membership requires an authoritative native readback')
+    return {asset['id'] for asset in album['assets']}
 
 
 def managed_album(owner, record):
@@ -68,6 +70,7 @@ def sync_album(owner, registry, bucket, *, share_with=()):
         managed |= set(pending.get('add', [])) & current
         uncertain_removals |= set(pending.get('remove', [])) & current
         managed -= set(pending.get('remove', []))
+    managed |= uncertain & current
     uncertain -= current
     uncertain_removals &= current
     if record.get('video_id') and record['video_id'] not in current:
