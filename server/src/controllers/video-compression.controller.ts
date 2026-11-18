@@ -25,10 +25,10 @@ export class VideoCompressionController {
   ) {}
 
   @Get(':id/compression')
-  @Authenticated({ permission: Permission.AssetUpdate })
+  @Authenticated({ permission: Permission.AssetEditCreate })
   @Endpoint({
     summary: 'Get video compression preview',
-    description: 'Read the current owner-only compression draft without changing the original.',
+    description: 'Read the current editable compression draft without changing the original.',
     history: new HistoryBuilder().added('v3.4.1'),
   })
   getVideoCompression(@Auth() auth: AuthDto, @Param() { id }: UUIDParamDto): Promise<VideoCompressionResponseDto> {
@@ -36,7 +36,7 @@ export class VideoCompressionController {
   }
 
   @Post(':id/compression')
-  @Authenticated({ permission: Permission.AssetUpdate })
+  @Authenticated({ permission: Permission.AssetEditCreate })
   @Endpoint({
     summary: 'Prepare video compression preview',
     description: 'Encode a full preview without replacing the original.',
@@ -69,7 +69,7 @@ export class VideoCompressionController {
   }
 
   @Post(':id/compression/discard')
-  @Authenticated({ permission: Permission.AssetUpdate })
+  @Authenticated({ permission: Permission.AssetEditCreate })
   @Endpoint({
     summary: 'Discard video compression preview',
     description: 'Cancel a draft and remove its temporary output while preserving the original.',
@@ -84,7 +84,7 @@ export class VideoCompressionController {
   }
 
   @Post(':id/compression/confirm')
-  @Authenticated({ permission: Permission.AssetDelete })
+  @Authenticated({ permission: Permission.AssetEditCreate })
   @Endpoint({
     summary: 'Replace original with compressed video',
     description: 'Irreversibly replace the original with the explicitly confirmed preview.',

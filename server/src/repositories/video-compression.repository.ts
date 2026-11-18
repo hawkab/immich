@@ -9,6 +9,18 @@ import { type CompressionDraft } from 'src/utils/video-compression.js';
 export class VideoCompressionRepository {
   constructor(@InjectKysely() private db: Kysely<DB>) {}
 
+  async hasEditAccess(ownerId: string, actorId: string, db: Kysely<DB> = this.db) {
+    if (ownerId === actorId) return true;
+    const grant = await db
+      .selectFrom('partner')
+      .select('canEdit')
+      .where('sharedById', '=', ownerId)
+      .where('sharedWithId', '=', actorId)
+      .forShare()
+      .executeTakeFirst();
+    return grant?.canEdit === true;
+  }
+
   async get(id: string) {
     const row = await this.db
       .selectFrom('video_compression')
@@ -30,12 +42,12 @@ export class VideoCompressionRepository {
       .execute();
   }
 
-  async create(id: string, ownerId: string, draft: CompressionDraft) {
+  async create(id: string, actorId: string, draft: CompressionDraft) {
     return this.db.transaction().execute(async (tx) => {
       const asset = await tx.selectFrom('asset').selectAll().where('id', '=', id).forUpdate().executeTakeFirst();
       if (
         !asset ||
-        asset.ownerId !== ownerId ||
+        !(await this.hasEditAccess(asset.ownerId, actorId, tx)) ||
         asset.libraryId ||
         asset.deletedAt ||
         asset.isOffline ||
@@ -94,7 +106,7 @@ export class VideoCompressionRepository {
     return result.numUpdatedRows > 0n;
   }
 
-  async commit(id: string, ownerId: string, requestId: string, sourceChecksum: string) {
+  async commit(id: string, actorId: string, requestId: string, sourceChecksum: string) {
     return this.db.transaction().execute(async (tx) => {
       const asset = await tx.selectFrom('asset').selectAll().where('id', '=', id).forUpdate().executeTakeFirst();
       const row = await tx
@@ -107,7 +119,7 @@ export class VideoCompressionRepository {
       const draft = row?.value as CompressionDraft | undefined;
       if (
         !asset ||
-        asset.ownerId !== ownerId ||
+        !(await this.hasEditAccess(asset.ownerId, actorId, tx)) ||
         asset.libraryId ||
         asset.deletedAt ||
         asset.isOffline ||
@@ -161,7 +173,7 @@ export class VideoCompressionRepository {
         .set({
           quotaUsageInBytes: sql`"quotaUsageInBytes" + ${draft.compressedSize - (exif?.fileSizeInByte ?? draft.originalSize)}`,
         })
-        .where('id', '=', ownerId)
+        .where('id', '=', asset.ownerId)
         .execute();
       const value = {
         ...draft,

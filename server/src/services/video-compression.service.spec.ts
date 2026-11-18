@@ -37,6 +37,7 @@ const setup = () => {
     return Promise.resolve(true);
   });
   mocks.videoCompression.isOriginal.mockResolvedValue(false);
+  mocks.videoCompression.hasEditAccess.mockResolvedValue(true);
   mocks.storage.stat.mockResolvedValue({ size: 1000 } as never);
   mocks.crypto.hashFile.mockResolvedValue(Buffer.alloc(20, 2));
   const info: VideoInfo = {
@@ -65,16 +66,13 @@ const setup = () => {
 };
 
 describe('video compression', () => {
-  it('preserves separate download and irreversible-delete scopes for API keys', async () => {
+  it('preserves edit and download scopes for API keys', async () => {
     const { sut, mocks, auth, asset, dto } = setup();
-    auth.apiKey = ApiKeyFactory.create({ userId: auth.user.id, permissions: [Permission.AssetUpdate] });
+    auth.apiKey = ApiKeyFactory.create({ userId: auth.user.id, permissions: [Permission.AssetEditCreate] });
     await expect(sut.preview(auth, asset.id, dto)).rejects.toThrow('required permission');
-    await expect(sut.confirm(auth, asset.id, { ...dto, confirmation: 'replace-original' })).rejects.toThrow(
-      'required permission',
-    );
     auth.apiKey = ApiKeyFactory.create({
       userId: auth.user.id,
-      permissions: [Permission.AssetDownload, Permission.AssetDelete],
+      permissions: [Permission.AssetDownload],
     });
     await expect(sut.create(auth, asset.id, dto)).rejects.toThrow('required permission');
     expect(mocks.videoCompression.commit).not.toHaveBeenCalled();
@@ -144,11 +142,16 @@ describe('video compression', () => {
     expect(mocks.job.queue).not.toHaveBeenCalled();
   });
 
-  it('requires ownership even when an edit grant passes the general access check', async () => {
+  it('requires an effective edit grant rather than view-only sharing', async () => {
     const { sut, mocks, auth, asset, dto } = setup();
     mocks.asset.getById.mockResolvedValue({ ...asset, ownerId: 'other-owner' } as never);
-    await expect(sut.create(auth, asset.id, dto)).rejects.toThrow('Video not found');
+    mocks.access.asset.checkOwnerAccess.mockResolvedValue(new Set());
+    mocks.access.asset.checkPartnerEditAccess.mockResolvedValue(new Set());
+    await expect(sut.create(auth, asset.id, dto)).rejects.toThrow('access');
     expect(mocks.videoCompression.create).not.toHaveBeenCalled();
+    mocks.access.asset.checkPartnerEditAccess.mockResolvedValue(new Set([asset.id]));
+    await sut.create(auth, asset.id, dto);
+    expect(mocks.videoCompression.create).toHaveBeenCalled();
   });
 
   it('does not encode external, missing or deleted videos', async () => {
@@ -160,7 +163,7 @@ describe('video compression', () => {
     ]) {
       const { sut, mocks, auth, asset, dto } = setup();
       mocks.asset.getById.mockResolvedValue({ ...asset, ...patch } as never);
-      await expect(sut.create(auth, asset.id, dto)).rejects.toThrow('available video');
+      await expect(sut.create(auth, asset.id, dto)).rejects.toThrow('available uploaded video');
     }
   });
 

@@ -1,4 +1,4 @@
-import { dirname, join, parse } from 'node:path';
+import { dirname, join } from 'node:path';
 import { ConfigFFmpegDto } from 'src/dtos/config.dto.js';
 import { ToneMapping, TranscodeHardwareAcceleration, TranscodeTarget, VideoCodec } from 'src/enum.js';
 import type { VideoInfo, VideoPacketInfo } from 'src/types.js';
@@ -6,6 +6,7 @@ import { BaseConfig } from 'src/utils/media.js';
 
 export type CompressionDraft = {
   requestId: string;
+  actorId: string;
   sourceChecksum: string;
   sourcePath: string;
   outputPath: string;
@@ -22,11 +23,8 @@ export type CompressionDraft = {
   finalized?: boolean;
 };
 
-export const compressionPath = (source: string, requestId: string) =>
-  join(
-    dirname(source),
-    `${parse(source).name.replace(/(?:\.compression-[a-f\d-]{36})+$/iu, '')}.compression-${requestId}.mp4`,
-  );
+export const compressionPath = (source: string, producerId: string) =>
+  join(dirname(source), `compression-${producerId}.mp4`);
 
 export const compressionCommand = (info: VideoInfo, quality: number, config: ConfigFFmpegDto) => {
   const video = info.videoStreams[0];

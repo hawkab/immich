@@ -15,7 +15,6 @@ import {
 import {
   AssetStatus,
   AssetType,
-  AssetVisibility,
   CacheControl,
   ImmichWorker,
   JobName,
@@ -36,11 +35,11 @@ export class VideoCompressionService extends BaseService {
       throw new ForbiddenException('API key is missing the required permission');
     }
   }
-  private async owned(auth: AuthDto, id: string) {
-    this.requireScope(auth, Permission.AssetUpdate);
-    await this.requireAccess({ auth, permission: Permission.AssetUpdate, ids: [id] });
+  private async editable(auth: AuthDto, id: string) {
+    this.requireScope(auth, Permission.AssetEditCreate);
+    await this.requireAccess({ auth, permission: Permission.AssetEditCreate, ids: [id] });
     const asset = await this.assetRepository.getById(id);
-    if (!asset || auth.sharedLink || asset.ownerId !== auth.user.id) {
+    if (!asset || auth.sharedLink) {
       throw new NotFoundException('Video not found');
     }
     if (
@@ -48,30 +47,30 @@ export class VideoCompressionService extends BaseService {
       asset.libraryId ||
       asset.deletedAt ||
       asset.isOffline ||
-      asset.status !== AssetStatus.Active ||
-      asset.visibility === AssetVisibility.Locked
+      asset.status !== AssetStatus.Active
     ) {
-      throw new BadRequestException('Compression requires an available video uploaded by you');
+      throw new BadRequestException('Compression requires an available uploaded video you can edit');
     }
     return asset;
   }
 
   async get(auth: AuthDto, id: string) {
-    await this.owned(auth, id);
+    await this.editable(auth, id);
     const draft = await this.videoCompressionRepository.get(id);
     return { draft: draft ? compressionResponse(draft) : null };
   }
 
   async create(auth: AuthDto, id: string, dto: VideoCompressionCreateDto) {
-    const asset = await this.owned(auth, id);
+    const asset = await this.editable(auth, id);
     if (asset.checksum.toString('base64') !== dto.sourceChecksum) {
       throw new ConflictException('The original changed. Reload this video before compressing it');
     }
     const stat = await this.storageRepository.stat(asset.originalPath);
     const draft = {
       ...dto,
+      actorId: auth.user.id,
       sourcePath: asset.originalPath,
-      outputPath: compressionPath(asset.originalPath, dto.requestId),
+      outputPath: compressionPath(asset.originalPath, this.cryptoRepository.randomUUID()),
       originalSize: stat.size,
       status: 'queued' as const,
       cleanup: [],
@@ -86,7 +85,7 @@ export class VideoCompressionService extends BaseService {
   async preview(auth: AuthDto, id: string, dto: VideoCompressionRequestDto) {
     this.requireScope(auth, Permission.AssetDownload);
     await this.requireAccess({ auth, permission: Permission.AssetDownload, ids: [id] });
-    const asset = await this.owned(auth, id);
+    const asset = await this.editable(auth, id);
     const draft = await this.videoCompressionRepository.get(id);
     if (
       !draft ||
@@ -105,7 +104,7 @@ export class VideoCompressionService extends BaseService {
   }
 
   async discard(auth: AuthDto, id: string, dto: VideoCompressionRequestDto) {
-    await this.owned(auth, id);
+    await this.editable(auth, id);
     const draft = await this.videoCompressionRepository.get(id);
     if (
       !draft ||
@@ -126,9 +125,7 @@ export class VideoCompressionService extends BaseService {
   }
 
   async confirm(auth: AuthDto, id: string, dto: VideoCompressionConfirmDto) {
-    this.requireScope(auth, Permission.AssetDelete);
-    await this.requireAccess({ auth, permission: Permission.AssetDelete, ids: [id] });
-    await this.owned(auth, id);
+    await this.editable(auth, id);
     const draft = await this.videoCompressionRepository.get(id);
     if (
       !draft ||
@@ -205,7 +202,8 @@ export class VideoCompressionService extends BaseService {
         asset.originalPath !== draft.sourcePath ||
         asset.deletedAt ||
         asset.isOffline ||
-        asset.libraryId
+        asset.libraryId ||
+        !(await this.videoCompressionRepository.hasEditAccess(asset.ownerId, draft.actorId))
       ) {
         throw new Error('The original changed or is unavailable. Create a new preview');
       }

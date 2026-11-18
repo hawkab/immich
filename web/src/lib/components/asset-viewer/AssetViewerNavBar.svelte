@@ -119,7 +119,7 @@
     <ActionButton action={Actions.Favorite} />
     <ActionButton action={Actions.Unfavorite} />
     <ActionButton action={Actions.Edit} />
-    {#if isOwner && asset.type === AssetTypeEnum.Video && !asset.isTrashed && !isLocked && !asset.libraryId}
+    {#if (isOwner || asset.canEdit === true) && asset.type === AssetTypeEnum.Video && !asset.isTrashed && !asset.libraryId}
       <VideoCompression {asset} />
     {/if}
 
