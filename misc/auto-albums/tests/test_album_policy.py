@@ -68,3 +68,16 @@ class AlbumPolicyTests(AlbumFixture, unittest.TestCase):
         album['assets'].append({'id': 'known-burial'})
         sync_album(self.owner, self.registry, self.bucket, excluded_ids={'known-burial'})
         self.assertNotIn('known-burial', {a['id'] for a in album['assets']})
+
+    def test_unchanged_native_summary_avoids_reenumerating_album_memberships(self):
+        asset = photo('photo-a')
+        self.registry.put('assets:owner', asset['id'], {'asset': asset, 'scene': scene(asset)})
+        with patch('photo_memories.pipeline.synchronize', return_value=set()):
+            process(self.owner, self.registry, {}, [], {}, datetime.now(timezone.utc))
+            for album in self.owner.albums.values():
+                album.update(updatedAt='2026-11-18T14:00:00Z', assetCount=len(album['assets']))
+            process(self.owner, self.registry, {}, [], {}, datetime.now(timezone.utc))
+            with patch('photo_memories.pipeline.sync_album') as synchronize_album:
+                status = process(self.owner, self.registry, {}, [], {}, datetime.now(timezone.utc))
+                synchronize_album.assert_not_called()
+            self.assertEqual(status['albums'], 1)

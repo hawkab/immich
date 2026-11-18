@@ -95,6 +95,7 @@ def sync_album(owner, registry, bucket, *, share_with=(), excluded_ids=frozenset
         uncertain |= add - current
         record.pop('pending_membership', None)
     record.update(phase='active', input_digest=bucket['input_digest'], exclusions=sorted(exclusions),
+                  native_updated_at=album.get('updatedAt'), native_asset_count=album.get('assetCount'),
                   managed_source_ids=sorted(managed & current), source_ids=sorted((desired - exclusions) & current),
                   membership_uncertain_ids=sorted(uncertain), membership_uncertain_removals=sorted(uncertain_removals),
                   membership_phase='unknown_add_or_remove' if uncertain or uncertain_removals else 'verified')
