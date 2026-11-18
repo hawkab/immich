@@ -97,7 +97,6 @@ export interface SearchEmbeddingOptions {
   userIds: string[];
   minSimilarity?: number | null;
   sceneQuery?: string;
-  scenePersonIds?: string[];
 }
 
 export interface SearchOcrOptions {
@@ -333,11 +332,7 @@ export class SearchRepository {
         .select(columns.searchAsset)
         .innerJoin('smart_search', 'asset.id', 'smart_search.assetId')
         .$if(!!options.sceneQuery, (qb) =>
-          qb.where(
-            sceneDescriptionMatches(options.sceneQuery!, options.includeDepictions, {
-              personIds: options.scenePersonIds,
-            }),
-          ),
+          qb.where(sceneDescriptionMatches(options.sceneQuery!, options.includeDepictions)),
         )
         .$if(options.minSimilarity !== undefined && options.minSimilarity !== null, (qb) =>
           qb.where(sql<number>`smart_search.embedding <=> ${options.embedding}`, '<=', 1 - options.minSimilarity!),
@@ -587,7 +582,6 @@ export class SearchRepository {
       embedding: string;
       minSimilarity?: number | null;
       sceneQuery?: string;
-      scenePersonIds?: string[];
       includeDepictions?: boolean;
     },
     scope: AssetSearchScope,
@@ -598,11 +592,7 @@ export class SearchRepository {
         .select(columns.searchAsset)
         .innerJoin('smart_search', 'asset.id', 'smart_search.assetId')
         .$if(!!options.sceneQuery, (qb) =>
-          qb.where(
-            sceneDescriptionMatches(options.sceneQuery!, options.includeDepictions, {
-              personIds: options.scenePersonIds,
-            }),
-          ),
+          qb.where(sceneDescriptionMatches(options.sceneQuery!, options.includeDepictions)),
         )
         .$if(options.minSimilarity !== undefined && options.minSimilarity !== null, (qb) =>
           qb.where(sql<number>`smart_search.embedding <=> ${options.embedding}`, '<=', 1 - options.minSimilarity!),

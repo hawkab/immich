@@ -1,16 +1,9 @@
 import { sql, type SqlBool } from 'kysely';
-import {
-  resolveSceneRelation,
-  sceneRelationMatches,
-  type SceneRelationActors,
-} from 'src/utils/search-scene-relations.js';
 
 export const SCENE_DESCRIPTION_KEY = 'org.immich.scene.v1';
 
 /** Match visible-scene facts only while they still describe this source and edit. */
-export function sceneDescriptionMatches(query: string, includeDepictions = false, actors: SceneRelationActors = {}) {
-  const relation = resolveSceneRelation(query);
-  const relationClause = relation ? sql`and ${sceneRelationMatches(relation, includeDepictions, actors)}` : sql``;
+export function sceneDescriptionMatches(query: string, includeDepictions = false) {
   const facts = sql`to_tsvector('russian',
     case scene.value->>'kind'
       when 'photo' then 'фото фотография снимок '
@@ -32,6 +25,5 @@ export function sceneDescriptionMatches(query: string, includeDepictions = false
       and coalesce(scene.value->>'thumbhash', '') = coalesce(encode(asset.thumbhash, 'base64'), '')
       and coalesce(scene.value->>'isEdited', 'false') = asset."isEdited"::text
       and ${evidence} @@ websearch_to_tsquery('russian', ${query})
-      ${relationClause}
   )`;
 }
