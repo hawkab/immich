@@ -16,6 +16,7 @@ const resetEnv = () => {
     'IMMICH_TRUSTED_PROXIES',
     'IMMICH_API_METRICS_PORT',
     'IMMICH_MEDIA_LOCATION',
+    'IMMICH_MEMORIES_EVENTS_DIR',
     'IMMICH_MICROSERVICES_METRICS_PORT',
     'IMMICH_TELEMETRY_INCLUDE',
     'IMMICH_TELEMETRY_EXCLUDE',
@@ -86,6 +87,19 @@ describe('getEnv', () => {
     it('should throw an error for relative paths', () => {
       process.env.IMMICH_MEDIA_LOCATION = './relative/path';
       expect(() => getEnv()).toThrowError('[IMMICH_MEDIA_LOCATION] Must be an absolute path');
+    });
+  });
+
+  describe('IMMICH_MEMORIES_EVENTS_DIR', () => {
+    it('is opt-in and accepts an explicit absolute spool path', () => {
+      expect(getEnv().memoryEventsDir).toBeUndefined();
+      process.env.IMMICH_MEMORIES_EVENTS_DIR = '/secure/memory-events';
+      expect(getEnv().memoryEventsDir).toBe('/secure/memory-events');
+    });
+
+    it('rejects a relative event directory', () => {
+      process.env.IMMICH_MEMORIES_EVENTS_DIR = './events';
+      expect(getEnv).toThrow('[IMMICH_MEMORIES_EVENTS_DIR] Must be an absolute path');
     });
   });
 

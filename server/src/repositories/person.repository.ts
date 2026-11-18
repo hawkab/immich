@@ -545,6 +545,15 @@ export class PersonRepository {
       .executeTakeFirstOrThrow();
   }
 
+  getAssetIdForFace(id: string) {
+    return this.db
+      .selectFrom('asset_face')
+      .select('assetId')
+      .where('id', '=', id)
+      .where('deletedAt', 'is', null)
+      .executeTakeFirst();
+  }
+
   @GenerateSql({ params: [DummyValue.UUID] })
   getFaceForFacialRecognitionJob(id: string) {
     return this.db

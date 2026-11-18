@@ -761,6 +761,53 @@ describe(AssetService.name, () => {
   });
 
   describe('upsertMetadata', () => {
+    it('signals committed scene metadata without waiting for the spool', async () => {
+      const asset = AssetFactory.create();
+      const items = [{ key: 'org.immich.scene.v1', value: { schemaVersion: '1' } }];
+      const result = items.map((item) => ({ ...item, updatedAt: new Date() }));
+      mocks.access.asset.checkOwnerAccess.mockResolvedValue(new Set([asset.id]));
+      mocks.asset.upsertMetadata.mockResolvedValue(result);
+      const pending = Promise.withResolvers<void>();
+      mocks.event.emit.mockReturnValue(pending.promise);
+      let completed = false;
+      const operation = sut.upsertMetadata(authStub.admin, asset.id, { items }).then((value) => {
+        completed = true;
+        return value;
+      });
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      const didComplete = completed;
+      pending.resolve();
+      expect(didComplete).toBe(true);
+      await expect(operation).resolves.toEqual(result);
+      expect(mocks.event.emit).toHaveBeenCalledWith('AssetSceneMetadataUpdated', { assetId: asset.id });
+    });
+
+    it('preserves an accepted metadata result when event dispatch rejects', async () => {
+      const asset = AssetFactory.create();
+      const items = [{ key: 'org.immich.scene.v1', value: {} }];
+      const result = items.map((item) => ({ ...item, updatedAt: new Date() }));
+      mocks.access.asset.checkOwnerAccess.mockResolvedValue(new Set([asset.id]));
+      mocks.asset.upsertMetadata.mockResolvedValue(result);
+      mocks.event.emit.mockRejectedValue(new Error('event spool unavailable'));
+      await expect(sut.upsertMetadata(authStub.admin, asset.id, { items })).resolves.toEqual(result);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(mocks.logger.warn).toHaveBeenCalledWith(expect.stringContaining('event spool unavailable'));
+    });
+
+    it('does not signal unrelated metadata or a failed repository write', async () => {
+      const asset = AssetFactory.create();
+      const items = [{ key: AssetMetadataKey.MobileApp, value: { iCloudId: 'id1' } }];
+      mocks.access.asset.checkOwnerAccess.mockResolvedValue(new Set([asset.id]));
+      mocks.asset.upsertMetadata.mockResolvedValue(items.map((item) => ({ ...item, updatedAt: new Date() })));
+      await sut.upsertMetadata(authStub.admin, asset.id, { items });
+      mocks.asset.upsertMetadata.mockRejectedValue(new Error('commit failed'));
+      await expect(
+        sut.upsertMetadata(authStub.admin, asset.id, { items: [{ key: 'org.immich.scene.v1', value: {} }] }),
+      ).rejects.toThrow('commit failed');
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(mocks.event.emit).not.toHaveBeenCalled();
+    });
+
     it('should throw a bad request exception if duplicate keys are sent', async () => {
       const asset = AssetFactory.create();
       const items = [
@@ -779,6 +826,25 @@ describe(AssetService.name, () => {
   });
 
   describe('upsertBulkMetadata', () => {
+    it('signals each committed scene asset once and preserves the bulk result', async () => {
+      const first = AssetFactory.create();
+      const second = AssetFactory.create();
+      const items = [
+        { assetId: first.id, key: 'org.immich.scene.v1', value: {} },
+        { assetId: first.id, key: AssetMetadataKey.MobileApp, value: {} },
+        { assetId: second.id, key: 'org.immich.scene.v1', value: {} },
+      ];
+      const result = items.map((item) => ({ ...item, updatedAt: new Date() }));
+      mocks.access.asset.checkOwnerAccess.mockResolvedValue(new Set([first.id, second.id]));
+      mocks.asset.upsertBulkMetadata.mockResolvedValue(result);
+      mocks.event.emit.mockResolvedValue(undefined);
+      await expect(sut.upsertBulkMetadata(authStub.admin, { items })).resolves.toEqual(result);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(mocks.event.emit).toHaveBeenCalledTimes(2);
+      expect(mocks.event.emit).toHaveBeenCalledWith('AssetSceneMetadataUpdated', { assetId: first.id });
+      expect(mocks.event.emit).toHaveBeenCalledWith('AssetSceneMetadataUpdated', { assetId: second.id });
+    });
+
     it('should throw a bad request exception if duplicate keys are sent', async () => {
       const asset = AssetFactory.create();
       const items = [

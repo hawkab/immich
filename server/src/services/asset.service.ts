@@ -426,7 +426,11 @@ export class AssetService extends BaseService {
       uniqueKeys.add(key);
     }
 
-    return this.assetRepository.upsertBulkMetadata(dto.items);
+    const result = await this.assetRepository.upsertBulkMetadata(dto.items);
+    this.signalSceneMetadata(
+      dto.items.filter((item) => item.key === 'org.immich.scene.v1').map((item) => item.assetId),
+    );
+    return result;
   }
 
   async upsertMetadata(auth: AuthDto, id: string, dto: AssetMetadataUpsertDto): Promise<AssetMetadataResponseDto[]> {
@@ -441,7 +445,19 @@ export class AssetService extends BaseService {
       uniqueKeys.add(key);
     }
 
-    return this.assetRepository.upsertMetadata(id, dto.items);
+    const result = await this.assetRepository.upsertMetadata(id, dto.items);
+    if (dto.items.some((item) => item.key === 'org.immich.scene.v1')) {
+      this.signalSceneMetadata([id]);
+    }
+    return result;
+  }
+
+  private signalSceneMetadata(assetIds: string[]) {
+    for (const assetId of new Set(assetIds)) {
+      void Promise.try(() => this.eventRepository.emit('AssetSceneMetadataUpdated', { assetId })).catch((error) =>
+        this.logger.warn(`Unable to signal committed scene metadata for ${assetId}: ${String(error)}`),
+      );
+    }
   }
 
   async getMetadataByKey(auth: AuthDto, id: string, key: string): Promise<AssetMetadataResponseDto> {

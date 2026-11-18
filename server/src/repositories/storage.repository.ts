@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ZipArchive } from 'archiver';
 import { ChokidarOptions, watch as chokidarWatch } from 'chokidar';
 import fastGlob from 'fast-glob';
+import { randomUUID } from 'node:crypto';
 import {
   Dirent,
   ReadOptionsWithBuffer,
@@ -49,6 +50,9 @@ export interface DiskUsage {
   total: number;
 }
 
+const memoryEventUuid = '[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}';
+const memoryEventFilename = new RegExp(String.raw`^${memoryEventUuid}\.${memoryEventUuid}\.json$`, 'i');
+
 @Injectable()
 export class StorageRepository {
   constructor(private logger: LoggingRepository) {
@@ -77,6 +81,46 @@ export class StorageRepository {
 
   createFile(filepath: string, buffer: Buffer) {
     return fs.writeFile(filepath, buffer, { flag: 'wx' });
+  }
+
+  async writeMemoryEvent(directory: string, filename: string, payload: Buffer) {
+    if (!path.isAbsolute(directory) || !memoryEventFilename.test(filename)) {
+      throw new Error('Memory event requires an absolute directory and owner-asset UUID filename');
+    }
+    if ((await fs.realpath(directory)) !== path.resolve(directory)) {
+      throw new Error('Memory event directory must not contain symlinks');
+    }
+    const folder = await fs.open(directory, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
+    let temporary: string | undefined;
+    try {
+      const stat = await folder.stat();
+      if (!stat.isDirectory() || stat.uid !== process.getuid?.() || (stat.mode & 0o077) !== 0) {
+        throw new Error('Memory events require a private directory owned by the server uid');
+      }
+      const anchored = `/proc/self/fd/${folder.fd}`;
+      temporary = path.join(anchored, `.${filename}.${randomUUID()}.tmp`);
+      const file = await fs.open(
+        temporary,
+        constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW,
+        0o600,
+      );
+      try {
+        await file.writeFile(payload);
+        await file.sync();
+      } finally {
+        await file.close();
+      }
+      await fs.rename(temporary, path.join(anchored, filename));
+      await folder.sync();
+    } finally {
+      try {
+        if (temporary) {
+          await fs.rm(temporary, { force: true });
+        }
+      } finally {
+        await folder.close();
+      }
+    }
   }
 
   createWriteStream(filepath: string): Writable {
