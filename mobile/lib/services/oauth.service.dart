@@ -7,7 +7,7 @@ import 'package:openapi/api.dart';
 
 class OAuthService {
   final ApiService _apiService;
-  final callbackUrlScheme = 'app.immich';
+  final callbackUrlScheme = const bool.fromEnvironment('AEGIS_BUILD') ? 'app.immich.aegis' : 'app.immich';
   final log = Logger('OAuthService');
   OAuthService(this._apiService);
 
@@ -36,8 +36,8 @@ class OAuthService {
 
     log.info('Received OAuth callback');
 
-    if (result.startsWith('app.immich:/oauth-callback')) {
-      result = result.replaceAll('app.immich:/oauth-callback', 'app.immich:///oauth-callback');
+    if (result.startsWith('$callbackUrlScheme:/oauth-callback')) {
+      result = result.replaceAll('$callbackUrlScheme:/oauth-callback', '$callbackUrlScheme:///oauth-callback');
     }
 
     return await _apiService.oAuthApi.finishOAuth(

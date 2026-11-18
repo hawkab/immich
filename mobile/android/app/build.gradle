@@ -8,6 +8,8 @@ plugins {
 }
 
 def keystoreProperties = new Properties()
+def aegisBuild = System.getenv("AEGIS_BUILD") == "true"
+def explicitSigningKey = System.getenv("IMMICH_SIGNING_KEY_FILE")
 def keystorePropertiesFile = rootProject.file('key.properties')
 if (keystorePropertiesFile.exists()) {
   keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
@@ -37,12 +39,13 @@ android {
   }
 
   defaultConfig {
-    applicationId "app.alextran.immich"
+    applicationId aegisBuild ? "app.alextran.immich.aegis" : "app.alextran.immich"
     minSdk = 26
     targetSdk = flutter.targetSdkVersion
     versionCode flutter.versionCode
     versionName flutter.versionName
-    resValue "string", "app_name", "Immich"
+    resValue "string", "app_name", aegisBuild ? "Immich (Aegis)" : "Immich"
+    manifestPlaceholders += [immichOAuthScheme: aegisBuild ? "app.immich.aegis" : "app.immich"]
     buildConfigField "boolean", "PASSKEYS", "true"
   }
 
@@ -54,7 +57,7 @@ android {
 
       keyAlias keyAliasVal ?: keystoreProperties['keyAlias']
       keyPassword keyPasswordVal ?: keystoreProperties['keyPassword']
-      storeFile file("../key.jks").exists() ? file("../key.jks") : file(keystoreProperties['storeFile'] ?: '../key.jks')
+      storeFile explicitSigningKey ? file(explicitSigningKey) : (file("../key.jks").exists() ? file("../key.jks") : file(keystoreProperties['storeFile'] ?: '../key.jks'))
       storePassword storePasswordVal ?: keystoreProperties['storePassword']
     }
   }
@@ -66,8 +69,14 @@ android {
     }
 
     release {
-      def hasKeystore = file("../key.jks").exists() && file("../key.jks").length() > 0
+      def hasKeystore = explicitSigningKey ? file(explicitSigningKey).isFile() : (file("../key.jks").exists() && file("../key.jks").length() > 0)
+      if (aegisBuild && !hasKeystore) {
+        throw new GradleException("Aegis release requires the preserved private signing key")
+      }
       signingConfig hasKeystore ? signingConfigs.release : signingConfigs.debug
+      if (aegisBuild) {
+        versionNameSuffix "-aegis"
+      }
       proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 
       def prNumber = System.getenv("PR_NUMBER")

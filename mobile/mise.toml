@@ -54,7 +54,7 @@ run = [
   "dart run build_runner build",
   "dart format lib/routing/router.gr.dart",
 ]
-depends = ["//:open-api-dart"]
+depends = ["//:open-api-dart", "codegen:native", "codegen:pigeon", "codegen:translation"]
 wait_for = ["codegen:drift:migration"]
 
 [tasks."codegen:drift:migration"]
@@ -68,7 +68,7 @@ sources = [
 ]
 outputs = ["lib/data/db/main/database.steps.dart"]
 run = "dart run drift_dev make-migrations"
-depends = ["//:open-api-dart"]
+depends = ["//:open-api-dart", "codegen:native", "codegen:pigeon", "codegen:translation"]
 
 [tasks."codegen:drift:schema"]
 description = "Generate Drift migration schema test code"
@@ -99,7 +99,7 @@ run = [
   "ls pigeon/*.dart | xargs -n1 -P4 -I{} dart run pigeon --input {}",
   "dart format lib/platform/",
 ]
-depends = ["//:open-api-dart"]
+depends = ["//:open-api-dart", "codegen:native"]
 
 [tasks."codegen:translation"]
 alias = "translation"
@@ -144,6 +144,11 @@ run = "dart format --set-exit-if-changed $(find lib -name '*.dart' -not \\( -nam
 description = "Build Android release"
 run = "flutter build appbundle"
 
+[tasks."build:aegis"]
+description = "Build the privately signed arm64 Aegis client without replacing official Immich"
+depends = ["install"]
+run = "python3 scripts/build_aegis_android.py"
+
 [tasks.install]
 alias = "install"
 description = "Install flutter dependencies"
@@ -186,7 +191,7 @@ run = [
   "dart run easy_localization:generate -S ../i18n",
   "dart format lib/generated/codegen_loader.g.dart",
 ]
-depends = ["//:open-api-dart"]
+depends = ["//:open-api-dart", "codegen:native"]
 wait_for = ["//:i18n:format-fix"]
 
 [tasks."i18n:keys"]
@@ -196,6 +201,7 @@ run = [
   "dart run bin/generate_keys.dart",
   "dart format lib/generated/translations.g.dart",
 ]
+depends = ["codegen:native"]
 wait_for = ["//:i18n:format-fix"]
 
 [tasks."install:ios"]

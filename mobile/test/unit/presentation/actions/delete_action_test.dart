@@ -8,6 +8,7 @@ import 'package:immich_mobile/domain/models/asset/base_asset.model.dart';
 import 'package:immich_mobile/domain/models/store.model.dart';
 import 'package:immich_mobile/domain/services/store.service.dart';
 import 'package:immich_mobile/generated/translations.g.dart';
+import 'package:immich_mobile/infrastructure/repositories/settings.repository.dart';
 import 'package:immich_mobile/presentation/actions/action.widget.dart';
 import 'package:immich_mobile/presentation/actions/delete.action.dart';
 import 'package:immich_mobile/providers/server_info.provider.dart';
@@ -27,6 +28,7 @@ void main() {
 
   setUp(() async {
     context = await PresentationContext.create();
+    await SettingsRepository.instance.write(.keepCopiesIndependent, false);
     assetService = context.service.asset.service;
     cleanupService = context.service.cleanup.service;
   });
@@ -76,6 +78,79 @@ void main() {
   }
 
   group('DeleteAction', () {
+    group('independent copies', () {
+      setUp(() async {
+        await SettingsRepository.instance.write(.keepCopiesIndependent, true);
+      });
+
+      testWidgets('ordinary Immich delete is unavailable for an unbacked device original', (tester) async {
+        await tester.pumpTestWidget(
+          context,
+          const ActionIconButton(action: DeleteAction(source: .timeline)),
+          overrides: context.selected({LocalAssetFactory.create()}),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(ImmichIconButton), findsNothing);
+        verifyNever(() => cleanupService.deleteLocalAssets(any()));
+      });
+
+      testWidgets('explicit deletion of an unbacked original requires confirmation', (tester) async {
+        final local = LocalAssetFactory.create();
+        await tester.pumpTestWidget(
+          context,
+          const ActionIconButton(action: CleanupLocalAction(source: .timeline)),
+          overrides: context.selected({local}),
+        );
+        await tester.tap(find.byType(ImmichIconButton));
+        await tester.pump();
+        await respondToDialog(tester, confirm: false);
+        verifyNever(() => cleanupService.deleteLocalAssets(any()));
+        verifyNever(() => assetService.trash(any()));
+        verifyNever(() => assetService.delete(any()));
+      });
+
+      testWidgets('server trash never requests deletion of a device copy', (tester) async {
+        await StoreService.I.put(StoreKey.manageLocalMediaAndroid, true);
+        final asset = owned(localId: 'local');
+        await pumpDelete(tester, {asset});
+        await tester.pumpAndSettle();
+        verify(() => assetService.trash([asset.id])).called(1);
+        verifyNever(() => cleanupService.deleteLocalAssets(any()));
+      });
+
+      testWidgets('permanent server deletion preserves the device copy', (tester) async {
+        final asset = owned(localId: 'local');
+        await pumpDelete(tester, {asset}, trashEnabled: false);
+        await respondToDialog(tester, confirm: true);
+        verify(() => assetService.delete([asset.id])).called(1);
+        verifyNever(() => cleanupService.deleteLocalAssets(any()));
+      });
+
+      testWidgets('mixed selection does not delete unbacked device files as a side effect', (tester) async {
+        final asset = owned(localId: 'backed-up');
+        final local = LocalAssetFactory.create();
+        await pumpDelete(tester, {asset, local});
+        await tester.pumpAndSettle();
+        verify(() => assetService.trash([asset.id])).called(1);
+        verifyNever(() => cleanupService.deleteLocalAssets(any()));
+      });
+
+      testWidgets('explicit device cleanup leaves the server copy unchanged', (tester) async {
+        final asset = owned(localId: 'local');
+        when(() => cleanupService.deleteLocalAssets(['local'])).thenAnswer((_) async => 1);
+        await tester.pumpTestWidget(
+          context,
+          const ActionIconButton(action: CleanupLocalAction(source: .timeline)),
+          overrides: context.selected({asset}),
+        );
+        await tester.tap(find.byType(ImmichIconButton));
+        await tester.pumpAndSettle();
+        verify(() => cleanupService.deleteLocalAssets(['local'])).called(1);
+        verifyNever(() => assetService.trash(any()));
+        verifyNever(() => assetService.delete(any()));
+      });
+    });
+
     group('trash', () {
       testWidgets('trashes a remote-only owned asset', (tester) async {
         final asset = owned();

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:immich_mobile/data/db/main/database.dart';
 import 'package:immich_mobile/domain/models/asset/base_asset.model.dart';
+import 'package:immich_mobile/domain/models/deletion_policy.dart';
 import 'package:immich_mobile/domain/models/store.model.dart';
 import 'package:immich_mobile/domain/models/sync_event.model.dart';
 import 'package:immich_mobile/domain/services/store.service.dart';
@@ -37,6 +38,7 @@ class _AbortCallbackWrapper {
 class _MockAbortCallbackWrapper extends Mock implements _AbortCallbackWrapper {}
 
 void main() {
+  var keepCopiesIndependent = false;
   late SyncStreamService sut;
   late SyncStreamRepository mockSyncStreamRepo;
   late SyncApiRepository mockSyncApiRepo;
@@ -72,6 +74,7 @@ void main() {
   Future<bool> successHandler(Invocation _) async => true;
 
   setUp(() async {
+    keepCopiesIndependent = false;
     mockSyncStreamRepo = MockSyncStreamRepository();
     mockSyncApiRepo = MockSyncApiRepository();
     mockLocalAssetRepo = MockLocalAssetRepository();
@@ -111,9 +114,9 @@ void main() {
     when(() => mockSyncApiRepo.deleteSyncAck(any())).thenAnswer((_) async => {});
 
     when(() => mockApi.serverInfoApi).thenReturn(mockServerApi);
-    when(
-      () => mockServerApi.getServerVersion(),
-    ).thenAnswer((_) async => ServerVersionResponseDto(major: 1, minor: 132, patch_: 0, prerelease: null, featureLevel: 1));
+    when(() => mockServerApi.getServerVersion()).thenAnswer(
+      (_) async => ServerVersionResponseDto(major: 1, minor: 132, patch_: 0, prerelease: null, featureLevel: 1),
+    );
 
     when(() => mockSyncStreamRepo.updateUsersV1(any())).thenAnswer(successHandler);
     when(() => mockSyncStreamRepo.deleteUsersV1(any())).thenAnswer(successHandler);
@@ -150,6 +153,7 @@ void main() {
     when(() => mockSyncMigrationRepo.v20260128CopyExifWidthHeightToAsset()).thenAnswer(successHandler);
 
     sut = SyncStreamService(
+      deletionPolicy: DeletionPolicy(keepCopiesIndependent: () => keepCopiesIndependent),
       syncApiRepository: mockSyncApiRepo,
       syncStreamRepository: mockSyncStreamRepo,
       localAssetRepository: mockLocalAssetRepo,
@@ -233,6 +237,7 @@ void main() {
       final cancellation = Completer<void>();
 
       sut = SyncStreamService(
+        deletionPolicy: DeletionPolicy(keepCopiesIndependent: () => keepCopiesIndependent),
         syncApiRepository: mockSyncApiRepo,
         syncStreamRepository: mockSyncStreamRepo,
         localAssetRepository: mockLocalAssetRepo,
@@ -273,6 +278,7 @@ void main() {
       });
 
       sut = SyncStreamService(
+        deletionPolicy: DeletionPolicy(keepCopiesIndependent: () => keepCopiesIndependent),
         syncApiRepository: mockSyncApiRepo,
         syncStreamRepository: mockSyncStreamRepo,
         localAssetRepository: mockLocalAssetRepo,
@@ -406,6 +412,7 @@ void main() {
 
   group("SyncStreamService - remote trash & restore", () {
     setUp(() async {
+      keepCopiesIndependent = false;
       await Store.put(StoreKey.manageLocalMediaAndroid, true);
       hasManageMediaPermission = true;
     });
@@ -523,6 +530,15 @@ void main() {
       verifyNever(() => mockTrashedLocalAssetRepo.trashLocalAsset(any()));
     });
 
+    test("independent copies preserve device files during permanent remote deletion", () async {
+      keepCopiesIndependent = true;
+      await Store.put(StoreKey.manageLocalMediaAndroid, true);
+      await simulateEvents([SyncStreamStub.assetDeleteV1]);
+      verifyNever(() => mockLocalAssetRepo.getAssetsFromBackupAlbums(any()));
+      verifyNever(() => mockAssetMediaRepo.deleteAll(any()));
+      verify(() => mockSyncStreamRepo.deleteAssetsV1(any())).called(1);
+    });
+
     test("requests local deletions lookup by remote ids for permanent remote delete events", () async {
       when(() => mockLocalAssetRepo.getAssetsFromBackupAlbums(any())).thenAnswer((invocation) async {
         final Iterable<String> requestedRemoteIds = invocation.positionalArguments.first as Iterable<String>;
@@ -565,9 +581,9 @@ void main() {
   group('SyncStreamService - Sync Migration', () {
     test('ensure that <2.5.0 migrations run', () async {
       await Store.put(StoreKey.syncMigrationStatus, "[]");
-      when(
-        () => mockServerApi.getServerVersion(),
-      ).thenAnswer((_) async => ServerVersionResponseDto(major: 2, minor: 4, patch_: 1, prerelease: null, featureLevel: 1));
+      when(() => mockServerApi.getServerVersion()).thenAnswer(
+        (_) async => ServerVersionResponseDto(major: 2, minor: 4, patch_: 1, prerelease: null, featureLevel: 1),
+      );
 
       await sut.sync();
 
@@ -593,9 +609,9 @@ void main() {
     });
     test('ensure that >=2.5.0 migrations run', () async {
       await Store.put(StoreKey.syncMigrationStatus, "[]");
-      when(
-        () => mockServerApi.getServerVersion(),
-      ).thenAnswer((_) async => ServerVersionResponseDto(major: 2, minor: 5, patch_: 0, prerelease: null, featureLevel: 1));
+      when(() => mockServerApi.getServerVersion()).thenAnswer(
+        (_) async => ServerVersionResponseDto(major: 2, minor: 5, patch_: 0, prerelease: null, featureLevel: 1),
+      );
       await sut.sync();
 
       verifyInOrder([
@@ -623,9 +639,9 @@ void main() {
         '["${SyncMigrationTask.v20260128_CopyExifWidthHeightToAsset.name}"]',
       );
 
-      when(
-        () => mockServerApi.getServerVersion(),
-      ).thenAnswer((_) async => ServerVersionResponseDto(major: 2, minor: 4, patch_: 1, prerelease: null, featureLevel: 1));
+      when(() => mockServerApi.getServerVersion()).thenAnswer(
+        (_) async => ServerVersionResponseDto(major: 2, minor: 4, patch_: 1, prerelease: null, featureLevel: 1),
+      );
 
       await sut.sync();
 

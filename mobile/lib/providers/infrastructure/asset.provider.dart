@@ -1,6 +1,7 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/domain/services/asset.service.dart';
 import 'package:immich_mobile/providers/infrastructure/db.provider.dart';
+import 'package:immich_mobile/providers/infrastructure/deletion_policy.provider.dart';
 import 'package:immich_mobile/providers/user.provider.dart';
 import 'package:immich_mobile/repositories/asset_api.repository.dart';
 import 'package:immich_mobile/repositories/asset_media.repository.dart';
@@ -14,6 +15,8 @@ final assetServiceProvider = Provider((ref) {
     apiRepository: ref.watch(assetApiRepositoryProvider),
     mediaRepository: ref.watch(assetMediaRepositoryProvider),
     trashedLocalRepository: db.trashedLocalAssetRepository,
+    deletionPolicy: ref.watch(deletionPolicyProvider),
+    backupRepository: db.backupRepository,
   );
 });
 

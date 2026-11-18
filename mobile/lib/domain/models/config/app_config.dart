@@ -30,6 +30,7 @@ abstract class AppConfig with _$AppConfig {
   const AppConfig._();
 
   const factory AppConfig({
+    @Default(true) bool keepCopiesIndependent,
     @Default(LogLevel.info) LogLevel logLevel,
     @Default(ThemeConfig()) ThemeConfig theme,
     @Default(CleanupConfig()) CleanupConfig cleanup,
@@ -48,6 +49,7 @@ abstract class AppConfig with _$AppConfig {
   T read<T>(SettingsKey<T> key) =>
       (switch (key) {
             .logLevel => logLevel,
+            .keepCopiesIndependent => keepCopiesIndependent,
             .themePrimaryColor => theme.primaryColor,
             .themeMode => theme.mode,
             .themeDynamic => theme.dynamicTheme,
@@ -103,6 +105,7 @@ abstract class AppConfig with _$AppConfig {
   AppConfig write<T, U extends T>(SettingsKey<T> key, U value) {
     return switch (key) {
       .logLevel => copyWith(logLevel: value as LogLevel),
+      .keepCopiesIndependent => copyWith(keepCopiesIndependent: value as bool),
       .themePrimaryColor => copyWith(theme: theme.copyWith(primaryColor: value as ImmichColorPreset)),
       .themeMode => copyWith(theme: theme.copyWith(mode: value as ThemeMode)),
       .themeDynamic => copyWith(theme: theme.copyWith(dynamicTheme: value as bool)),

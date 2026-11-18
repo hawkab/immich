@@ -6,6 +6,8 @@ import 'package:immich_mobile/extensions/platform_extensions.dart';
 import 'package:immich_mobile/generated/translations.g.dart';
 import 'package:immich_mobile/presentation/actions/action.dart';
 import 'package:immich_mobile/providers/infrastructure/asset.provider.dart';
+import 'package:immich_mobile/providers/infrastructure/deletion_policy.provider.dart';
+import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/store.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/toast.provider.dart';
 import 'package:immich_mobile/providers/server_info.provider.dart';
@@ -16,11 +18,12 @@ import 'package:immich_mobile/services/toast.service.dart';
 import 'package:immich_mobile/utils/error_handler.dart';
 import 'package:immich_mobile/widgets/common/confirm_dialog.dart';
 
-typedef _State = ({List<String> localIds, List<String> remoteIds, bool trash, bool isLocalOnly});
+typedef _State = ({List<String> localIds, List<String> remoteIds, bool trash, bool isLocalOnly, bool independent});
 
 final _stateProvider = Provider.family.autoDispose<_State?, ActionSource>((ref, source) {
   final assets = ref.watch(assetsActionProvider(source));
   final authUserId = ref.watch(authUserProvider).id;
+  final independent = ref.watch(appConfigProvider.select((config) => config.keepCopiesIndependent));
 
   final localIds = <String>[];
   final ownedRemote = <RemoteAsset>[];
@@ -36,6 +39,9 @@ final _stateProvider = Provider.family.autoDispose<_State?, ActionSource>((ref, 
   if (localIds.isEmpty && ownedRemote.isEmpty) {
     return null;
   }
+  if (independent && ownedRemote.isEmpty) {
+    return null;
+  }
 
   final trashEnabled = ref.watch(serverInfoProvider.select((state) => state.serverFeatures.trash));
   // Assets already in the trash or in the locked folder are deleted outright, irrespective of the server setting.
@@ -44,7 +50,13 @@ final _stateProvider = Provider.family.autoDispose<_State?, ActionSource>((ref, 
   final remoteIds = ownedRemote.map((asset) => asset.id).toList(growable: false);
   final isLocalOnly = assets.any((asset) => asset.isLocalOnly);
 
-  return (localIds: localIds, remoteIds: remoteIds, trash: trash, isLocalOnly: isLocalOnly);
+  return (
+    localIds: ref.read(deletionPolicyProvider).localTargetsForDelete(localIds),
+    remoteIds: remoteIds,
+    trash: trash,
+    isLocalOnly: isLocalOnly,
+    independent: independent,
+  );
 }, dependencies: [assetsActionProvider]);
 
 class DeleteAction extends AssetActionBuilder {
@@ -52,14 +64,18 @@ class DeleteAction extends AssetActionBuilder {
 
   @override
   ActionItem? create(BuildContext context, WidgetRef ref) {
-    final trash = ref.watch(_stateProvider(source).select((state) => state?.trash));
-    if (trash == null) {
+    final state = ref.watch(_stateProvider(source));
+    if (state == null) {
       return null;
     }
 
     return .new(
       icon: Icons.delete_outline,
-      label: trash ? context.t.trash : context.t.delete,
+      label: state.independent && state.remoteIds.isNotEmpty
+          ? context.t.delete_from_immich
+          : state.trash
+          ? context.t.trash
+          : context.t.delete,
       onAction: () => _delete(context, ref),
     );
   }
@@ -70,7 +86,7 @@ class DeleteAction extends AssetActionBuilder {
       return;
     }
 
-    final (:localIds, :remoteIds, :trash, :isLocalOnly) = state;
+    final (:localIds, :remoteIds, :trash, :isLocalOnly, independent: _) = state;
     final assetService = ref.read(assetServiceProvider);
     final toastService = ref.read(toastServiceProvider);
     final clearSelection = ref.read(clearSelectionProvider(source));
@@ -144,7 +160,9 @@ class DeleteAction extends AssetActionBuilder {
       context: context,
       builder: (_) => ConfirmDialog(
         title: context.t.delete_dialog_title,
-        content: context.t.delete_dialog_alert,
+        content: ref.read(deletionPolicyProvider).keepCopiesIndependent
+            ? context.t.delete_from_immich_confirmation
+            : context.t.delete_dialog_alert,
         ok: context.t.delete_permanently,
       ),
     );
@@ -163,10 +181,14 @@ class DeleteAction extends AssetActionBuilder {
   }
 }
 
-final _cleanupStateProvider = Provider.family.autoDispose<List<String>?, ActionSource>((ref, source) {
+typedef _CleanupState = ({List<String> localIds, bool includesUnbacked});
+
+final _cleanupStateProvider = Provider.family.autoDispose<_CleanupState?, ActionSource>((ref, source) {
   final assets = ref.watch(assetsActionProvider(source));
-  final assetIds = assets.backedUp().map((asset) => asset.localId).nonNulls.toList(growable: false);
-  return assetIds.isEmpty ? null : assetIds;
+  final independent = ref.watch(appConfigProvider.select((config) => config.keepCopiesIndependent));
+  final candidates = independent ? assets : assets.backedUp();
+  final assetIds = candidates.map((asset) => asset.localId).nonNulls.toList(growable: false);
+  return assetIds.isEmpty ? null : (localIds: assetIds, includesUnbacked: candidates.any((asset) => asset.isLocalOnly));
 }, dependencies: [assetsActionProvider]);
 
 class CleanupLocalAction extends AssetActionBuilder {
@@ -187,8 +209,8 @@ class CleanupLocalAction extends AssetActionBuilder {
   }
 
   Future<void> _cleanup(BuildContext context, WidgetRef ref) async {
-    final assetIds = ref.read(_cleanupStateProvider(source));
-    if (assetIds == null) {
+    final state = ref.read(_cleanupStateProvider(source));
+    if (state == null) {
       return;
     }
 
@@ -196,7 +218,26 @@ class CleanupLocalAction extends AssetActionBuilder {
     final clearSelection = ref.read(clearSelectionProvider(source));
 
     try {
-      final count = await _cleanupLocalAssets(context, ref, assetIds);
+      if (state.includesUnbacked) {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (_) => ConfirmDialog(
+            title: context.t.delete_dialog_title,
+            content: context.t.delete_dialog_alert_local_non_backed_up,
+            ok: context.t.delete_local_dialog_ok_force,
+          ),
+        );
+        if (confirmed != true || !context.mounted) {
+          return;
+        }
+      }
+      final count = await _cleanupLocalAssets(
+        context,
+        ref,
+        state.localIds,
+        isLocalOnly: state.includesUnbacked,
+        requestCustomPrompt: !state.includesUnbacked,
+      );
       if (count <= 0 || !context.mounted) {
         return;
       }

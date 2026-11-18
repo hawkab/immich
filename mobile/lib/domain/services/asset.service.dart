@@ -1,11 +1,13 @@
 import 'package:immich_mobile/domain/models/album/local_album.model.dart';
 import 'package:immich_mobile/domain/models/asset/base_asset.model.dart';
 import 'package:immich_mobile/domain/models/asset_edit.model.dart';
+import 'package:immich_mobile/domain/models/deletion_policy.dart';
 import 'package:immich_mobile/domain/models/exif.model.dart';
 import 'package:immich_mobile/domain/models/store.model.dart';
 import 'package:immich_mobile/domain/models/tag.model.dart';
 import 'package:immich_mobile/entities/store.entity.dart';
 import 'package:immich_mobile/extensions/platform_extensions.dart';
+import 'package:immich_mobile/infrastructure/repositories/backup.repository.dart';
 import 'package:immich_mobile/infrastructure/repositories/local_asset.repository.dart';
 import 'package:immich_mobile/infrastructure/repositories/remote_asset.repository.dart';
 import 'package:immich_mobile/infrastructure/repositories/remote_exif.repository.dart';
@@ -22,6 +24,8 @@ class AssetService {
   final AssetApiRepository _apiRepository;
   final AssetMediaRepository _mediaRepository;
   final TrashedLocalAssetRepository _trashedLocalRepository;
+  final DeletionPolicy _deletionPolicy;
+  final BackupRepository? _backupRepository;
 
   const AssetService({
     required this._remoteRepository,
@@ -30,6 +34,8 @@ class AssetService {
     required this._apiRepository,
     required this._mediaRepository,
     required this._trashedLocalRepository,
+    this._deletionPolicy = const DeletionPolicy(),
+    this._backupRepository,
   });
 
   Future<BaseAsset?> getAsset(BaseAsset asset) {
@@ -165,6 +171,9 @@ class AssetService {
     }
 
     await _apiRepository.delete(remoteIds, true);
+    if (_deletionPolicy.keepCopiesIndependent) {
+      await _backupRepository?.excludeDeletedRemoteAssets(remoteIds);
+    }
     await _remoteRepository.deleteAssets(remoteIds);
   }
 
@@ -186,7 +195,10 @@ class AssetService {
       return 0;
     }
 
-    if (trash && CurrentPlatform.isAndroid && Store.get(StoreKey.manageLocalMediaAndroid, false)) {
+    if (_deletionPolicy.syncDeletions &&
+        trash &&
+        CurrentPlatform.isAndroid &&
+        Store.get(StoreKey.manageLocalMediaAndroid, false)) {
       await _trashedLocalRepository.applyTrashedAssets(deletedIds);
     } else {
       await _localRepository.deleteAssets(deletedIds);

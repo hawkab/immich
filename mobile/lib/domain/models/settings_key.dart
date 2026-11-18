@@ -8,6 +8,7 @@ import 'package:immich_mobile/providers/album/album_sort_by_options.provider.dar
 import 'package:immich_mobile/utils/semver.dart';
 
 enum SettingsKey<T> {
+  keepCopiesIndependent<bool>(),
   // Theme
   themePrimaryColor<ImmichColorPreset>(codec: EnumCodec(ImmichColorPreset.values)),
   themeMode<ThemeMode>(codec: EnumCodec(ThemeMode.values)),

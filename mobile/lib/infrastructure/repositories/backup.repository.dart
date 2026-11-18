@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:collection/collection.dart';
 import 'package:drift/drift.dart';
+import 'package:immich_mobile/constants/constants.dart';
 import 'package:immich_mobile/data/db/main/database.dart';
 import 'package:immich_mobile/data/db/main/table/local/album_asset.drift.dart';
 import 'package:immich_mobile/data/db/main/table/local/asset.dart';
@@ -13,6 +15,23 @@ class BackupRepository extends DatabaseAccessor<Drift> with $BackupRepositoryMix
   BackupRepository(super.attachedDatabase);
 
   Drift get _db => attachedDatabase;
+
+  Future<void> excludeKnownAssetsBeforeReset() => _db.customStatement('''
+    INSERT OR IGNORE INTO backup_deletion_exclusion (owner_id, checksum)
+    SELECT owner_id, checksum FROM remote_asset_entity
+    WHERE owner_id IN (SELECT id FROM auth_user_entity)
+  ''');
+
+  Future<void> excludeDeletedRemoteAssets(List<String> ids) async {
+    for (final slice in ids.slices(kDriftMaxChunk)) {
+      final parameters = List.filled(slice.length, '?').join(',');
+      await _db.customStatement('''
+        INSERT OR IGNORE INTO backup_deletion_exclusion (owner_id, checksum)
+        SELECT owner_id, checksum FROM remote_asset_entity
+        WHERE id IN ($parameters) AND owner_id IN (SELECT id FROM auth_user_entity)
+      ''', slice);
+    }
+  }
 
   JoinedSelectStatement<$LocalAlbumAssetEntityTable, LocalAlbumAssetEntityData> _getExcludedSubquery() {
     return _db.localAlbumAssetEntity.selectOnly()
@@ -51,6 +70,10 @@ class BackupRepository extends DatabaseAccessor<Drift> with $BackupRepositoryMix
                 AND la.backup_selection = ?2
         )
         AND NOT EXISTS (
+            SELECT 1 FROM backup_deletion_exclusion exclusion
+            WHERE exclusion.owner_id = ?1 AND exclusion.checksum = lae.checksum
+        )
+        AND NOT EXISTS (
             SELECT 1
             FROM local_album_asset_entity laa
             INNER JOIN main.local_album_entity la on laa.album_id = la.id
@@ -67,7 +90,13 @@ class BackupRepository extends DatabaseAccessor<Drift> with $BackupRepositoryMix
             Variable.withInt(BackupSelection.selected.index),
             Variable.withInt(BackupSelection.excluded.index),
           ],
-          readsFrom: {_db.localAlbumAssetEntity, _db.localAlbumEntity, _db.localAssetEntity, _db.remoteAssetEntity},
+          readsFrom: {
+            _db.localAlbumAssetEntity,
+            _db.localAlbumEntity,
+            _db.localAssetEntity,
+            _db.remoteAssetEntity,
+            _db.backupDeletionExclusion,
+          },
         )
         .getSingle();
 
@@ -102,7 +131,15 @@ class BackupRepository extends DatabaseAccessor<Drift> with $BackupRepositoryMix
                   _db.remoteAssetEntity.checksum.equalsExp(lae.checksum) & _db.remoteAssetEntity.ownerId.equals(userId),
                 ),
             ) &
-            lae.id.isNotInQuery(_getExcludedSubquery()),
+            lae.id.isNotInQuery(_getExcludedSubquery()) &
+            notExistsQuery(
+              _db.backupDeletionExclusion.selectOnly()
+                ..addColumns([_db.backupDeletionExclusion.checksum])
+                ..where(
+                  _db.backupDeletionExclusion.ownerId.equals(userId) &
+                      _db.backupDeletionExclusion.checksum.equalsExp(lae.checksum),
+                ),
+            ),
       )
       ..orderBy([(localAsset) => OrderingTerm.desc(localAsset.createdAt)]);
 

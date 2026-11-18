@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:immich_mobile/domain/models/album/local_album.model.dart';
 import 'package:immich_mobile/domain/models/asset/base_asset.model.dart';
+import 'package:immich_mobile/domain/models/deletion_policy.dart';
 import 'package:immich_mobile/domain/models/store.model.dart';
 import 'package:immich_mobile/domain/utils/cloud_id_resolver.dart';
 import 'package:immich_mobile/entities/store.entity.dart';
@@ -28,6 +29,7 @@ class LocalSyncService {
   final DevicePermissionRepository _permissionRepository;
   final Completer<void>? _cancellation;
   final Logger _log = Logger("DeviceSyncService");
+  final DeletionPolicy _deletionPolicy;
 
   LocalSyncService({
     required this._localAlbumRepository,
@@ -36,6 +38,7 @@ class LocalSyncService {
     required this._assetMediaRepository,
     required this._permissionRepository,
     this._cancellation,
+    this._deletionPolicy = const DeletionPolicy(),
   }) {
     unawaited(_cancellation?.future.then((_) => _nativeSyncApi.cancelSync().onError(_log.warning)));
   }
@@ -45,7 +48,9 @@ class LocalSyncService {
   Future<void> sync({bool full = false}) async {
     final Stopwatch stopwatch = Stopwatch()..start();
     try {
-      if (CurrentPlatform.isAndroid && Store.get(StoreKey.manageLocalMediaAndroid, false)) {
+      if (_deletionPolicy.syncDeletions &&
+          CurrentPlatform.isAndroid &&
+          Store.get(StoreKey.manageLocalMediaAndroid, false)) {
         final hasPermission = await _permissionRepository.hasManageMediaPermission();
         if (hasPermission) {
           await _syncTrashedAssets();
@@ -362,6 +367,9 @@ class LocalSyncService {
 
   @visibleForTesting
   Future<void> processTrashedAssets(Map<String, List<PlatformAsset>> trashedAssetMap) async {
+    if (_deletionPolicy.keepCopiesIndependent) {
+      return;
+    }
     if (trashedAssetMap.isEmpty) {
       _log.info("syncTrashedAssets, No trashed assets found");
     }

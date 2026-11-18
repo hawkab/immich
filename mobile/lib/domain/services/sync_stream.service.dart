@@ -4,11 +4,13 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:immich_mobile/domain/models/asset/base_asset.model.dart';
+import 'package:immich_mobile/domain/models/deletion_policy.dart';
 import 'package:immich_mobile/domain/models/server_capability.model.dart';
 import 'package:immich_mobile/domain/models/store.model.dart';
 import 'package:immich_mobile/domain/models/sync_event.model.dart';
 import 'package:immich_mobile/entities/store.entity.dart';
 import 'package:immich_mobile/extensions/platform_extensions.dart';
+import 'package:immich_mobile/infrastructure/repositories/backup.repository.dart';
 import 'package:immich_mobile/infrastructure/repositories/local_asset.repository.dart';
 import 'package:immich_mobile/infrastructure/repositories/sync_api.repository.dart';
 import 'package:immich_mobile/infrastructure/repositories/sync_migration.repository.dart';
@@ -30,6 +32,8 @@ enum SyncMigrationTask {
 }
 
 class SyncStreamService {
+  final DeletionPolicy _deletionPolicy;
+  final BackupRepository? _backupRepository;
   final Logger _logger = Logger('SyncStreamService');
 
   final SyncApiRepository _syncApiRepository;
@@ -52,9 +56,13 @@ class SyncStreamService {
     required this._syncMigrationRepository,
     required this._api,
     this._cancellation,
+    this._deletionPolicy = const DeletionPolicy(),
+    this._backupRepository,
   });
 
   bool get isCancelled => _cancellation?.isCompleted ?? false;
+
+  bool get _syncDeviceDeletions => _deletionPolicy.syncDeletions && CurrentPlatform.isAndroid && Store.get(StoreKey.manageLocalMediaAndroid, false);
 
   Future<bool> sync() async {
     _logger.info("Remote sync request for user");
@@ -207,20 +215,23 @@ class SyncStreamService {
       case SyncEntityType.assetV1:
         final remoteSyncAssets = data.cast<SyncAssetV1>();
         await _syncStreamRepository.updateAssetsV1(remoteSyncAssets);
-        if (CurrentPlatform.isAndroid && Store.get(StoreKey.manageLocalMediaAndroid, false)) {
+        if (_syncDeviceDeletions) {
           await _syncAssetTrashStatus(remoteSyncAssets.where((e) => e.deletedAt != null).map((e) => e.id).toList());
         }
         return;
       case SyncEntityType.assetV2:
         final remoteSyncAssets = data.cast<SyncAssetV2>();
         await _syncStreamRepository.updateAssetsV2(remoteSyncAssets);
-        if (CurrentPlatform.isAndroid && Store.get(StoreKey.manageLocalMediaAndroid, false)) {
+        if (_syncDeviceDeletions) {
           await _syncAssetTrashStatus(remoteSyncAssets.where((e) => e.deletedAt != null).map((e) => e.id).toList());
         }
         return;
       case SyncEntityType.assetDeleteV1:
         final remoteSyncAssets = data.cast<SyncAssetDeleteV1>();
-        if (CurrentPlatform.isAndroid && Store.get(StoreKey.manageLocalMediaAndroid, false)) {
+        if (_deletionPolicy.keepCopiesIndependent) {
+          await _backupRepository?.excludeDeletedRemoteAssets(remoteSyncAssets.map((e) => e.assetId).toList());
+        }
+        if (_syncDeviceDeletions) {
           await _syncAssetDeletion(remoteSyncAssets.map((e) => e.assetId).toList());
         }
         return _syncStreamRepository.deleteAssetsV1(remoteSyncAssets);
@@ -294,6 +305,9 @@ class SyncStreamService {
       // return _syncStreamRepository.pruneAssets();
       // Request to reset the client state. Clear everything related to remote entities
       case SyncEntityType.syncResetV1:
+        if (_deletionPolicy.keepCopiesIndependent) {
+          await _backupRepository?.excludeKnownAssetsBeforeReset();
+        }
         return _syncStreamRepository.reset();
       case SyncEntityType.memoryV1:
       case SyncEntityType.memoryV2:

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:immich_mobile/data/db/main/database.dart';
 import 'package:immich_mobile/domain/models/asset/base_asset.model.dart';
+import 'package:immich_mobile/domain/models/deletion_policy.dart';
 import 'package:immich_mobile/domain/models/store.model.dart';
 import 'package:immich_mobile/domain/services/local_sync.service.dart';
 import 'package:immich_mobile/domain/services/store.service.dart';
@@ -21,6 +22,7 @@ import '../../repository.mocks.dart';
 import '../../service.mocks.dart';
 
 void main() {
+  var keepCopiesIndependent = false;
   late LocalSyncService sut;
   late LocalAlbumRepository mockLocalAlbumRepository;
   late TrashedLocalAssetRepository mockTrashedLocalAssetRepository;
@@ -44,6 +46,7 @@ void main() {
   });
 
   setUp(() async {
+    keepCopiesIndependent = false;
     mockLocalAlbumRepository = MockLocalAlbumRepository();
     mockTrashedLocalAssetRepository = MockTrashedLocalAssetRepository();
     mockAssetMediaRepository = MockAssetMediaRepository();
@@ -66,6 +69,7 @@ void main() {
     });
 
     sut = LocalSyncService(
+      deletionPolicy: DeletionPolicy(keepCopiesIndependent: () => keepCopiesIndependent),
       localAlbumRepository: mockLocalAlbumRepository,
       trashedLocalAssetRepository: mockTrashedLocalAssetRepository,
       assetMediaRepository: mockAssetMediaRepository,
@@ -78,6 +82,22 @@ void main() {
   });
 
   group('LocalSyncService - syncTrashedAssets gating', () {
+    test('independent copies ignore legacy deletion sync even with media permission', () async {
+      keepCopiesIndependent = true;
+      await Store.put(StoreKey.manageLocalMediaAndroid, true);
+      when(() => mockPermissionRepository.hasManageMediaPermission()).thenAnswer((_) async => true);
+      await sut.sync();
+      verifyNever(() => mockNativeSyncApi.getTrashedAssets());
+      verifyNever(() => mockAssetMediaRepository.deleteAll(any()));
+    });
+
+    test('independent copies also reject direct trash reconciliation', () async {
+      keepCopiesIndependent = true;
+      await sut.processTrashedAssets({});
+      verifyNever(() => mockTrashedLocalAssetRepository.processTrashSnapshot(any()));
+      verifyNever(() => mockAssetMediaRepository.deleteAll(any()));
+    });
+
     test('invokes syncTrashedAssets when Android flag enabled and permission granted', () async {
       await Store.put(StoreKey.manageLocalMediaAndroid, true);
       when(() => mockPermissionRepository.hasManageMediaPermission()).thenAnswer((_) async => true);

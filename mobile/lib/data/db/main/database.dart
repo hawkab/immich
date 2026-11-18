@@ -11,6 +11,7 @@ import 'package:immich_mobile/data/db/main/dao/person.dart';
 import 'package:immich_mobile/data/db/main/dao/user_metadata.dart';
 import 'package:immich_mobile/data/db/main/database.drift.dart';
 import 'package:immich_mobile/data/db/main/database.steps.dart';
+import 'package:immich_mobile/data/db/main/table/app/backup_deletion_exclusion.dart';
 import 'package:immich_mobile/data/db/main/table/app/settings.dart';
 import 'package:immich_mobile/data/db/main/table/app/store.dart';
 import 'package:immich_mobile/data/db/main/table/asset/edit.dart';
@@ -84,6 +85,7 @@ import 'package:sqlite_async/sqlite_async.dart';
     TrashedLocalAssetEntity,
     AssetEditEntity,
     SettingsEntity,
+    BackupDeletionExclusion,
     AssetOcrEntity,
   ],
   include: {'package:immich_mobile/data/db/main/query/merged_asset.drift'},
@@ -160,7 +162,7 @@ class Drift extends $Drift {
   }
 
   @override
-  int get schemaVersion => 35;
+  int get schemaVersion => 36;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -379,6 +381,9 @@ class Drift extends $Drift {
                 await m.addColumn(v35.localAssetEntity, v35.localAssetEntity.groupDate);
                 await m.createIndex(v35.idxRemoteAssetGroup);
                 await m.createIndex(v35.idxLocalAssetGroup);
+              },
+              from35To36: (m, v36) async {
+                await m.createTable(v36.backupDeletionExclusion);
               },
             ),
           );

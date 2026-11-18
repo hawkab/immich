@@ -8,6 +8,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/domain/services/log.service.dart';
 import 'package:immich_mobile/extensions/build_context_extensions.dart';
 import 'package:immich_mobile/generated/translations.g.dart';
+import 'package:immich_mobile/presentation/widgets/settings/independent_deletion_settings.dart';
 import 'package:immich_mobile/providers/infrastructure/platform.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/readonly_mode.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
@@ -36,6 +37,7 @@ class AdvancedSettings extends HookConsumerWidget {
       (_, _) => unawaited(ref.read(settingsProvider).write(.imagePreferRemote, preferRemote.value)),
     );
     final readonlyModeEnabled = useAppSettingsState(AppSettingsEnum.readonlyModeEnabled);
+    final independent = ref.watch(appConfigProvider.select((config) => config.keepCopiesIndependent));
 
     final logLevel = Level.LEVELS[levelId.value].name;
 
@@ -65,6 +67,7 @@ class AdvancedSettings extends HookConsumerWidget {
     }, []);
 
     final advancedSettings = [
+      const IndependentDeletionSettings(),
       SettingsSwitchListTile(
         enabled: true,
         valueNotifier: advancedTroubleshooting,
@@ -75,7 +78,7 @@ class AdvancedSettings extends HookConsumerWidget {
         Column(
           children: [
             SettingsSwitchListTile(
-              enabled: true,
+              enabled: !independent,
               valueNotifier: manageLocalMediaAndroid,
               title: context.t.advanced_settings_sync_remote_deletions_title,
               subtitle: context.t.advanced_settings_sync_remote_deletions_subtitle,

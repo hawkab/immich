@@ -3,6 +3,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:immich_mobile/data/db/main/database.dart';
+import 'package:immich_mobile/domain/models/deletion_policy.dart';
 import 'package:immich_mobile/domain/models/stack.model.dart';
 import 'package:immich_mobile/domain/models/store.model.dart';
 import 'package:immich_mobile/domain/services/asset.service.dart';
@@ -16,6 +17,7 @@ import '../../repository.mocks.dart';
 import '../mocks.dart';
 
 void main() {
+  var keepCopiesIndependent = false;
   late AssetService sut;
   late RepositoryMocks mocks;
   late MockAssetApiRepository apiRepository;
@@ -37,12 +39,14 @@ void main() {
   });
 
   setUp(() {
+    keepCopiesIndependent = false;
     mocks = RepositoryMocks();
     apiRepository = mocks.assetApi.api;
     remoteRepository = mocks.remoteAsset.repo;
     exifRepository = mocks.remoteExif.repo;
 
     sut = AssetService(
+      deletionPolicy: DeletionPolicy(keepCopiesIndependent: () => keepCopiesIndependent),
       remoteRepository: remoteRepository,
       exifRepository: exifRepository,
       localRepository: mocks.localAsset.repo,
@@ -107,6 +111,18 @@ void main() {
   });
 
   group('AssetService.deleteLocal', () {
+    test('independent local deletion does not propagate through the synced trash', () async {
+      keepCopiesIndependent = true;
+      await Store.put(StoreKey.manageLocalMediaAndroid, true);
+      const ids = ['local'];
+      when(() => mocks.assetMedia.api.deleteAll(ids, trash: true)).thenAnswer((_) async => ids);
+      when(() => mocks.localAsset.repo.deleteAssets(ids)).thenAnswer((_) async {});
+      expect(await sut.deleteLocal(ids), 1);
+      verify(() => mocks.localAsset.repo.deleteAssets(ids)).called(1);
+      verifyNever(() => mocks.trashedAsset.applyTrashedAssets(any()));
+      verifyNever(() => apiRepository.delete(any(), any()));
+    });
+
     const ids = ['l1', 'l2'];
 
     test('permanently deletes local copies without trashing, even when Android trash handling is on', () async {
@@ -125,6 +141,7 @@ void main() {
     const stack = StackResponse(id: 'stack', primaryAssetId: 'remote', assetIds: ['remote', 'previous']);
 
     setUp(() {
+      keepCopiesIndependent = false;
       when(() => mocks.localAsset.repo.updatePreviousChecksum(any(), any())).thenAnswer((_) async {});
     });
 
