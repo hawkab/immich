@@ -72,6 +72,7 @@ import { TelemetryRepository } from 'src/repositories/telemetry.repository.js';
 import { TrashRepository } from 'src/repositories/trash.repository.js';
 import { UserRepository } from 'src/repositories/user.repository.js';
 import { VersionHistoryRepository } from 'src/repositories/version-history.repository.js';
+import { VideoCompressionRepository } from 'src/repositories/video-compression.repository.js';
 import { VideoStreamRepository } from 'src/repositories/video-stream.repository.js';
 import { ViewRepository } from 'src/repositories/view-repository.js';
 import { WebAuthnRepository } from 'src/repositories/webauthn.repository.js';
@@ -293,6 +294,7 @@ export type ServiceOverrides = {
   trash: TrashRepository;
   user: UserRepository;
   versionHistory: VersionHistoryRepository;
+  videoCompression: VideoCompressionRepository;
   videoStream: VideoStreamRepository;
   view: ViewRepository;
   webAuthn: WebAuthnRepository;
@@ -386,6 +388,7 @@ export const getMocks = () => {
     trash: automock(TrashRepository),
     user: automock(UserRepository, { strict: false }),
     versionHistory: automock(VersionHistoryRepository),
+    videoCompression: automock(VideoCompressionRepository, { strict: false }),
     videoStream: automock(VideoStreamRepository, { strict: false }),
     view: automock(ViewRepository),
     webAuthn: automock(WebAuthnRepository),
@@ -461,6 +464,7 @@ export const newTestService = <T extends BaseService>(
     overrides.trash || (mocks.trash as As<TrashRepository>),
     overrides.user || (mocks.user as As<UserRepository>),
     overrides.versionHistory || (mocks.versionHistory as As<VersionHistoryRepository>),
+    overrides.videoCompression || (mocks.videoCompression as As<VideoCompressionRepository>),
     overrides.videoStream || (mocks.videoStream as As<VideoStreamRepository>),
     overrides.view || (mocks.view as As<ViewRepository>),
     overrides.webAuthn || (mocks.webAuthn as As<WebAuthnRepository>),

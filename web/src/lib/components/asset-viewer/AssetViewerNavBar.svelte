@@ -1,6 +1,7 @@
 <script lang="ts">
   import ActionMenuItem from '#lib/components/ActionMenuItem.svelte';
   import LoadingDots from '#lib/components/LoadingDots.svelte';
+  import VideoCompression from '#lib/components/asset-viewer/VideoCompression.svelte';
   import ArchiveAction from '#lib/components/asset-viewer/actions/ArchiveAction.svelte';
   import DeleteAction from '#lib/components/asset-viewer/actions/DeleteAction.svelte';
   import RestoreAction from '#lib/components/asset-viewer/actions/RestoreAction.svelte';
@@ -118,6 +119,9 @@
     <ActionButton action={Actions.Favorite} />
     <ActionButton action={Actions.Unfavorite} />
     <ActionButton action={Actions.Edit} />
+    {#if isOwner && asset.type === AssetTypeEnum.Video && !asset.isTrashed && !isLocked && !asset.libraryId}
+      <VideoCompression {asset} />
+    {/if}
 
     {#if !sharedLink && (isOwner || (asset.canDelete === true && !asset.isTrashed && featureFlagsManager.value.trash))}
       <DeleteAction {asset} {onAction} {preAction} {onUndoDelete} />

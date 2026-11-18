@@ -342,6 +342,7 @@ export class AssetService extends BaseService {
       }
     }
 
+    const compression = deleteOnDisk && !asset.libraryId ? await this.videoCompressionRepository.get(id) : undefined;
     await this.assetRepository.remove(asset);
     if (!asset.libraryId) {
       await this.userRepository.updateUsage(asset.ownerId, -(asset.exifInfo?.fileSizeInByte || 0));
@@ -373,6 +374,7 @@ export class AssetService extends BaseService {
 
     if (deleteOnDisk) {
       files.push(assetFiles.sidecarFile?.path, asset.originalPath);
+      if (compression) files.push(compression.outputPath, ...compression.cleanup);
     }
 
     await this.jobRepository.queue({ name: JobName.FileDelete, data: { files: files.filter(Boolean) } });

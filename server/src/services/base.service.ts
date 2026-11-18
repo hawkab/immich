@@ -60,6 +60,7 @@ import { TelemetryRepository } from 'src/repositories/telemetry.repository.js';
 import { TrashRepository } from 'src/repositories/trash.repository.js';
 import { UserRepository } from 'src/repositories/user.repository.js';
 import { VersionHistoryRepository } from 'src/repositories/version-history.repository.js';
+import { VideoCompressionRepository } from 'src/repositories/video-compression.repository.js';
 import { VideoStreamRepository } from 'src/repositories/video-stream.repository.js';
 import { ViewRepository } from 'src/repositories/view-repository.js';
 import { WebAuthnRepository } from 'src/repositories/webauthn.repository.js';
@@ -133,6 +134,7 @@ export const BASE_SERVICE_DEPENDENCIES = [
   TrashRepository,
   UserRepository,
   VersionHistoryRepository,
+  VideoCompressionRepository,
   VideoStreamRepository,
   ViewRepository,
   WebAuthnRepository,
@@ -199,6 +201,7 @@ export class BaseService {
     protected trashRepository: TrashRepository,
     protected userRepository: UserRepository,
     protected versionRepository: VersionHistoryRepository,
+    protected videoCompressionRepository: VideoCompressionRepository,
     protected videoStreamRepository: VideoStreamRepository,
     protected viewRepository: ViewRepository,
     protected webAuthnRepository: WebAuthnRepository,
@@ -274,6 +277,7 @@ export class BaseService {
       ctx.trashRepository,
       ctx.userRepository,
       ctx.versionRepository,
+      ctx.videoCompressionRepository,
       ctx.videoStreamRepository,
       ctx.viewRepository,
       ctx.webAuthnRepository,

@@ -92,6 +92,7 @@ import { UserMetadataAuditTable } from 'src/schema/tables/user-metadata-audit.ta
 import { UserMetadataTable } from 'src/schema/tables/user-metadata.table.js';
 import { UserTable } from 'src/schema/tables/user.table.js';
 import { VersionHistoryTable } from 'src/schema/tables/version-history.table.js';
+import { VideoCompressionTable } from 'src/schema/tables/video-compression.table.js';
 import {
   VideoStreamSegmentTable,
   VideoStreamSessionTable,
@@ -165,6 +166,7 @@ export class ImmichDatabase {
     UserMetadataTable,
     UserMetadataAuditTable,
     UserTable,
+    VideoCompressionTable,
     VersionHistoryTable,
     VideoStreamSessionTable,
     VideoStreamVariantTable,
@@ -304,6 +306,7 @@ export interface DB {
   user_metadata: UserMetadataTable;
   user_metadata_audit: UserMetadataAuditTable;
 
+  video_compression: VideoCompressionTable;
   version_history: VersionHistoryTable;
 
   video_stream_session: VideoStreamSessionTable;
