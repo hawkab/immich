@@ -69,6 +69,30 @@ class Owner:
             raise
         if value['albumUsers'][0]['user']['id'] != self.id:
             raise PermissionError('Refusing to modify another owner album')
+        if 'assets' not in value:
+            query = {'albumId': album_id, 'withStacked': 'false'}
+            buckets = self.call('/timeline/buckets?' + urllib.parse.urlencode(query))
+            if not isinstance(buckets, list):
+                raise ValueError('Native album time buckets are unavailable')
+            assets, identities, bucket_keys = [], set(), set()
+            for bucket in buckets:
+                key, count = bucket['timeBucket'], bucket['count']
+                if not isinstance(key, str) or key in bucket_keys or type(count) is not int or count < 0:
+                    raise ValueError('Native album time bucket is malformed')
+                bucket_keys.add(key)
+                rows = self.call('/timeline/bucket?' + urllib.parse.urlencode({**query, 'timeBucket': key}))
+                ids = rows.get('id') if isinstance(rows, dict) else None
+                if (not isinstance(ids, list) or len(ids) != count
+                        or any(not isinstance(identity, str) or not identity for identity in ids)
+                        or len(set(ids)) != len(ids) or identities.intersection(ids)):
+                    raise ValueError('Native album membership changed or is incomplete')
+                identities.update(ids)
+                assets.extend({'id': identity} for identity in ids)
+            if type(value.get('assetCount')) is not int or value['assetCount'] != len(assets):
+                raise ValueError('Native album membership count changed or is incomplete')
+            value['assets'] = assets
+        elif not isinstance(value['assets'], list):
+            raise ValueError('Native album membership is unavailable')
         return value
 
     def owned_albums(self):
