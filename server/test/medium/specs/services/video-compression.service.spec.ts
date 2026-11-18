@@ -30,6 +30,7 @@ const setup = async () => {
   const requestId = factory.uuid();
   const draft: CompressionDraft = {
     requestId,
+    actorId: user.id,
     sourceChecksum: asset.checksum.toString('base64'),
     sourcePath: asset.originalPath,
     outputPath: compressionPath(asset.originalPath, requestId),
@@ -42,6 +43,72 @@ const setup = async () => {
 };
 
 describe('durable video compression transactions', () => {
+  it('inherits the edit grant and charges only the video owner after partner confirmation', async () => {
+    const { ctx, repo, asset, user, draft } = await setup();
+    const { user: editor } = await ctx.newUser();
+    await ctx.database.updateTable('user').set({ quotaUsageInBytes: 500 }).where('id', '=', editor.id).execute();
+    await ctx.database
+      .insertInto('partner')
+      .values({ sharedById: user.id, sharedWithId: editor.id, canEdit: true, canDelete: false })
+      .execute();
+    expect(await repo.create(asset.id, editor.id, { ...draft, actorId: editor.id })).toBe(true);
+    await repo.update(
+      asset.id,
+      draft.requestId,
+      { status: 'ready', compressedSize: 100, outputChecksum: Buffer.alloc(20, 3).toString('base64') },
+      ['queued'],
+    );
+    expect(await repo.commit(asset.id, editor.id, draft.requestId, draft.sourceChecksum)).toBe(true);
+    const owner = await ctx.database
+      .selectFrom('user')
+      .select('quotaUsageInBytes')
+      .where('id', '=', user.id)
+      .executeTakeFirstOrThrow();
+    const actor = await ctx.database
+      .selectFrom('user')
+      .select('quotaUsageInBytes')
+      .where('id', '=', editor.id)
+      .executeTakeFirstOrThrow();
+    expect(Number(owner.quotaUsageInBytes)).toBe(100);
+    expect(Number(actor.quotaUsageInBytes)).toBe(500);
+  });
+
+  it('rechecks the edit grant at save and allows the owner to finish a revoked partner draft', async () => {
+    const { ctx, repo, asset, user, draft } = await setup();
+    const { user: editor } = await ctx.newUser();
+    await ctx.database
+      .insertInto('partner')
+      .values({ sharedById: user.id, sharedWithId: editor.id, canEdit: false })
+      .execute();
+    expect(await repo.create(asset.id, editor.id, { ...draft, actorId: editor.id })).toBe(false);
+    await ctx.database
+      .updateTable('partner')
+      .set({ canEdit: true })
+      .where('sharedById', '=', user.id)
+      .where('sharedWithId', '=', editor.id)
+      .execute();
+    expect(await repo.create(asset.id, editor.id, { ...draft, actorId: editor.id })).toBe(true);
+    await repo.update(
+      asset.id,
+      draft.requestId,
+      { status: 'ready', compressedSize: 100, outputChecksum: Buffer.alloc(20, 3).toString('base64') },
+      ['queued'],
+    );
+    await ctx.database
+      .updateTable('partner')
+      .set({ canEdit: false })
+      .where('sharedById', '=', user.id)
+      .where('sharedWithId', '=', editor.id)
+      .execute();
+    expect(await repo.commit(asset.id, editor.id, draft.requestId, draft.sourceChecksum)).toBe(false);
+    const current = await ctx.database
+      .selectFrom('asset')
+      .select('originalPath')
+      .where('id', '=', asset.id)
+      .executeTakeFirstOrThrow();
+    expect(current.originalPath).toBe(asset.originalPath);
+    expect(await repo.commit(asset.id, user.id, draft.requestId, draft.sourceChecksum)).toBe(true);
+  });
   it('rejects output from a superseded worker after a recovered lease', async () => {
     const { repo, asset, user, draft } = await setup();
     await repo.create(asset.id, user.id, draft);

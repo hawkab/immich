@@ -4428,7 +4428,7 @@
     },
     "/assets/{id}/compression": {
       "get": {
-        "description": "Read the current owner-only compression draft without changing the original.",
+        "description": "Read the current editable compression draft without changing the original.",
         "operationId": "getVideoCompression",
         "parameters": [
           {
@@ -4475,7 +4475,7 @@
             "state": "Added"
           }
         ],
-        "x-immich-permission": "asset.update"
+        "x-immich-permission": "asset.edit.create"
       },
       "post": {
         "description": "Encode a full preview without replacing the original.",
@@ -4535,7 +4535,7 @@
             "state": "Added"
           }
         ],
-        "x-immich-permission": "asset.update"
+        "x-immich-permission": "asset.edit.create"
       }
     },
     "/assets/{id}/compression/confirm": {
@@ -4597,7 +4597,7 @@
             "state": "Added"
           }
         ],
-        "x-immich-permission": "asset.delete"
+        "x-immich-permission": "asset.edit.create"
       }
     },
     "/assets/{id}/compression/discard": {
@@ -4659,7 +4659,7 @@
             "state": "Added"
           }
         ],
-        "x-immich-permission": "asset.update"
+        "x-immich-permission": "asset.edit.create"
       }
     },
     "/assets/{id}/compression/preview": {
@@ -25993,7 +25993,7 @@
             "type": "boolean"
           },
           "canEdit": {
-            "description": "Allow the recipient to edit shared photos and manage their faces",
+            "description": "Allow the recipient to edit shared photos, manage faces and compress shared videos",
             "type": "boolean"
           }
         },
@@ -26010,7 +26010,7 @@
             "type": "boolean"
           },
           "canEdit": {
-            "description": "Permission granted by the sharing owner to edit photos and faces",
+            "description": "Permission granted by the sharing owner to edit photos, faces and shared videos",
             "type": "boolean"
           },
           "email": {

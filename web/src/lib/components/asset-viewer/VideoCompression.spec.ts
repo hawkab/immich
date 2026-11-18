@@ -1,10 +1,12 @@
+import AssetViewerNavBar from '#lib/components/asset-viewer/AssetViewerNavBar.svelte';
 import VideoCompression from '#lib/components/asset-viewer/VideoCompression.svelte';
+import { authManager } from '#lib/managers/auth-manager.svelte.ts';
 import { queryClient } from '#lib/queries/client.ts';
 import { factory } from '#test/unit/factories.ts';
 import { test } from '#test/unit/fixtures.ts';
 import QueryComponentHost from '#test/unit/mocks/QueryComponentHost.svelte';
 import { AssetTypeEnum, Confirmation, Status, type VideoCompressionPreview } from '@immich/sdk';
-import { expect } from 'vitest';
+import { expect, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
 
@@ -21,6 +23,33 @@ const show = async () => {
   await render(QueryComponentHost, { props: { component: VideoCompression, props: { asset }, client: queryClient } });
   await page.getByRole('button', { name: 'video_compression', exact: true }).click();
 };
+
+for (const canEdit of [true, false, undefined]) {
+  test(`inherits the partner editing permission for video compression (${canEdit})`, async ({ data }) => {
+    authManager.setUser(data.user);
+    const shared = factory.asset({
+      type: AssetTypeEnum.Video,
+      ownerId: 'd22ecf1c-15fd-4dde-aaf9-45e57df63816',
+      canEdit,
+    });
+    await render(QueryComponentHost, {
+      props: {
+        component: AssetViewerNavBar,
+        props: {
+          asset: shared,
+          preAction: vi.fn(),
+          onAction: vi.fn(),
+          isPlayingOriginalVideo: false,
+          setPlayOriginalVideo: vi.fn(),
+        },
+        client: queryClient,
+      },
+    });
+    const button = page.getByRole('button', { name: 'video_compression', exact: true });
+    if (canEdit) await expect.element(button).toBeVisible();
+    else await expect.element(button).not.toBeInTheDocument();
+  });
+}
 
 test('opens a nearby popup and keeps save disabled before a preview exists', async ({ api, settle }) => {
   api.on({ getVideoCompression: () => ({ json: { draft: null } }) });

@@ -1,6 +1,6 @@
 # Video compression with a reviewed preview
 
-Open a video you own and choose **Compress video** in the viewer toolbar. The
+Open a video you own or have permission to edit and choose **Compress video** in the viewer toolbar. The
 popover stays beside its button and contains a quality slider, the measured
 original and compressed sizes, and a player for the complete encoded preview.
 Move left for a smaller file or right for better quality. Changing the setting
@@ -29,10 +29,12 @@ Queued encodes and committed replacements with unfinished cleanup resume after
 server restart. An interrupted preview can be regenerated from the retained
 original, without imposing a total-video deadline.
 
-Only the owner can use this operation. API keys need asset-update permission;
-preview playback also requires asset-download permission, and irreversible
-replacement also requires asset-delete permission. Shared links, partner edit
-grants and external-library files do not authorize original replacement.
+Owners and partners with the existing edit grant can use this operation; there
+is no separate compression grant. API keys need asset-edit-create permission;
+preview playback also requires asset-download permission. A shared view alone
+and shared links do not authorize compression. The grant is checked again when
+saving, and quota changes belong to the video owner. External-library originals
+remain managed outside this workflow.
 
 The feature branch is `feature/video-compression`; the locally deployed fork
 also includes it in `feature/combined-photo-tools`. The signed common installer

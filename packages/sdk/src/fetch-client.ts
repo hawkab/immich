@@ -2077,7 +2077,7 @@ export type PartnerResponseDto = {
     avatarColor: UserAvatarColor;
     /** Owner-granted permission to trash shared photos */
     canDelete?: boolean;
-    /** Permission granted by the sharing owner to edit photos and faces */
+    /** Permission granted by the sharing owner to edit photos, faces and shared videos */
     canEdit?: boolean;
     /** User email */
     email: string;
@@ -2103,7 +2103,7 @@ export type PartnerUpdateDto = {
 export type PartnerPermissionsDto = {
     /** Allow the recipient to trash shared photos and restore them */
     canDelete?: boolean;
-    /** Allow the recipient to edit shared photos and manage their faces */
+    /** Allow the recipient to edit shared photos, manage faces and compress shared videos */
     canEdit?: boolean;
 };
 export type PasskeyResponseDto = {
