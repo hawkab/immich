@@ -81,6 +81,14 @@ export class ClusterGroupService extends BaseService {
     });
   }
 
+  async reconcilePeople(auth: AuthDto, id: string) {
+    await this.requireAccess({ auth, permission: Permission.ClusterGroupAdmin, ids: [id] });
+    await this.jobRepository.queue({
+      name: JobName.FacialRecognitionQueueAll,
+      data: { clusterGroupId: id, force: true, preserveNamed: true },
+    });
+  }
+
   async leave(auth: AuthDto, clusterGroupId: string): Promise<void> {
     await this.requireAccess({ auth, permission: Permission.ClusterGroupLeave, ids: [clusterGroupId] });
 

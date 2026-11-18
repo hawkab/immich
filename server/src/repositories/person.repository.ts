@@ -89,7 +89,7 @@ export interface GetAllFacesOptions {
   clusterGroupId?: string;
 }
 
-export type UnassignFacesOptions = DeleteFacesOptions & { clusterGroupId?: string };
+export type UnassignFacesOptions = DeleteFacesOptions & { clusterGroupId?: string; preserveNamed?: boolean };
 
 export type GetFacesOptions = WithPersonOptions & { isVisible?: boolean };
 
@@ -226,13 +226,25 @@ export class PersonRepository {
   }
 
   @GenerateSql({ params: [{ sourceType: SourceType.MachineLearning, clusterGroupId: DummyValue.UUID }] })
-  async unassignFaces({ sourceType, clusterGroupId }: UnassignFacesOptions): Promise<void> {
+  async unassignFaces({ sourceType, clusterGroupId, preserveNamed }: UnassignFacesOptions): Promise<void> {
     await this.db
       .updateTable('asset_face')
       .set({ personGroupId: null })
       .from('asset')
       .whereRef('asset_face.assetId', '=', 'asset.id')
       .where('asset_face.sourceType', '=', sourceType)
+      .$if(!!preserveNamed, (qb) =>
+        qb.where(({ not, exists, selectFrom }) =>
+          not(
+            exists(
+              selectFrom('person')
+                .select('person.personGroupId')
+                .whereRef('person.personGroupId', '=', 'asset_face.personGroupId')
+                .where('person.name', '!=', ''),
+            ),
+          ),
+        ),
+      )
       .$if(!!clusterGroupId, (qb) =>
         qb.innerJoin('user', 'user.id', 'asset.ownerId').where('user.clusterGroupId', '=', clusterGroupId!),
       )
@@ -660,9 +672,30 @@ export class PersonRepository {
     return this.db
       .selectFrom('person')
       .select(['person.personGroupId', 'person.name'])
-      .where('person.ownerId', '=', userId)
+      .where((eb) =>
+        eb.or([
+          eb('person.ownerId', '=', userId),
+          eb.and([
+            eb('person.ownerId', 'in', (qb) =>
+              qb.selectFrom('partner').select('sharedById').where('sharedWithId', '=', userId),
+            ),
+            eb.exists(
+              eb
+                .selectFrom('asset_face')
+                .innerJoin('asset', 'asset.id', 'asset_face.assetId')
+                .select('asset_face.id')
+                .whereRef('asset_face.personGroupId', '=', 'person.personGroupId')
+                .whereRef('asset.ownerId', '=', 'person.ownerId')
+                .where('asset.visibility', '=', AssetVisibility.Timeline)
+                .where('asset.deletedAt', 'is', null)
+                .where('asset_face.deletedAt', 'is', null),
+            ),
+          ]),
+        ]),
+      )
       .where('person.name', '!=', '')
       .where('person.isHidden', '=', false)
+      .distinct()
       .execute();
   }
 

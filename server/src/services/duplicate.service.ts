@@ -3,11 +3,18 @@ import { OnJob } from 'src/decorators.js';
 import { BulkIdErrorReason, BulkIdResponseDto, BulkIdsDto } from 'src/dtos/asset-ids.response.dto.js';
 import { MapAsset, mapAsset } from 'src/dtos/asset-response.dto.js';
 import { AuthDto } from 'src/dtos/auth.dto.js';
-import { DuplicateResolveDto, DuplicateResolveGroupDto, DuplicateResponseDto } from 'src/dtos/duplicate.dto.js';
+import {
+  DuplicateCandidateSearchDto,
+  DuplicateCandidatesResponseDto,
+  DuplicateResolveDto,
+  DuplicateResolveGroupDto,
+  DuplicateResponseDto,
+} from 'src/dtos/duplicate.dto.js';
 import { AssetStatus, AssetVisibility, DatabaseLock, JobName, JobStatus, Permission, QueueName } from 'src/enum.js';
 import { AssetDuplicateResult } from 'src/repositories/search.repository.js';
 import { BaseService } from 'src/services/base.service.js';
 import type { JobOf } from 'src/types.js';
+import { getMyPartnerIds } from 'src/utils/asset.util.js';
 import { suggestDuplicateKeepAssetIds } from 'src/utils/duplicate.js';
 import { batched, isDuplicateDetectionEnabled } from 'src/utils/misc.js';
 
@@ -78,6 +85,36 @@ export class DuplicateService extends BaseService {
         suggestedKeepAssetIds: suggestDuplicateKeepAssetIds(mappedAssets),
       };
     });
+  }
+
+  async getCandidates(auth: AuthDto, dto: DuplicateCandidateSearchDto): Promise<DuplicateCandidatesResponseDto> {
+    const partnerIds = await getMyPartnerIds({
+      userId: auth.user.id,
+      repository: this.partnerRepository,
+      timelineEnabled: true,
+    });
+    const rows = await this.duplicateRepository.candidateGroups(
+      [auth.user.id, ...partnerIds],
+      dto.mode,
+      dto.page,
+      dto.size,
+    );
+    const selected = rows.slice(0, dto.size);
+    const previewIds = [...new Set(selected.flatMap((group) => group.assetIds.slice(0, 2)))];
+    const assets = await this.assetRepository.getByIdsWithAllRelationsButStacks(previewIds, auth.user.id);
+    const mapped = new Map(assets.map((asset) => [asset.id, mapAsset(asset, { auth })]));
+    return {
+      groups: selected.map(({ key, reason, assetIds }) => ({
+        key,
+        reason: reason as 'checksum' | 'visual' | 'size' | 'name' | 'metadata',
+        assetIds,
+        previews: assetIds.slice(0, 2).flatMap((id) => (mapped.has(id) ? [mapped.get(id)!] : [])),
+      })),
+      totalGroups: rows[0]?.totalGroups ?? 0,
+      page: dto.page,
+      nextPage: rows.length > dto.size ? dto.page + 1 : null,
+      readOnly: true,
+    };
   }
 
   async delete(auth: AuthDto, id: string): Promise<void> {

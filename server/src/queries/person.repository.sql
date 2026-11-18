@@ -1046,15 +1046,40 @@ where
   )
 
 -- PersonRepository.getNamedForSearch
-select
+select distinct
   "person"."personGroupId",
   "person"."name"
 from
   "person"
 where
-  "person"."ownerId" = $1
-  and "person"."name" != $2
-  and "person"."isHidden" = $3
+  (
+    "person"."ownerId" = $1
+    or (
+      "person"."ownerId" in (
+        select
+          "sharedById"
+        from
+          "partner"
+        where
+          "sharedWithId" = $2
+      )
+      and exists (
+        select
+          "asset_face"."id"
+        from
+          "asset_face"
+          inner join "asset" on "asset"."id" = "asset_face"."assetId"
+        where
+          "asset_face"."personGroupId" = "person"."personGroupId"
+          and "asset"."ownerId" = "person"."ownerId"
+          and "asset"."visibility" = $3
+          and "asset"."deletedAt" is null
+          and "asset_face"."deletedAt" is null
+      )
+    )
+  )
+  and "person"."name" != $4
+  and "person"."isHidden" = $5
 
 -- PersonRepository.getStatistics
 select

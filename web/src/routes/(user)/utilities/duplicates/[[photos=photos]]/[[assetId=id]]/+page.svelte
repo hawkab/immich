@@ -24,6 +24,7 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import type { PageData } from './$types';
+  import DuplicateCandidates from './DuplicateCandidates.svelte';
   import DuplicatesCompareControl from './DuplicatesCompareControl.svelte';
   import LinkToDocs from './LinkToDocs.svelte';
 
@@ -57,7 +58,16 @@
     ],
   };
 
-  let duplicates = $state(data.duplicates);
+  let duplicates = $derived(data.duplicates);
+  const modes = ['content', 'size', 'name', 'metadata', 'auto'] as const;
+  const methodTitle = (mode: (typeof modes)[number]) =>
+    ({
+      content: $t('duplicate_method_content'),
+      size: $t('duplicate_method_size'),
+      name: $t('duplicate_method_name'),
+      metadata: $t('duplicate_method_metadata'),
+      auto: $t('duplicate_method_auto'),
+    })[mode];
   let showMore = $state(false);
 
   const correctDuplicatesIndex = (index: number) => {
@@ -211,7 +221,7 @@
 </script>
 
 <svelte:document
-  use:shortcuts={assetViewerManager.isViewing
+  use:shortcuts={assetViewerManager.isViewing || data.mode !== 'auto'
     ? []
     : [
         { shortcut: { key: 'ArrowLeft' }, onShortcut: handlePrevious },
@@ -219,109 +229,127 @@
       ]}
 />
 
-<UserPageLayout title={data.meta.title + ` (${duplicates.length.toLocaleString($locale)})`} scrollbar={true}>
+<UserPageLayout
+  title={data.meta.title + ` (${(data.candidates?.totalGroups ?? duplicates.length).toLocaleString($locale)})`}
+  scrollbar={true}
+>
   {#snippet buttons()}
-    <HStack gap={0}>
-      <Button
-        leadingIcon={mdiTrashCanOutline}
-        onclick={() => handleDeduplicateAll()}
-        disabled={!hasDuplicates}
-        size="small"
-        variant="ghost"
-        color="secondary"
-      >
-        <Text class="hidden md:block">{$t('deduplicate_all')}</Text>
-      </Button>
-      <Button
-        leadingIcon={mdiCheckOutline}
-        onclick={() => handleKeepAll()}
-        disabled={!hasDuplicates}
-        size="small"
-        variant="ghost"
-        color="secondary"
-      >
-        <Text class="hidden md:block">{$t('keep_all')}</Text>
-      </Button>
-      <IconButton
-        shape="round"
-        variant="ghost"
-        color="secondary"
-        icon={mdiKeyboard}
-        title={$t('show_keyboard_shortcuts')}
-        onclick={() => modalManager.show(ShortcutsModal, { shortcuts: duplicateShortcuts })}
-        aria-label={$t('show_keyboard_shortcuts')}
-      />
-    </HStack>
+    {#if data.mode === 'auto'}
+      <HStack gap={0}>
+        <Button
+          leadingIcon={mdiTrashCanOutline}
+          onclick={() => handleDeduplicateAll()}
+          disabled={!hasDuplicates}
+          size="small"
+          variant="ghost"
+          color="secondary"
+        >
+          <Text class="hidden md:block">{$t('deduplicate_all')}</Text>
+        </Button>
+        <Button
+          leadingIcon={mdiCheckOutline}
+          onclick={() => handleKeepAll()}
+          disabled={!hasDuplicates}
+          size="small"
+          variant="ghost"
+          color="secondary"
+        >
+          <Text class="hidden md:block">{$t('keep_all')}</Text>
+        </Button>
+        <IconButton
+          shape="round"
+          variant="ghost"
+          color="secondary"
+          icon={mdiKeyboard}
+          title={$t('show_keyboard_shortcuts')}
+          onclick={() => modalManager.show(ShortcutsModal, { shortcuts: duplicateShortcuts })}
+          aria-label={$t('show_keyboard_shortcuts')}
+        />
+      </HStack>
+    {/if}
   {/snippet}
 
-  <div>
-    {#if duplicates && duplicates.length > 0}
-      <Text size="small" color="muted" class="mb-4">
-        {$t('duplicates_description')}
-        <LinkToDocs href="https://docs.immich.app/features/duplicates-utility" />
-      </Text>
+  <nav class="mb-5 flex flex-wrap gap-2" aria-label={$t('duplicate_search_methods')}>
+    {#each modes as mode (mode)}
+      <Button
+        variant={data.mode === mode ? 'filled' : 'ghost'}
+        size="small"
+        onclick={() => goto(Route.duplicatesUtility({ mode }))}>{methodTitle(mode)}</Button
+      >
+    {/each}
+  </nav>
+  {#if data.mode !== 'auto' && data.candidates}
+    <DuplicateCandidates data={data.candidates} mode={data.mode} />
+  {:else}
+    <div>
+      {#if duplicates && duplicates.length > 0}
+        <Text size="small" color="muted" class="mb-4">
+          {$t('duplicates_description')}
+          <LinkToDocs href="https://docs.immich.app/features/duplicates-utility" />
+        </Text>
 
-      {#key duplicates[duplicatesIndex].duplicateId}
-        <DuplicatesCompareControl
-          assets={duplicates[duplicatesIndex].assets}
-          suggestedKeepAssetIds={duplicates[duplicatesIndex].suggestedKeepAssetIds}
-          bind:showMore
-          onResolve={(duplicateAssetIds, trashIds) =>
-            handleResolve(duplicates[duplicatesIndex].duplicateId, duplicateAssetIds, trashIds)}
-          onStack={(assets) => handleStack(duplicates[duplicatesIndex].duplicateId, assets)}
-        />
-        <div class="mx-auto mb-16 max-w-5xl">
-          <div class="mb-4 flex w-full place-content-center place-items-center items-center justify-between sm:px-6">
-            <div class="flex text-xs text-black">
-              <Button
-                size="small"
-                leadingIcon={languageManager.rtl ? mdiPageLast : mdiPageFirst}
-                class="flex place-items-center gap-2 rounded-s-full px-2 sm:px-4"
-                onclick={handleFirst}
-                disabled={duplicatesIndex === 0}
-              >
-                {$t('first')}
-              </Button>
-              <Button
-                size="small"
-                leadingIcon={languageManager.rtl ? mdiChevronRight : mdiChevronLeft}
-                class="flex place-items-center gap-2 rounded-e-full px-2 sm:px-4"
-                onclick={handlePrevious}
-                disabled={duplicatesIndex === 0}
-              >
-                {$t('previous')}
-              </Button>
-            </div>
-            <p class="rounded-lg border px-3 py-1 text-xs md:px-6 md:text-sm dark:bg-subtle">
-              {duplicatesIndex + 1} / {duplicates.length.toLocaleString($locale)}
-            </p>
-            <div class="flex text-xs text-black">
-              <Button
-                size="small"
-                trailingIcon={languageManager.rtl ? mdiChevronLeft : mdiChevronRight}
-                class="flex place-items-center gap-2 rounded-s-full px-2 sm:px-4"
-                onclick={handleNext}
-                disabled={duplicatesIndex === duplicates.length - 1}
-              >
-                {$t('next')}
-              </Button>
-              <Button
-                size="small"
-                trailingIcon={languageManager.rtl ? mdiPageFirst : mdiPageLast}
-                class="flex place-items-center gap-2 rounded-e-full px-2 sm:px-4"
-                onclick={handleLast}
-                disabled={duplicatesIndex === duplicates.length - 1}
-              >
-                {$t('last')}
-              </Button>
+        {#key duplicates[duplicatesIndex].duplicateId}
+          <DuplicatesCompareControl
+            assets={duplicates[duplicatesIndex].assets}
+            suggestedKeepAssetIds={duplicates[duplicatesIndex].suggestedKeepAssetIds}
+            bind:showMore
+            onResolve={(duplicateAssetIds, trashIds) =>
+              handleResolve(duplicates[duplicatesIndex].duplicateId, duplicateAssetIds, trashIds)}
+            onStack={(assets) => handleStack(duplicates[duplicatesIndex].duplicateId, assets)}
+          />
+          <div class="mx-auto mb-16 max-w-5xl">
+            <div class="mb-4 flex w-full place-content-center place-items-center items-center justify-between sm:px-6">
+              <div class="flex text-xs text-black">
+                <Button
+                  size="small"
+                  leadingIcon={languageManager.rtl ? mdiPageLast : mdiPageFirst}
+                  class="flex place-items-center gap-2 rounded-s-full px-2 sm:px-4"
+                  onclick={handleFirst}
+                  disabled={duplicatesIndex === 0}
+                >
+                  {$t('first')}
+                </Button>
+                <Button
+                  size="small"
+                  leadingIcon={languageManager.rtl ? mdiChevronRight : mdiChevronLeft}
+                  class="flex place-items-center gap-2 rounded-e-full px-2 sm:px-4"
+                  onclick={handlePrevious}
+                  disabled={duplicatesIndex === 0}
+                >
+                  {$t('previous')}
+                </Button>
+              </div>
+              <p class="rounded-lg border px-3 py-1 text-xs md:px-6 md:text-sm dark:bg-subtle">
+                {duplicatesIndex + 1} / {duplicates.length.toLocaleString($locale)}
+              </p>
+              <div class="flex text-xs text-black">
+                <Button
+                  size="small"
+                  trailingIcon={languageManager.rtl ? mdiChevronLeft : mdiChevronRight}
+                  class="flex place-items-center gap-2 rounded-s-full px-2 sm:px-4"
+                  onclick={handleNext}
+                  disabled={duplicatesIndex === duplicates.length - 1}
+                >
+                  {$t('next')}
+                </Button>
+                <Button
+                  size="small"
+                  trailingIcon={languageManager.rtl ? mdiPageFirst : mdiPageLast}
+                  class="flex place-items-center gap-2 rounded-e-full px-2 sm:px-4"
+                  onclick={handleLast}
+                  disabled={duplicatesIndex === duplicates.length - 1}
+                >
+                  {$t('last')}
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      {/key}
-    {:else}
-      <p class="flex place-content-center place-items-center text-center text-lg dark:text-white">
-        {$t('no_duplicates_found')}
-      </p>
-    {/if}
-  </div>
+        {/key}
+      {:else}
+        <p class="flex place-content-center place-items-center text-center text-lg dark:text-white">
+          {$t('no_duplicates_found')}
+        </p>
+      {/if}
+    </div>
+  {/if}
 </UserPageLayout>

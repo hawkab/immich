@@ -354,7 +354,6 @@ export class SearchService extends BaseService {
     if (
       !dto.query ||
       auth.sharedLink ||
-      dto.queryAssetId ||
       dto.personIds?.length ||
       (dto.filter && collectFilterIds(dto.filter, 'personIds').length > 0)
     ) {

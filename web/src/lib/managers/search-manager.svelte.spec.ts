@@ -19,6 +19,14 @@ describe('SearchManager', () => {
     expect(searchManager.filter.includeDepictions).toBeUndefined();
   });
 
+  it('drops a stale similar-photo reference when opening a text query', () => {
+    searchManager.setQuery({ query: 'Маша с собакой', queryAssetId: 'old-reference' });
+    expect(searchManager.filter.queryAssetId).toBeUndefined();
+    expect(searchManager.filter.query).toBe('Маша с собакой');
+    searchManager.setQuery({ queryAssetId: 'image-reference' });
+    expect(searchManager.filter.queryAssetId).toBe('image-reference');
+  });
+
   it('remembers the selected query type', () => {
     searchManager.setQueryType('metadata');
     expect(searchManager.filter.queryType).toBe('metadata');

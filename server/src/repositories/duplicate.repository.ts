@@ -10,6 +10,7 @@ import { probes } from 'src/repositories/database.repository.js';
 import { DB } from 'src/schema/index.js';
 import { AssetExifTable } from 'src/schema/tables/asset-exif.table.js';
 import { anyUuid, asUuid, withDefaultVisibility } from 'src/utils/database.js';
+import { duplicateCandidates, type DuplicateCandidateMode } from 'src/utils/duplicate-candidates.js';
 
 // Maximum number of candidate duplicates to return from vector search
 const DUPLICATE_SEARCH_LIMIT = 64;
@@ -31,6 +32,11 @@ interface DuplicateMergeOptions {
 @Injectable()
 export class DuplicateRepository {
   constructor(@InjectKysely() private db: Kysely<DB>) {}
+
+  @GenerateSql({ params: [[DummyValue.UUID], 'size', 1, 50] })
+  candidateGroups(userIds: string[], mode: DuplicateCandidateMode, page: number, size: number) {
+    return duplicateCandidates(this.db, userIds, mode, page, size);
+  }
 
   @GenerateSql({ params: [DummyValue.UUID] })
   getAll(userId: string) {
