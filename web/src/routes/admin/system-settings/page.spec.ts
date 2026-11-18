@@ -35,7 +35,9 @@ describe('video transcription settings', () => {
     await expect
       .element(page.getByRole('textbox', { name: 'admin.transcription_endpoint' }))
       .toHaveValue('http://172.30.72.254:8000/v1/audio/transcriptions');
-    await expect.element(page.getByRole('spinbutton', { name: 'admin.transcription_search_similarity' })).toHaveValue(0.85);
+    await expect
+      .element(page.getByRole('spinbutton', { name: 'admin.transcription_search_similarity' }))
+      .toHaveValue(0.85);
     await expect.element(page.getByRole('combobox', { name: 'admin.transcription_provider' })).toHaveValue('gigaam');
     await page.getByRole('combobox', { name: 'admin.transcription_provider' }).selectOptions('openai');
     await expect.element(page.getByRole('combobox', { name: 'admin.transcription_provider' })).toHaveValue('openai');
