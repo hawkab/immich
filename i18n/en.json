@@ -486,6 +486,8 @@
     "transcription_endpoint": "Transcription endpoint",
     "transcription_model": "Speech model",
     "transcription_provider": "Transcription provider",
+    "transcription_search_similarity": "Speech meaning similarity",
+    "transcription_search_similarity_description": "Higher values favor precise meaning matches; lower values include broader associations. Word and typo matching remain available independently.",
     "trash_enabled_description": "Enable Trash features",
     "trash_number_of_days": "Number of days",
     "trash_number_of_days_description": "Number of days to keep the assets in trash before permanently removing them",
@@ -519,7 +521,7 @@
     "video_conversion_job": "Transcode videos",
     "video_conversion_job_description": "Transcode videos for wider compatibility with browsers and devices",
     "video_transcription": "Video transcription",
-    "video_transcription_description": "Index spoken words from existing and new videos. Use speech: or речь: before a search to match speech only. Completed audio segments survive restarts; originals remain unchanged."
+    "video_transcription_description": "Find videos by spoken words, spelling variants and related meanings in Context search. Completed audio segments survive restarts; originals remain unchanged."
   },
   "admin_email": "Admin Email",
   "admin_password": "Admin Password",
@@ -1925,7 +1927,7 @@
   "search": "Search",
   "search_albums": "Search albums",
   "search_by_context": "Search by context",
-  "search_by_context_example": "Describe the photo you want to find, e.g. \"Children jumping on a trampoline\"",
+  "search_by_context_example": "Describe a photo or what was said in a video, e.g. \"Children jumping on a trampoline\"",
   "search_by_description": "Search by description",
   "search_by_description_example": "Hiking day in Sapa",
   "search_by_filename": "Search by file name or extension",

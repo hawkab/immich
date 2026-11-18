@@ -117,6 +117,7 @@ const updatedConfig = Object.freeze<SystemConfig>({
       model: 'v3_e2e_ctc',
       language: 'ru',
       apiKey: '',
+      searchMinSimilarity: 0.85,
     },
     enabled: true,
     urls: ['http://immich-machine-learning:3003'],

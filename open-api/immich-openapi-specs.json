@@ -20152,6 +20152,7 @@
           "language": "ru",
           "model": "v3_e2e_ctc",
           "provider": "gigaam",
+          "searchMinSimilarity": 0.85,
           "url": "http://172.30.72.254:8000/v1/audio/transcriptions"
         },
         "properties": {
@@ -20161,8 +20162,7 @@
           },
           "enabled": {
             "default": false,
-            "type": "boolean",
-            "visibility": "User"
+            "type": "boolean"
           },
           "language": {
             "default": "ru",
@@ -20180,6 +20180,13 @@
               "openai"
             ],
             "type": "string"
+          },
+          "searchMinSimilarity": {
+            "default": 0.85,
+            "format": "double",
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
           },
           "url": {
             "default": "http://172.30.72.254:8000/v1/audio/transcriptions",
@@ -23422,6 +23429,7 @@
           "VersionCheck",
           "TranscriptionQueueAll",
           "Transcription",
+          "TranscriptSearch",
           "OcrQueueAll",
           "Ocr",
           "WorkflowAssetTrigger",

@@ -186,7 +186,10 @@ export class SearchService extends BaseService {
     }
 
     const userIds = this.getUserIdsToSearch(auth, dto.visibility);
-    const embedding = dto.transcriptOnly ? '' : await this.resolveEmbedding(auth, dto, machineLearning);
+    const embedding =
+      dto.transcriptOnly && !isSmartSearchEnabled(machineLearning)
+        ? ''
+        : await this.resolveEmbedding(auth, dto, machineLearning);
     const page = dto.page ?? 1;
     const size = dto.size;
     const { hasNextPage, items } = await this.searchRepository.searchSmart(
@@ -197,7 +200,12 @@ export class SearchService extends BaseService {
         viewingUserId: auth.user.id,
         embedding,
         ...(machineLearning.transcription.enabled &&
-          dto.query && { transcriptQuery: dto.query, transcriptOnly: dto.transcriptOnly }),
+          dto.query && {
+            transcriptQuery: dto.query,
+            transcriptOnly: dto.transcriptOnly,
+            transcriptModel: machineLearning.clip.modelName,
+            transcriptMinSimilarity: machineLearning.transcription.searchMinSimilarity,
+          }),
         visibility: dto.visibility ?? (auth.session?.hasElevatedPermission ? undefined : 'not-locked'),
       },
     );
@@ -297,7 +305,9 @@ export class SearchService extends BaseService {
 
     const [{ filter, scope }, embedding] = await Promise.all([
       this.resolveSearchScopeV3(auth, dto),
-      dto.transcriptOnly ? Promise.resolve('') : this.resolveEmbedding(auth, dto, machineLearning),
+      dto.transcriptOnly && !isSmartSearchEnabled(machineLearning)
+        ? Promise.resolve('')
+        : this.resolveEmbedding(auth, dto, machineLearning),
     ]);
 
     // no cursor until a rank-aware pagination strategy for smart search is decided
@@ -308,7 +318,12 @@ export class SearchService extends BaseService {
         withExif: dto.withExif,
         embedding,
         ...(machineLearning.transcription.enabled &&
-          dto.query && { transcriptQuery: dto.query, transcriptOnly: dto.transcriptOnly }),
+          dto.query && {
+            transcriptQuery: dto.query,
+            transcriptOnly: dto.transcriptOnly,
+            transcriptModel: machineLearning.clip.modelName,
+            transcriptMinSimilarity: machineLearning.transcription.searchMinSimilarity,
+          }),
       },
       scope,
     );

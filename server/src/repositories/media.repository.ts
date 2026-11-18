@@ -276,7 +276,9 @@ export class MediaRepository {
     return new Promise((resolve, reject) => {
       const output = new PassThrough();
       const chunks: Buffer[] = [];
-      output.on('data', (chunk: Buffer) => { chunks.push(chunk); });
+      output.on('data', (chunk: Buffer) => {
+        chunks.push(chunk);
+      });
       ffmpeg(input, { niceness: 10 })
         .seekInput(start)
         .duration(duration)

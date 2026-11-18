@@ -1,4 +1,3 @@
-import { sql, type SqlBool } from 'kysely';
 import { createHash } from 'node:crypto';
 import type { SystemConfig } from 'src/dtos/config.dto.js';
 
@@ -25,16 +24,6 @@ export const transcriptionIdentity = (config: TranscriptionConfig) =>
   createHash('sha256')
     .update(JSON.stringify([config.provider, config.url, config.model, config.language, TRANSCRIPT_CHUNK_SECONDS]))
     .digest('hex');
-
-export const transcriptMatches = (query: string) => sql<SqlBool>`exists (
-  select 1 from asset_metadata transcript
-  where asset.type = 'VIDEO' and transcript."assetId" = asset.id and transcript.key = ${TRANSCRIPT_KEY}
-    and transcript.value->>'schemaVersion' = '1'
-    and transcript.value->>'sourceChecksum' = encode(asset.checksum, 'base64')
-    and transcript.value->>'status' in ('complete', 'processing')
-    and (to_tsvector('russian', coalesce(transcript.value->>'text', '')) @@ websearch_to_tsquery('russian', ${query})
-      or to_tsvector('simple', coalesce(transcript.value->>'text', '')) @@ websearch_to_tsquery('simple', ${query}))
-)`;
 
 export const speechQuery = (query?: string) => {
   const match = query?.match(/^(?:speech|речь):\s*(.+)$/isu);

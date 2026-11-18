@@ -1,5 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { sql, type Kysely, type OrderByDirection, type Selectable, type ShallowDehydrateObject } from 'kysely';
+import {
+  sql,
+  type Insertable,
+  type Kysely,
+  type OrderByDirection,
+  type Selectable,
+  type ShallowDehydrateObject,
+} from 'kysely';
 import { InjectKysely } from 'nestjs-kysely';
 import z from 'zod';
 import { columns } from 'src/database.js';
@@ -10,6 +17,7 @@ import { AssetStatus, AssetType, AssetVisibility, VectorIndex } from 'src/enum.j
 import { probes } from 'src/repositories/database.repository.js';
 import { DB } from 'src/schema/index.js';
 import { AssetExifTable } from 'src/schema/tables/asset-exif.table.js';
+import type { TranscriptSearchTable } from 'src/schema/tables/transcript-search.table.js';
 import {
   anyUuid,
   searchAssetBuilder,
@@ -22,7 +30,7 @@ import {
   withSearchOrder,
 } from 'src/utils/database.js';
 import { paginationHelper, type PaginationOptions } from 'src/utils/pagination.js';
-import { transcriptMatches } from 'src/utils/transcription.js';
+import { transcriptSearchScore } from 'src/utils/transcript-search.js';
 
 export interface SearchAssetIdOptions {
   checksum?: Buffer;
@@ -95,6 +103,8 @@ export interface SearchEmbeddingOptions {
   embedding: string;
   transcriptQuery?: string;
   transcriptOnly?: boolean;
+  transcriptModel?: string;
+  transcriptMinSimilarity?: number;
   userIds: string[];
 }
 
@@ -327,20 +337,27 @@ export class SearchRepository {
 
     return this.db.transaction().execute(async (trx) => {
       await sql`set local vchordrq.probes = ${sql.lit(probes[VectorIndex.Clip])}`.execute(trx);
+      if (options.transcriptQuery) {
+        await sql`set local pg_trgm.word_similarity_threshold = 0.5`.execute(trx);
+      }
       const items = await searchAssetBuilderLegacy(trx, options)
         .select(columns.searchAsset)
         .leftJoin('smart_search', 'asset.id', 'smart_search.assetId')
+        .leftJoinLateral(
+          sql<{ score: number }>`(${transcriptSearchScore(options.transcriptQuery ?? '', options)})`.as(
+            'transcript_match',
+          ),
+          (join) => join.onTrue(),
+        )
         .where((eb) =>
           options.transcriptOnly && options.transcriptQuery
-            ? transcriptMatches(options.transcriptQuery)
+            ? sql<boolean>`transcript_match.score > 0`
             : eb.or([
                 eb('smart_search.assetId', 'is not', null),
-                ...(options.transcriptQuery ? [transcriptMatches(options.transcriptQuery)] : []),
+                ...(options.transcriptQuery ? [sql<boolean>`transcript_match.score > 0`] : []),
               ]),
         )
-        .$if(!!options.transcriptQuery, (qb) =>
-          qb.orderBy(sql`case when ${transcriptMatches(options.transcriptQuery!)} then 0 else 1 end`),
-        )
+        .$if(!!options.transcriptQuery, (qb) => qb.orderBy(sql`coalesce(transcript_match.score, 0) desc`))
         .$if(!options.transcriptOnly, (qb) => qb.orderBy(sql`smart_search.embedding <=> ${options.embedding}`))
         .orderBy('asset.id', 'asc')
         .limit(pagination.size + 1)
@@ -348,6 +365,26 @@ export class SearchRepository {
         .execute();
       return paginationHelper(items, pagination.size);
     });
+  }
+
+  getTranscriptSearch(assetId: string) {
+    return this.db.selectFrom('transcript_search').selectAll().where('assetId', '=', assetId).execute();
+  }
+
+  upsertTranscriptSearch(row: Insertable<TranscriptSearchTable>) {
+    return this.db
+      .insertInto('transcript_search')
+      .values(row)
+      .onConflict((oc) => oc.columns(['assetId', 'part']).doUpdateSet(row))
+      .execute();
+  }
+
+  pruneTranscriptSearch(assetId: string, partCount: number) {
+    return this.db
+      .deleteFrom('transcript_search')
+      .where('assetId', '=', assetId)
+      .where('part', '>=', partCount)
+      .execute();
   }
 
   @GenerateSql({
@@ -586,25 +623,34 @@ export class SearchRepository {
       embedding: string;
       transcriptQuery?: string;
       transcriptOnly?: boolean;
+      transcriptModel?: string;
+      transcriptMinSimilarity?: number;
     },
     scope: AssetSearchScope,
   ) {
     return this.db.transaction().execute(async (trx) => {
       await sql`set local vchordrq.probes = ${sql.lit(probes[VectorIndex.Clip])}`.execute(trx);
+      if (options.transcriptQuery) {
+        await sql`set local pg_trgm.word_similarity_threshold = 0.5`.execute(trx);
+      }
       const items = await searchAssetBuilder(trx, options, scope)
         .select(columns.searchAsset)
         .leftJoin('smart_search', 'asset.id', 'smart_search.assetId')
+        .leftJoinLateral(
+          sql<{ score: number }>`(${transcriptSearchScore(options.transcriptQuery ?? '', options)})`.as(
+            'transcript_match',
+          ),
+          (join) => join.onTrue(),
+        )
         .where((eb) =>
           options.transcriptOnly && options.transcriptQuery
-            ? transcriptMatches(options.transcriptQuery)
+            ? sql<boolean>`transcript_match.score > 0`
             : eb.or([
                 eb('smart_search.assetId', 'is not', null),
-                ...(options.transcriptQuery ? [transcriptMatches(options.transcriptQuery)] : []),
+                ...(options.transcriptQuery ? [sql<boolean>`transcript_match.score > 0`] : []),
               ]),
         )
-        .$if(!!options.transcriptQuery, (qb) =>
-          qb.orderBy(sql`case when ${transcriptMatches(options.transcriptQuery!)} then 0 else 1 end`),
-        )
+        .$if(!!options.transcriptQuery, (qb) => qb.orderBy(sql`coalesce(transcript_match.score, 0) desc`))
         .$if(!options.transcriptOnly, (qb) => qb.orderBy(sql`smart_search.embedding <=> ${options.embedding}`))
         .orderBy('asset.id', 'asc')
         .limit(pagination.take + 1)

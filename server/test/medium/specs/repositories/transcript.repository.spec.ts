@@ -113,6 +113,6 @@ it('applies the real search service permissions in legacy and structured speech-
     expect(result.assets.items.map((row) => row.id)).toEqual([asset.id]);
   }
   await database.deleteFrom('partner').where('sharedWithId', '=', viewer.id).execute();
-  const revoked = await sut.searchSmart(auth, {size: 100, query: 'речь: экспедиция'});
+  const revoked = await sut.searchSmart(auth, { size: 100, query: 'речь: экспедиция' });
   expect(revoked.assets.items).toHaveLength(0);
 });

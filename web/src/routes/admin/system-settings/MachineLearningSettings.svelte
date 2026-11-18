@@ -119,6 +119,16 @@
             bind:value={configToEdit.machineLearning.transcription.apiKey}
             disabled={disabled || !configToEdit.machineLearning.enabled}
           />
+          <SettingInputField
+            inputType={SettingInputFieldType.NUMBER}
+            label={$t('admin.transcription_search_similarity')}
+            description={$t('admin.transcription_search_similarity_description')}
+            bind:value={configToEdit.machineLearning.transcription.searchMinSimilarity}
+            disabled={disabled || !configToEdit.machineLearning.enabled}
+            min={0}
+            max={1}
+            step="0.01"
+          />
         </div>
       </SettingAccordion>
 

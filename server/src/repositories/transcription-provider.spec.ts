@@ -6,10 +6,10 @@ it.each(['gigaam', 'openai'] as const)('sends bounded audio with stable request 
   const requests: { headers: Record<string, unknown>; body: Buffer }[] = [];
   const server = createServer((request, response) => {
     void (async () => {
-    const chunks: Buffer[] = await Array.fromAsync(request);
-    requests.push({ headers: request.headers, body: Buffer.concat(chunks) });
-    response.setHeader('Content-Type', 'application/json');
-    response.end(JSON.stringify({ text: '  Проверка русской речи  ' }));
+      const chunks: Buffer[] = await Array.fromAsync(request);
+      requests.push({ headers: request.headers, body: Buffer.concat(chunks) });
+      response.setHeader('Content-Type', 'application/json');
+      response.end(JSON.stringify({ text: '  Проверка русской речи  ' }));
     })().catch((error) => response.destroy(error));
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
