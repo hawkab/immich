@@ -105,6 +105,17 @@ export class ClusterGroupController {
     return this.service.regeneratePeople(auth, id);
   }
 
+  @Post(':id/reconcile-people')
+  @Authenticated({ permission: Permission.ClusterGroupAdmin })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Endpoint({
+    summary: 'Reconcile unnamed face groups while preserving named identities and manual annotations',
+    history: new HistoryBuilder().added('v3.4.1'),
+  })
+  reconcilePeople(@Auth() auth: AuthDto, @Param() { id }: UUIDParamDto): Promise<void> {
+    return this.service.reconcilePeople(auth, id);
+  }
+
   @Post(':id/leave')
   @Authenticated({ permission: Permission.ClusterGroupLeave })
   @HttpCode(HttpStatus.NO_CONTENT)

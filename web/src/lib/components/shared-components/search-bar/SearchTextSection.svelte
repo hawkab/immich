@@ -15,7 +15,7 @@
     searchManager.filter.useSceneDescriptions ?? config.machineLearning.clip.useSceneDescriptions ?? false,
   );
   const includeDepictions = $derived(
-    searchManager.filter.includeDepictions ?? config.machineLearning.clip.includeDepictions ?? false,
+    searchManager.filter.includeDepictions ?? config.machineLearning.clip.includeDepictions ?? true,
   );
 
   const setType = (type: 'smart' | 'metadata' | 'description' | 'fullPath' | 'ocr') => {

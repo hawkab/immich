@@ -1,9 +1,14 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Endpoint, HistoryBuilder } from 'src/decorators.js';
 import { BulkIdResponseDto, BulkIdsDto } from 'src/dtos/asset-ids.response.dto.js';
 import type { AuthDto } from 'src/dtos/auth.dto.js';
-import { DuplicateResolveDto, DuplicateResponseDto } from 'src/dtos/duplicate.dto.js';
+import {
+  DuplicateCandidateSearchDto,
+  DuplicateCandidatesResponseDto,
+  DuplicateResolveDto,
+  DuplicateResponseDto,
+} from 'src/dtos/duplicate.dto.js';
 import { ApiTag, Permission } from 'src/enum.js';
 import { Auth, Authenticated } from 'src/middleware/auth.guard.js';
 import { DuplicateService } from 'src/services/duplicate.service.js';
@@ -23,6 +28,19 @@ export class DuplicateController {
   })
   getAssetDuplicates(@Auth() auth: AuthDto): Promise<DuplicateResponseDto[]> {
     return this.service.getDuplicates(auth);
+  }
+
+  @Get('candidates')
+  @Authenticated({ permission: Permission.DuplicateRead })
+  @Endpoint({
+    summary: 'Find read-only duplicate candidates by content, file size, name or capture metadata',
+    history: new HistoryBuilder().added('v3.4.1'),
+  })
+  getDuplicateCandidates(
+    @Auth() auth: AuthDto,
+    @Query() dto: DuplicateCandidateSearchDto,
+  ): Promise<DuplicateCandidatesResponseDto> {
+    return this.service.getCandidates(auth, dto);
   }
 
   @Delete()

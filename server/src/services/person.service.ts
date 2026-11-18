@@ -520,6 +520,7 @@ export class PersonService extends BaseService {
     force,
     nightly,
     clusterGroupId,
+    preserveNamed,
   }: JobOf<JobName.FacialRecognitionQueueAll>): Promise<JobStatus> {
     return this.databaseRepository.withLock(DatabaseLock.FacialRecognition, async () => {
       const { machineLearning } = await this.getConfig({ withCache: false });
@@ -544,7 +545,11 @@ export class PersonService extends BaseService {
       const { waiting } = await this.jobRepository.getJobCounts(QueueName.FacialRecognition);
 
       if (force) {
-        await this.personRepository.unassignFaces({ clusterGroupId, sourceType: SourceType.MachineLearning });
+        await this.personRepository.unassignFaces({
+          clusterGroupId,
+          sourceType: SourceType.MachineLearning,
+          ...(preserveNamed && { preserveNamed: true }),
+        });
         await this.handlePersonCleanup();
         await this.vacuum('asset_face', 'person');
       } else if (waiting) {
@@ -559,7 +564,7 @@ export class PersonService extends BaseService {
       const lastRun = new Date().toISOString();
 
       const faces = this.personRepository.getAllFaces(
-        force
+        force && !preserveNamed
           ? { clusterGroupId, sourceType: clusterGroupId ? SourceType.MachineLearning : undefined }
           : { personGroupId: null, clusterGroupId, sourceType: SourceType.MachineLearning },
       );

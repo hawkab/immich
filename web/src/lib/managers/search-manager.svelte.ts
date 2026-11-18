@@ -61,7 +61,7 @@ class SearchManager {
       query,
       ocr: searchQuery.ocr,
       queryType,
-      queryAssetId: 'queryAssetId' in searchQuery ? searchQuery.queryAssetId : undefined,
+      queryAssetId: !query && 'queryAssetId' in searchQuery ? searchQuery.queryAssetId : undefined,
       useSceneDescriptions: 'useSceneDescriptions' in searchQuery ? searchQuery.useSceneDescriptions : undefined,
       includeDepictions: 'includeDepictions' in searchQuery ? searchQuery.includeDepictions : undefined,
       personIds: new SvelteSet('personIds' in searchQuery ? searchQuery.personIds : []),
@@ -112,7 +112,7 @@ class SearchManager {
 
     return {
       query: this.filter.queryType === 'smart' ? query : undefined,
-      queryAssetId: this.filter.queryAssetId || undefined,
+      queryAssetId: query ? undefined : this.filter.queryAssetId || undefined,
       useSceneDescriptions: this.filter.queryType === 'smart' ? this.filter.useSceneDescriptions : undefined,
       includeDepictions: this.filter.queryType === 'smart' ? this.filter.includeDepictions : undefined,
       ocr: this.filter.queryType === 'ocr' ? query : undefined,

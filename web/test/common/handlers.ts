@@ -78,6 +78,9 @@ export const createHandlers = (data: MockData): Handlers => {
     checkBulkUpload: ({ body }) => ({
       json: { results: body.assets.map(({ id }) => ({ id, action: AssetUploadAction.Accept })) },
     }),
+    getDuplicateCandidates: ({ params }) => ({
+      json: { groups: [], totalGroups: 0, page: params?.page ?? 1, nextPage: null, readOnly: true },
+    }),
     getAssetDuplicates: () => ({ json: data.duplicateList() }),
 
     getActivities: ({ params }) => ({ json: data.activityList(params) }),

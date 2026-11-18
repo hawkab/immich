@@ -329,6 +329,7 @@ export interface IIntegrityPathWithChecksumJob {
 
 export interface IFacialRecognitionQueueAll extends INightlyJob {
   clusterGroupId?: string;
+  preserveNamed?: boolean;
 }
 
 export interface JobCounts {

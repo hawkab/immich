@@ -6291,6 +6291,50 @@
         "x-immich-permission": "clusterGroup.leave"
       }
     },
+    "/cluster-groups/{id}/reconcile-people": {
+      "post": {
+        "operationId": "reconcilePeople",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Reconcile unnamed face groups while preserving named identities and manual annotations",
+        "tags": [
+          "Cluster groups"
+        ],
+        "x-immich-history": [
+          {
+            "version": "v3.4.1",
+            "state": "Added"
+          }
+        ],
+        "x-immich-permission": "clusterGroup.admin"
+      }
+    },
     "/cluster-groups/{id}/regenerate-people": {
       "post": {
         "description": "Forcefully re-run facial recognition for all faces of users in this group.",
@@ -6855,6 +6899,84 @@
         ],
         "x-immich-permission": "duplicate.read",
         "x-immich-state": "Stable"
+      }
+    },
+    "/duplicates/candidates": {
+      "get": {
+        "operationId": "getDuplicateCandidates",
+        "parameters": [
+          {
+            "name": "mode",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "content",
+              "type": "string",
+              "enum": [
+                "content",
+                "size",
+                "name",
+                "metadata"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "size",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 50,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DuplicateCandidatesResponseDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Find read-only duplicate candidates by content, file size, name or capture metadata",
+        "tags": [
+          "Duplicates"
+        ],
+        "x-immich-history": [
+          {
+            "version": "v3.4.1",
+            "state": "Added"
+          }
+        ],
+        "x-immich-permission": "duplicate.read"
       }
     },
     "/duplicates/resolve": {
@@ -19020,7 +19142,7 @@
             "type": "boolean"
           },
           "includeDepictions": {
-            "default": false,
+            "default": true,
             "description": "Include subjects present only as art, toys, models or text mentions",
             "type": "boolean"
           },
@@ -22777,6 +22899,84 @@
             "type": "boolean"
           }
         },
+        "type": "object"
+      },
+      "DuplicateCandidateGroupDto": {
+        "properties": {
+          "assetIds": {
+            "items": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "key": {
+            "type": "string"
+          },
+          "previews": {
+            "items": {
+              "$ref": "#/components/schemas/AssetResponseDto"
+            },
+            "type": "array"
+          },
+          "reason": {
+            "enum": [
+              "checksum",
+              "visual",
+              "size",
+              "name",
+              "metadata"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "assetIds",
+          "key",
+          "previews",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "DuplicateCandidatesResponseDto": {
+        "properties": {
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/DuplicateCandidateGroupDto"
+            },
+            "type": "array"
+          },
+          "nextPage": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "nullable": true,
+            "type": "integer"
+          },
+          "page": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+          },
+          "readOnly": {
+            "enum": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "totalGroups": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "groups",
+          "nextPage",
+          "page",
+          "readOnly",
+          "totalGroups"
+        ],
         "type": "object"
       },
       "DuplicateResolveDto": {
@@ -33891,7 +34091,7 @@
             "type": "boolean"
           },
           "includeDepictions": {
-            "default": false,
+            "default": true,
             "description": "Include subjects present only as art, toys, models or text mentions",
             "type": "boolean"
           },

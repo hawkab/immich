@@ -1729,6 +1729,19 @@ export type DuplicateResponseDto = {
     /** Suggested asset IDs to keep based on file size and EXIF data */
     suggestedKeepAssetIds: string[];
 };
+export type DuplicateCandidateGroupDto = {
+    assetIds: string[];
+    key: string;
+    previews: AssetResponseDto[];
+    reason: Reason;
+};
+export type DuplicateCandidatesResponseDto = {
+    groups: DuplicateCandidateGroupDto[];
+    nextPage: number | null;
+    page: number;
+    readOnly: true;
+    totalGroups: number;
+};
 export type DuplicateResolveGroupDto = {
     duplicateId: string;
     /** Asset IDs to keep */
@@ -5438,6 +5451,17 @@ export function leaveClusterGroup({ id }: {
     }));
 }
 /**
+ * Reconcile unnamed face groups while preserving named identities and manual annotations
+ */
+export function reconcilePeople({ id }: {
+    id: string;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchText(`/cluster-groups/${encodeURIComponent(id)}/reconcile-people`, {
+        ...opts,
+        method: "POST"
+    }));
+}
+/**
  * Regenerate people of users in cluster group
  */
 export function clusterGroupRegeneratePeople({ id }: {
@@ -5572,6 +5596,25 @@ export function getAssetDuplicates(opts?: Oazapfts.RequestOpts) {
         status: 200;
         data: DuplicateResponseDto[];
     }>("/duplicates", {
+        ...opts
+    }));
+}
+/**
+ * Find read-only duplicate candidates by content, file size, name or capture metadata
+ */
+export function getDuplicateCandidates({ mode, page, size }: {
+    mode?: "content" | "size" | "name" | "metadata";
+    page?: number;
+    size?: number;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchJson<{
+        status: 200;
+        data: DuplicateCandidatesResponseDto;
+    }>(`/duplicates/candidates${QS.query(QS.explode({
+        mode,
+        page,
+        size
+    }))}`, {
         ...opts
     }));
 }
@@ -8589,6 +8632,13 @@ export enum AssetMediaSize {
     Fullsize = "fullsize",
     Preview = "preview",
     Thumbnail = "thumbnail"
+}
+export enum Reason {
+    Checksum = "checksum",
+    Visual = "visual",
+    Size = "size",
+    Name = "name",
+    Metadata = "metadata"
 }
 export enum SourceType {
     MachineLearning = "machine-learning",
