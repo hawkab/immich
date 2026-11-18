@@ -22,6 +22,16 @@ class BackupRepository extends DatabaseAccessor<Drift> with $BackupRepositoryMix
     WHERE owner_id IN (SELECT id FROM auth_user_entity)
   ''');
 
+  Future<void> excludeTrashedAssets(String ownerId) => _db.customStatement(
+    '''
+    INSERT OR IGNORE INTO backup_deletion_exclusion (owner_id, checksum)
+    SELECT owner_id, checksum FROM remote_asset_entity
+    WHERE owner_id = ? AND deleted_at IS NOT NULL
+      AND owner_id IN (SELECT id FROM auth_user_entity)
+  ''',
+    [ownerId],
+  );
+
   Future<void> excludeDeletedRemoteAssets(List<String> ids) async {
     for (final slice in ids.slices(kDriftMaxChunk)) {
       final parameters = List.filled(slice.length, '?').join(',');
@@ -31,6 +41,19 @@ class BackupRepository extends DatabaseAccessor<Drift> with $BackupRepositoryMix
         WHERE id IN ($parameters) AND owner_id IN (SELECT id FROM auth_user_entity)
       ''', slice);
     }
+  }
+
+  Future<bool> isAutomaticUploadAllowed(String ownerId, String? checksum) async {
+    if (checksum == null) {
+      return false;
+    }
+    final query = _db.selectOnly(_db.backupDeletionExclusion)
+      ..addColumns([_db.backupDeletionExclusion.checksum])
+      ..where(
+        _db.backupDeletionExclusion.ownerId.equals(ownerId) & _db.backupDeletionExclusion.checksum.equals(checksum),
+      )
+      ..limit(1);
+    return await query.getSingleOrNull() == null;
   }
 
   JoinedSelectStatement<$LocalAlbumAssetEntityTable, LocalAlbumAssetEntityData> _getExcludedSubquery() {
@@ -69,10 +92,10 @@ class BackupRepository extends DatabaseAccessor<Drift> with $BackupRepositoryMix
             WHERE laa.asset_id = lae.id
                 AND la.backup_selection = ?2
         )
-        AND NOT EXISTS (
+        AND (rae.id IS NOT NULL OR NOT EXISTS (
             SELECT 1 FROM backup_deletion_exclusion exclusion
             WHERE exclusion.owner_id = ?1 AND exclusion.checksum = lae.checksum
-        )
+        ))
         AND NOT EXISTS (
             SELECT 1
             FROM local_album_asset_entity laa

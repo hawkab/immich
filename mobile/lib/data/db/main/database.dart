@@ -130,14 +130,18 @@ class Drift extends $Drift {
   Future<void> reset() async {
     // https://github.com/simolus3/drift/commit/bd80a46264b6dd833ef4fd87fffc03f5a832ab41#diff-3f879e03b4a35779344ef16170b9353608dd9c42385f5402ec6035aac4dd8a04R76-R94
     await exclusively(() async {
+      await backupRepository.excludeKnownAssetsBeforeReset();
+      await customStatement('PRAGMA user_version = 0');
       // https://stackoverflow.com/a/65743498/25690041
       await customStatement('PRAGMA writable_schema = 1;');
-      await customStatement('DELETE FROM sqlite_master;');
-      await customStatement('VACUUM;');
-      await customStatement('PRAGMA writable_schema = 0;');
+      try {
+        await customStatement("DELETE FROM sqlite_master WHERE tbl_name <> 'backup_deletion_exclusion';");
+        await customStatement('VACUUM;');
+      } finally {
+        await customStatement('PRAGMA writable_schema = 0;');
+      }
       await customStatement('PRAGMA integrity_check');
 
-      await customStatement('PRAGMA user_version = 0');
       await beforeOpen(
         // ignore: invalid_use_of_internal_member
         resolvedEngine.executor,

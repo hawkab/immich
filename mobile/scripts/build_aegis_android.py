@@ -19,6 +19,24 @@ def run(*arguments, **kwargs):
     return subprocess.run(arguments, check=True, **kwargs)
 
 
+def verify_source(source, expected):
+    """Reject a release whose tracked input or commit changed during compilation."""
+    commit = run('git', 'rev-parse', 'HEAD', cwd=source, stdout=subprocess.PIPE, text=True).stdout.strip()
+    if commit != expected:
+        raise RuntimeError('Source commit changed during the release build')
+    status = run('git', 'status', '--porcelain', '--untracked-files=no',
+                 cwd=source, stdout=subprocess.PIPE, text=True).stdout
+    if status:
+        raise RuntimeError('Tracked source changed; the release is not accepted')
+
+
+def pin_source(source):
+    """Bind the build to its clean starting commit before any generated work."""
+    commit = run('git', 'rev-parse', 'HEAD', cwd=source, stdout=subprocess.PIPE, text=True).stdout.strip()
+    verify_source(source, commit)
+    return commit
+
+
 def main():
     """Keep release signing separate from distributable source and verify the APK."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -28,6 +46,7 @@ def main():
     args = parser.parse_args()
     mobile = Path(__file__).resolve().parents[1]
     source = mobile.parent
+    commit = pin_source(source)
     credential = json.loads(args.credentials.read_text())
     if not args.keystore.is_file() or args.keystore.resolve().is_relative_to(source):
         raise ValueError('Use the preserved signing key from private storage outside the source checkout')
@@ -41,9 +60,11 @@ def main():
                    'ANDROID_STORE_PASSWORD': credential['password']}
     environment.pop('PR_NUMBER', None)
     run('mise', '//mobile:codegen', cwd=source)
+    verify_source(source, commit)
     environment.pop('C_INCLUDE_PATH', None)
     run('flutter', 'build', 'apk', '--release', '--target-platform', 'android-arm64',
         '--dart-define=AEGIS_BUILD=true', cwd=mobile, env=environment)
+    verify_source(source, commit)
     sdk = Path(os.environ.get('ANDROID_HOME') or os.environ['ANDROID_SDK_ROOT'])
     tools = sorted((sdk / 'build-tools').iterdir(), key=lambda p: tuple(map(int, p.name.split('.'))))[-1]
     apk = mobile / 'build/app/outputs/flutter-apk/app-release.apk'
@@ -64,7 +85,6 @@ def main():
     args.output.mkdir(parents=True, exist_ok=True)
     target = args.output / 'immich-aegis-arm64.apk'
     shutil.copyfile(apk, target)
-    commit = run('git', 'rev-parse', 'HEAD', cwd=source, stdout=subprocess.PIPE, text=True).stdout.strip()
     flutter = json.loads(run('flutter', '--no-version-check', '--version', '--machine',
                              stdout=subprocess.PIPE, text=True).stdout)
     with target.open('rb') as stream:

@@ -1,23 +1,34 @@
 import 'dart:async';
 
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:immich_mobile/domain/models/deletion_policy.dart';
 import 'package:immich_mobile/infrastructure/repositories/remote_asset.repository.dart';
 import 'package:immich_mobile/providers/infrastructure/db.provider.dart';
+import 'package:immich_mobile/providers/infrastructure/deletion_policy.provider.dart';
 import 'package:immich_mobile/repositories/asset_api.repository.dart';
 
 final actionServiceProvider = Provider<ActionService>(
-  (ref) => ActionService(ref.watch(assetApiRepositoryProvider), ref.watch(driftProvider).remoteAssetRepository),
+  (ref) => ActionService(
+    ref.watch(assetApiRepositoryProvider),
+    ref.watch(driftProvider).remoteAssetRepository,
+    deletionPolicy: ref.watch(deletionPolicyProvider),
+  ),
 );
 
 class ActionService {
   final AssetApiRepository _assetApiRepository;
   final RemoteAssetRepository _remoteAssetRepository;
+  final DeletionPolicy _deletionPolicy;
 
-  const ActionService(this._assetApiRepository, this._remoteAssetRepository);
+  const ActionService(
+    this._assetApiRepository,
+    this._remoteAssetRepository, {
+    this._deletionPolicy = const DeletionPolicy(),
+  });
 
   Future<int> emptyTrash(String userId) async {
     final count = await _assetApiRepository.emptyTrash();
-    await _remoteAssetRepository.emptyTrash(userId);
+    await _remoteAssetRepository.emptyTrash(userId, keepDeviceCopiesIndependent: _deletionPolicy.keepCopiesIndependent);
     return count;
   }
 

@@ -6,7 +6,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:immich_mobile/data/db/main/database.dart';
 import 'package:immich_mobile/domain/models/album/local_album.model.dart';
 import 'package:immich_mobile/infrastructure/repositories/backup.repository.dart';
+import 'package:immich_mobile/services/action.service.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:openapi/api.dart' show SyncAssetDeleteV1;
 
+import '../../repository.mocks.dart';
 import '../repository_context.dart';
 
 void main() {
@@ -26,6 +30,7 @@ void main() {
     expect(await ctx.db.localAssetRepository.get(local.id), isNotNull);
     expect(await backup.getCandidates(user.id), isEmpty);
     expect((await backup.getAllCounts(user.id)).remainder, 0);
+    expect((await backup.getAllCounts(user.id)).total, 0);
     expect(await ctx.db.select(ctx.db.backupDeletionExclusion).get(), hasLength(1));
   });
 
@@ -96,5 +101,68 @@ void main() {
     expect(await ctx.db.localAssetRepository.get(local.id), isNotNull);
     expect(await BackupRepository(ctx.db).getCandidates(user.id), isEmpty);
     expect(await ctx.db.select(ctx.db.backupDeletionExclusion).get(), hasLength(1));
+  });
+
+  test('active server copies remain in the backup counts after a full resync', () async {
+    final ctx = MediumRepositoryContext();
+    addTearDown(ctx.dispose);
+    final user = await ctx.newUser();
+    await ctx.newAuthUser(id: user.id);
+    final remote = await ctx.newRemoteAsset(ownerId: user.id);
+    final local = await ctx.newLocalAsset(checksum: remote.checksum);
+    final album = await ctx.newLocalAlbum(backupSelection: BackupSelection.selected);
+    await ctx.newLocalAlbumAsset(albumId: album.id, assetId: local.id);
+    final backup = BackupRepository(ctx.db);
+    await backup.excludeKnownAssetsBeforeReset();
+    await ctx.db.syncStreamRepository.reset();
+    await ctx.newAuthUser(id: user.id);
+    await ctx.newUser(id: user.id);
+    await ctx.newRemoteAsset(id: remote.id, ownerId: user.id, checksum: remote.checksum);
+    final counts = await backup.getAllCounts(user.id);
+    expect(counts.total, 1);
+    expect(counts.remainder, 0);
+    expect(counts.processing, 0);
+    expect(await backup.getCandidates(user.id), isEmpty);
+  });
+
+  test('empty trash preserves deletion intent before late sync and keeps partner originals', () async {
+    final ctx = MediumRepositoryContext();
+    addTearDown(ctx.dispose);
+    final user = await ctx.newUser();
+    final partner = await ctx.newUser();
+    await ctx.newAuthUser(id: user.id);
+    final remote = await ctx.newRemoteAsset(ownerId: user.id, deletedAt: DateTime(2026));
+    final partnerRemote = await ctx.newRemoteAsset(ownerId: partner.id, deletedAt: DateTime(2026));
+    final local = await ctx.newLocalAsset(checksum: remote.checksum);
+    final album = await ctx.newLocalAlbum(backupSelection: BackupSelection.selected);
+    await ctx.newLocalAlbumAsset(albumId: album.id, assetId: local.id);
+    final api = MockAssetApiRepository();
+    when(api.emptyTrash).thenAnswer((_) async => 1);
+    final service = ActionService(api, ctx.db.remoteAssetRepository);
+    expect(await service.emptyTrash(user.id), 1);
+    await ctx.db.syncStreamRepository.deleteAssetsV1([SyncAssetDeleteV1(assetId: remote.id)]);
+    expect(await BackupRepository(ctx.db).getCandidates(user.id), isEmpty);
+    expect(await ctx.db.localAssetRepository.get(local.id), isNotNull);
+    expect(await ctx.db.remoteAssetRepository.get(partnerRemote.id), isNotNull);
+    final exclusions = await ctx.db.select(ctx.db.backupDeletionExclusion).get();
+    expect(exclusions, hasLength(1));
+    expect(exclusions.single.ownerId, user.id);
+    expect(exclusions.single.checksum, remote.checksum);
+  });
+
+  test('empty trash API failure does not delete the cached or device original', () async {
+    final ctx = MediumRepositoryContext();
+    addTearDown(ctx.dispose);
+    final user = await ctx.newUser();
+    await ctx.newAuthUser(id: user.id);
+    final remote = await ctx.newRemoteAsset(ownerId: user.id, deletedAt: DateTime(2026));
+    final local = await ctx.newLocalAsset(checksum: remote.checksum);
+    final api = MockAssetApiRepository();
+    when(api.emptyTrash).thenThrow(StateError('Remote operation failed'));
+    final service = ActionService(api, ctx.db.remoteAssetRepository);
+    await expectLater(service.emptyTrash(user.id), throwsStateError);
+    expect(await ctx.db.remoteAssetRepository.get(remote.id), isNotNull);
+    expect(await ctx.db.localAssetRepository.get(local.id), isNotNull);
+    expect(await ctx.db.select(ctx.db.backupDeletionExclusion).get(), isEmpty);
   });
 }

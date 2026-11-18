@@ -62,7 +62,8 @@ class SyncStreamService {
 
   bool get isCancelled => _cancellation?.isCompleted ?? false;
 
-  bool get _syncDeviceDeletions => _deletionPolicy.syncDeletions && CurrentPlatform.isAndroid && Store.get(StoreKey.manageLocalMediaAndroid, false);
+  bool get _syncDeviceDeletions =>
+      _deletionPolicy.syncDeletions && CurrentPlatform.isAndroid && Store.get(StoreKey.manageLocalMediaAndroid, false);
 
   Future<bool> sync() async {
     _logger.info("Remote sync request for user");
@@ -305,10 +306,7 @@ class SyncStreamService {
       // return _syncStreamRepository.pruneAssets();
       // Request to reset the client state. Clear everything related to remote entities
       case SyncEntityType.syncResetV1:
-        if (_deletionPolicy.keepCopiesIndependent) {
-          await _backupRepository?.excludeKnownAssetsBeforeReset();
-        }
-        return _syncStreamRepository.reset();
+        return _syncStreamRepository.reset(keepDeviceCopiesIndependent: _deletionPolicy.keepCopiesIndependent);
       case SyncEntityType.memoryV1:
       case SyncEntityType.memoryV2:
         return _syncStreamRepository.updateMemoriesV2(data.cast());

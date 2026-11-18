@@ -99,7 +99,13 @@ class ForegroundUploadService {
     _logger.info('Network capabilities: $networkCapabilities, hasWifi/isUnmetered: $hasWifi');
 
     if (useSequentialUpload) {
-      await _uploadSequentially(items: candidates, cancelToken: cancelToken, hasWifi: hasWifi, callbacks: callbacks);
+      await _uploadSequentially(
+        userId: userId,
+        items: candidates,
+        cancelToken: cancelToken,
+        hasWifi: hasWifi,
+        callbacks: callbacks,
+      );
     } else {
       await _executeWithWorkerPool<LocalAsset>(
         items: candidates,
@@ -108,13 +114,14 @@ class ForegroundUploadService {
           final requireWifi = _shouldRequireWiFi(asset);
           return requireWifi && !hasWifi;
         },
-        processItem: (asset) => uploadSingleAsset(asset, cancelToken, callbacks: callbacks),
+        processItem: (asset) => uploadSingleAsset(asset, cancelToken, callbacks: callbacks, automaticOwnerId: userId),
       );
     }
   }
 
   /// Sequential upload - used for background isolate where concurrent HTTP clients may cause issues
   Future<void> _uploadSequentially({
+    required String userId,
     required List<LocalAsset> items,
     required Completer<void> cancelToken,
     required bool hasWifi,
@@ -134,7 +141,7 @@ class ForegroundUploadService {
         continue;
       }
 
-      await uploadSingleAsset(asset, cancelToken, callbacks: callbacks);
+      await uploadSingleAsset(asset, cancelToken, callbacks: callbacks, automaticOwnerId: userId);
     }
   }
 
@@ -247,6 +254,7 @@ class ForegroundUploadService {
     LocalAsset asset,
     Completer<void>? cancelToken, {
     required UploadCallbacks callbacks,
+    String? automaticOwnerId,
   }) async {
     final t = StaticTranslations.instance;
     final assetNotFoundOnDevice = CurrentPlatform.isAndroid
@@ -256,6 +264,10 @@ class ForegroundUploadService {
     File? livePhotoFile;
 
     try {
+      if (automaticOwnerId != null &&
+          !await _backupRepository.isAutomaticUploadAllowed(automaticOwnerId, asset.checksum)) {
+        return;
+      }
       final remoteId = (await _assetService.getLocalAsset(asset.id))?.remoteId;
       if (remoteId != null) {
         await _handleUploadSuccess(asset, remoteId, callbacks);
@@ -337,6 +349,10 @@ class ForegroundUploadService {
       // Upload live photo video first if available
       String? livePhotoVideoId;
       if (entity.isLivePhoto && livePhotoFile != null) {
+        if (automaticOwnerId != null &&
+            !await _backupRepository.isAutomaticUploadAllowed(automaticOwnerId, asset.checksum)) {
+          return;
+        }
         final livePhotoTitle = p.setExtension(originalFileName, p.extension(livePhotoFile.path));
 
         final onProgress = callbacks.onProgress;
@@ -378,6 +394,10 @@ class ForegroundUploadService {
       }
 
       final onProgress = callbacks.onProgress;
+      if (automaticOwnerId != null &&
+          !await _backupRepository.isAutomaticUploadAllowed(automaticOwnerId, asset.checksum)) {
+        return;
+      }
       final result = await _uploadRepository.uploadFile(
         file: file,
         originalFileName: originalFileName,

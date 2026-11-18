@@ -142,8 +142,13 @@ class RemoteAssetRepository extends DatabaseAccessor<Drift> with $RemoteAssetRep
     });
   }
 
-  Future<void> emptyTrash(String ownerId) async {
-    await _db.remoteAssetEntity.deleteWhere((t) => t.deletedAt.isNotNull() & t.ownerId.equals(ownerId));
+  Future<void> emptyTrash(String ownerId, {bool keepDeviceCopiesIndependent = false}) async {
+    await _db.transaction(() async {
+      if (keepDeviceCopiesIndependent) {
+        await _db.backupRepository.excludeTrashedAssets(ownerId);
+      }
+      await _db.remoteAssetEntity.deleteWhere((t) => t.deletedAt.isNotNull() & t.ownerId.equals(ownerId));
+    });
   }
 
   Future<void> restoreAllTrash(String ownerId) async {

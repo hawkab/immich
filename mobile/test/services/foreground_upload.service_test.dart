@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/drift.dart' hide isNotNull, isNull;
@@ -10,6 +11,7 @@ import 'package:immich_mobile/domain/services/store.service.dart';
 import 'package:immich_mobile/entities/store.entity.dart';
 import 'package:immich_mobile/infrastructure/repositories/settings.repository.dart';
 import 'package:immich_mobile/infrastructure/repositories/store.repository.dart';
+import 'package:immich_mobile/platform/connectivity_api.g.dart';
 import 'package:immich_mobile/repositories/upload.repository.dart';
 import 'package:immich_mobile/services/foreground_upload.service.dart';
 import 'package:mocktail/mocktail.dart';
@@ -106,6 +108,59 @@ void main() {
   }
 
   group('uploadSingleAsset', () {
+    test('an automatic stale queue cannot resurrect a newly deleted checksum', () async {
+      final first = LocalAssetStub.image1.copyWith(checksum: 'same-original');
+      final second = LocalAssetStub.image2.copyWith(checksum: 'same-original');
+      final entity = MockAssetEntity();
+      var excluded = false;
+      var posts = 0;
+      when(() => mockBackupRepository.getCandidates('owner')).thenAnswer((_) async => [first, second]);
+      when(
+        () => mockBackupRepository.isAutomaticUploadAllowed('owner', 'same-original'),
+      ).thenAnswer((_) async => !excluded);
+      when(mockStorageRepository.clearCache).thenAnswer((_) async {});
+      when(mockConnectivityApi.getCapabilities).thenAnswer((_) async => [NetworkCapability.unmetered]);
+      when(() => entity.isLivePhoto).thenReturn(false);
+      when(() => mockStorageRepository.getAssetEntityForAsset(first)).thenAnswer((_) async => entity);
+      when(() => mockStorageRepository.isAssetAvailableLocally(first.id)).thenAnswer((_) async => true);
+      when(() => mockStorageRepository.getFileForAsset(first.id)).thenAnswer((_) async => File('/original.jpg'));
+      when(() => mockAssetMediaRepository.getOriginalFilename(first.id)).thenAnswer((_) async => 'original.jpg');
+      when(
+        () => mockUploadRepository.uploadFile(
+          file: any(named: 'file'),
+          originalFileName: any(named: 'originalFileName'),
+          fields: any(named: 'fields'),
+          cancelToken: any(named: 'cancelToken'),
+          onProgress: any(named: 'onProgress'),
+          logContext: any(named: 'logContext'),
+        ),
+      ).thenAnswer((_) async {
+        posts++;
+        excluded = true;
+        return UploadResult.success(remoteAssetId: 'server-original');
+      });
+      await sut.uploadCandidates('owner', Completer<void>(), useSequentialUpload: true);
+      expect(posts, 1);
+      verifyNever(() => mockStorageRepository.getAssetEntityForAsset(second));
+    });
+
+    test('an exclusion created during file preparation prevents the automatic POST', () async {
+      final asset = LocalAssetStub.image1.copyWith(checksum: 'original');
+      final entity = MockAssetEntity();
+      var excluded = false;
+      when(() => mockBackupRepository.isAutomaticUploadAllowed('owner', 'original')).thenAnswer((_) async => !excluded);
+      when(() => entity.isLivePhoto).thenReturn(false);
+      when(() => mockStorageRepository.getAssetEntityForAsset(asset)).thenAnswer((_) async => entity);
+      when(() => mockStorageRepository.isAssetAvailableLocally(asset.id)).thenAnswer((_) async => true);
+      when(() => mockStorageRepository.getFileForAsset(asset.id)).thenAnswer((_) async {
+        excluded = true;
+        return File('/original.jpg');
+      });
+      when(() => mockAssetMediaRepository.getOriginalFilename(asset.id)).thenAnswer((_) async => 'original.jpg');
+      await sut.uploadSingleAsset(asset, null, callbacks: const UploadCallbacks(), automaticOwnerId: 'owner');
+      verifyZeroInteractions(mockUploadRepository);
+    });
+
     test('should upload the motion part hidden and keep the still image visible', () async {
       final asset = LocalAssetStub.image1;
       final mockEntity = MockAssetEntity();

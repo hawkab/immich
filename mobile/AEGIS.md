@@ -15,7 +15,11 @@ The client records owner-scoped checksums before permanent remote deletion and
 before a full remote sync reset. Automatic backup then respects that deletion
 instead of uploading the retained device file again. These records survive
 client restarts; a different owner's backup and edited files with different
-checksums remain eligible. Explicit manual upload remains available. The local
+checksums remain eligible. Logout and the repair action **Reset SQLite** preserve
+this history, including an interrupted cache reset. Active server copies still
+count as backed up after a full synchronization. Automatic Android uploads check
+the history again immediately before dispatch, so an old queued candidate cannot
+undo a newly observed deletion. Explicit manual upload remains available. The local
 history begins with the server state observed by this installation; its first
 synchronization includes existing server trash.
 

@@ -44,7 +44,7 @@ class SyncStreamRepository extends DatabaseAccessor<Drift> with $SyncStreamRepos
 
   Drift get _db => attachedDatabase;
 
-  Future<void> reset() async {
+  Future<void> reset({bool keepDeviceCopiesIndependent = true}) async {
     _logger.fine("SyncResetV1 received. Resetting remote entities");
     try {
       await _db.exclusively(() async {
@@ -53,6 +53,9 @@ class SyncStreamRepository extends DatabaseAccessor<Drift> with $SyncStreamRepos
         await _db.customStatement('PRAGMA foreign_keys = OFF');
         try {
           await transaction(() async {
+            if (keepDeviceCopiesIndependent) {
+              await _db.backupRepository.excludeKnownAssetsBeforeReset();
+            }
             // FK cascade (ON DELETE SET NULL) does not fire while foreign_keys = OFF,
             // so null linkedRemoteAlbumId manually to avoid dangling pointers in local_album_entity.
             await _db.localAlbumEntity.update().write(
