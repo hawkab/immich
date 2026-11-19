@@ -1,3 +1,4 @@
+import { ShortLinkRepository } from 'src/repositories/short-link.repository.js';
 import { Insertable, Kysely } from 'kysely';
 import { DateTime } from 'luxon';
 import { createHash, randomBytes } from 'node:crypto';
@@ -537,6 +538,7 @@ const newRealRepository = <T extends BaseServiceDeps[number]>(key: T, db: Kysely
     case PersonUserRepository:
     case SearchRepository:
     case SessionRepository:
+    case ShortLinkRepository:
     case SharedLinkRepository:
     case SharedLinkAssetRepository:
     case StackRepository:

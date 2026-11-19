@@ -1,3 +1,4 @@
+import { ShortLinkService } from 'src/services/short-link.service.js';
 import { ActivityService } from 'src/services/activity.service.js';
 import { AlbumService } from 'src/services/album.service.js';
 import { ApiKeyService } from 'src/services/api-key.service.js';
@@ -95,6 +96,7 @@ export const services = [
   SearchService,
   ServerService,
   SessionService,
+  ShortLinkService,
   SharedLinkService,
   SmartInfoService,
   StackService,

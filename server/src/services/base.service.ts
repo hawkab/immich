@@ -1,3 +1,4 @@
+import { ShortLinkRepository } from 'src/repositories/short-link.repository.js';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Insertable } from 'kysely';
 import sanitize from 'sanitize-filename';
@@ -122,6 +123,7 @@ export const BASE_SERVICE_DEPENDENCIES = [
   SearchRepository,
   ServerInfoRepository,
   SessionRepository,
+  ShortLinkRepository,
   SharedLinkRepository,
   SharedLinkAssetRepository,
   StackRepository,
@@ -189,6 +191,7 @@ export class BaseService {
     protected searchRepository: SearchRepository,
     protected serverInfoRepository: ServerInfoRepository,
     protected sessionRepository: SessionRepository,
+    protected shortLinkRepository: ShortLinkRepository,
     protected sharedLinkRepository: SharedLinkRepository,
     protected sharedLinkAssetRepository: SharedLinkAssetRepository,
     protected stackRepository: StackRepository,
@@ -265,6 +268,7 @@ export class BaseService {
       ctx.searchRepository,
       ctx.serverInfoRepository,
       ctx.sessionRepository,
+      ctx.shortLinkRepository,
       ctx.sharedLinkRepository,
       ctx.sharedLinkAssetRepository,
       ctx.stackRepository,

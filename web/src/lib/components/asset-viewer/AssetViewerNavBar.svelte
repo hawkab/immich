@@ -168,6 +168,7 @@
           <SetVisibilityAction asset={toTimelineAsset(asset)} {onAction} {preAction} />
         {/if}
 
+        <ActionMenuItem action={Actions.CopyShortLink} />
         <ActionMenuItem action={PlayOriginalVideo} />
 
         {#if isOwner}

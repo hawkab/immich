@@ -1,3 +1,4 @@
+import { ShortLinkController } from 'src/controllers/short-link.controller.js';
 import { ActivityController } from 'src/controllers/activity.controller.js';
 import { AlbumController } from 'src/controllers/album.controller.js';
 import { ApiKeyController } from 'src/controllers/api-key.controller.js';
@@ -82,6 +83,7 @@ export const controllers = [
   SearchController,
   ServerController,
   SessionController,
+  ShortLinkController,
   SharedLinkController,
   StackController,
   SyncController,

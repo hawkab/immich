@@ -1,3 +1,4 @@
+import { ShortLinkRepository } from 'src/repositories/short-link.repository.js';
 /* eslint-disable unicorn/no-this-outside-of-class */
 import { DatabaseConnectionParams, createPostgres } from '@immich/sql-tools';
 import { CallHandler, ExecutionContext, Provider } from '@nestjs/common';
@@ -282,6 +283,7 @@ export type ServiceOverrides = {
   search: SearchRepository;
   serverInfo: ServerInfoRepository;
   session: SessionRepository;
+  shortLink: ShortLinkRepository;
   sharedLink: SharedLinkRepository;
   sharedLinkAsset: SharedLinkAssetRepository;
   stack: StackRepository;
@@ -374,6 +376,7 @@ export const getMocks = () => {
     // eslint-disable-next-line no-sparse-arrays
     serverInfo: automock(ServerInfoRepository, { args: [, loggerMock], strict: false }),
     session: automock(SessionRepository),
+    shortLink: automock(ShortLinkRepository),
     sharedLink: automock(SharedLinkRepository),
     sharedLinkAsset: automock(SharedLinkAssetRepository),
     stack: automock(StackRepository),
@@ -452,6 +455,7 @@ export const newTestService = <T extends BaseService>(
     overrides.search || (mocks.search as As<SearchRepository>),
     overrides.serverInfo || (mocks.serverInfo as As<ServerInfoRepository>),
     overrides.session || (mocks.session as As<SessionRepository>),
+    overrides.shortLink || (mocks.shortLink as As<ShortLinkRepository>),
     overrides.sharedLink || (mocks.sharedLink as As<SharedLinkRepository>),
     overrides.sharedLinkAsset || (mocks.sharedLinkAsset as As<SharedLinkAssetRepository>),
     overrides.stack || (mocks.stack as As<StackRepository>),
