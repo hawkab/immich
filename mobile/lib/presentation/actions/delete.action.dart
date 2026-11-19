@@ -28,7 +28,9 @@ final _stateProvider = Provider.family.autoDispose<_State?, ActionSource>((ref, 
 
   final trashEnabled = ref.watch(serverInfoProvider.select((state) => state.serverFeatures.trash));
   final hasPartnerAssets = assets.whereType<RemoteAsset>().any((asset) => asset.ownerId != authUserId);
-  final deleteOwners = hasPartnerAssets && trashEnabled ? ref.watch(partnerDeleteOwnersProvider).valueOrNull ?? <String>{} : <String>{};
+  final deleteOwners = hasPartnerAssets && trashEnabled
+      ? ref.watch(partnerDeleteOwnersProvider).valueOrNull ?? <String>{}
+      : <String>{};
   final localIds = <String>[];
   final remoteTargets = <RemoteAsset>[];
   for (final asset in assets) {
@@ -38,7 +40,10 @@ final _stateProvider = Provider.family.autoDispose<_State?, ActionSource>((ref, 
     if (asset case final RemoteAsset remote when remote.ownerId == authUserId) {
       remoteTargets.add(remote);
     } else if (asset case final RemoteAsset remote
-        when trashEnabled && deleteOwners.contains(remote.ownerId) && remote.visibility == AssetVisibility.timeline && !remote.isTrashed) {
+        when trashEnabled &&
+            deleteOwners.contains(remote.ownerId) &&
+            remote.visibility == AssetVisibility.timeline &&
+            !remote.isTrashed) {
       remoteTargets.add(remote);
     }
   }
@@ -54,7 +59,9 @@ final _stateProvider = Provider.family.autoDispose<_State?, ActionSource>((ref, 
 
   // Assets already in the trash or in the locked folder are deleted outright, irrespective of the server setting.
   final trash =
-      includesPartner || remoteTargets.isEmpty || (trashEnabled && !remoteTargets.every((asset) => asset.isTrashed || asset.isLocked));
+      includesPartner ||
+      remoteTargets.isEmpty ||
+      (trashEnabled && !remoteTargets.every((asset) => asset.isTrashed || asset.isLocked));
   final remoteIds = remoteTargets.map((asset) => asset.id).toList(growable: false);
   final isLocalOnly = assets.any((asset) => asset.isLocalOnly);
 

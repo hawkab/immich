@@ -491,8 +491,9 @@ void main() {
   group('partner deletion permission', () {
     Future<void> pumpPartner(WidgetTester tester, RemoteAsset asset, {required bool granted, bool trash = true}) async {
       if (!trash) {
-        when(() => context.service.serverInfo.getServerFeatures())
-            .thenAnswer((_) async => const .new(trash: false, map: true, oauthEnabled: false, passwordLogin: true));
+        when(
+          () => context.service.serverInfo.getServerFeatures(),
+        ).thenAnswer((_) async => const .new(trash: false, map: true, oauthEnabled: false, passwordLogin: true));
       }
       await tester.pumpTestWidget(
         context,
