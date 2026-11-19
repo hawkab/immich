@@ -1,5 +1,3 @@
-import { createShortLink } from '@immich/sdk';
-import { copyToClipboard } from '#lib/utils.ts';
 import { ProjectionType } from '#lib/constants.ts';
 import { assetMultiSelectManager } from '#lib/managers/asset-multi-select-manager.svelte.ts';
 import { assetViewerManager } from '#lib/managers/asset-viewer-manager.svelte.ts';
@@ -15,7 +13,7 @@ import { executeMutation, readPreloadedQuery, type ConfirmOptions } from '#lib/q
 import { getUserConfigQuery } from '#lib/queries/config-user.query.ts';
 import { Route } from '#lib/route.ts';
 import { SlideshowState, slideshowStore } from '#lib/stores/slideshow.store.ts';
-import { downloadUrl, getAssetMediaUrl, getSharedLink, sleep } from '#lib/utils.ts';
+import { copyToClipboard, downloadUrl, getAssetMediaUrl, getSharedLink, sleep } from '#lib/utils.ts';
 import type { OnFavorite } from '#lib/utils/actions.ts';
 import { handleError } from '#lib/utils/handle-error.ts';
 import { getFormatter } from '#lib/utils/i18n.ts';
@@ -24,6 +22,7 @@ import {
   AssetMediaSize,
   AssetTypeEnum,
   AssetVisibility,
+  createShortLink,
   getAssetInfo,
   runAssetJobs,
   updateAsset,
@@ -398,8 +397,8 @@ export const getAssetActions = (
       title: $t('copy_short_link'),
       $if: () => !authManager.isSharedLink,
       onAction: async () => {
-        const link=await createShortLink({shortLinkCreateDto:{type:'asset',id:asset.id}});
-        await copyToClipboard(new URL(Route.shortLink(link.code),window.location.origin).href);
+        const link = await createShortLink({ shortLinkCreateDto: { type: 'asset', id: asset.id } });
+        await copyToClipboard(new URL(Route.shortLink(link.code), window.location.origin).href);
       },
     },
     Share,
