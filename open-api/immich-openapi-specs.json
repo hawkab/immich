@@ -14929,6 +14929,192 @@
         "x-immich-state": "Stable"
       }
     },
+    "/short-links": {
+      "get": {
+        "description": "List aliases created by the authenticated user.",
+        "operationId": "getShortLinks",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ShortLinkResponseDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "List your private short links",
+        "tags": [
+          "Assets"
+        ],
+        "x-immich-history": [
+          {
+            "state": "Added",
+            "version": "v3.4.1"
+          }
+        ],
+        "x-immich-permission": "shortLink.read"
+      },
+      "post": {
+        "description": "Create a stable alias without granting access to its target.",
+        "operationId": "createShortLink",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShortLinkCreateDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShortLinkResponseDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Create a private short link",
+        "tags": [
+          "Assets"
+        ],
+        "x-immich-history": [
+          {
+            "state": "Added",
+            "version": "v3.4.1"
+          }
+        ],
+        "x-immich-permission": "shortLink.create"
+      }
+    },
+    "/short-links/{code}": {
+      "delete": {
+        "description": "Delete an alias owned by the authenticated user without changing its target.",
+        "operationId": "deleteShortLink",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{16}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Revoke your private short link",
+        "tags": [
+          "Assets"
+        ],
+        "x-immich-history": [
+          {
+            "state": "Added",
+            "version": "v3.4.1"
+          }
+        ],
+        "x-immich-permission": "shortLink.delete"
+      },
+      "get": {
+        "description": "Resolve an alias only after checking current access to its target.",
+        "operationId": "getShortLink",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{16}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShortLinkResponseDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Resolve a private short link",
+        "tags": [
+          "Assets"
+        ],
+        "x-immich-history": [
+          {
+            "state": "Added",
+            "version": "v3.4.1"
+          }
+        ],
+        "x-immich-permission": "shortLink.read"
+      }
+    },
     "/stacks": {
       "delete": {
         "description": "Delete multiple stacks by providing a list of stack IDs.",
@@ -25926,6 +26112,9 @@
       "Permission": {
         "description": "List of permissions",
         "enum": [
+          "shortLink.create",
+          "shortLink.read",
+          "shortLink.delete",
           "all",
           "activity.create",
           "activity.read",
@@ -29471,6 +29660,46 @@
         "enum": [
           "shared-by",
           "shared-with"
+        ],
+        "type": "string"
+      },
+      "ShortLinkCreateDto": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/ShortLinkTargetType"
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ],
+        "type": "object"
+      },
+      "ShortLinkResponseDto": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "path"
+        ],
+        "type": "object"
+      },
+      "ShortLinkTargetType": {
+        "enum": [
+          "asset",
+          "album",
+          "person"
         ],
         "type": "string"
       },

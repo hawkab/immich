@@ -22,6 +22,7 @@ import {
   AssetMediaSize,
   AssetTypeEnum,
   AssetVisibility,
+  ShortLinkTargetType,
   createShortLink,
   getAssetInfo,
   runAssetJobs,
@@ -397,8 +398,8 @@ export const getAssetActions = (
       title: $t('copy_short_link'),
       $if: () => !authManager.isSharedLink,
       onAction: async () => {
-        const link = await createShortLink({ shortLinkCreateDto: { type: 'asset', id: asset.id } });
-        await copyToClipboard(new URL(Route.shortLink(link.code), window.location.origin).href);
+        const link = await createShortLink({ shortLinkCreateDto: { type: ShortLinkTargetType.Asset, id: asset.id } });
+        await copyToClipboard(new URL(Route.shortLink(link.code), location.origin).href);
       },
     },
     Share,
