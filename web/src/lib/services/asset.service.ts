@@ -1,3 +1,5 @@
+import { createShortLink } from '@immich/sdk';
+import { copyToClipboard } from '#lib/utils.ts';
 import { ProjectionType } from '#lib/constants.ts';
 import { assetMultiSelectManager } from '#lib/managers/asset-multi-select-manager.svelte.ts';
 import { assetViewerManager } from '#lib/managers/asset-viewer-manager.svelte.ts';
@@ -392,6 +394,14 @@ export const getAssetActions = (
   };
 
   return {
+    CopyShortLink: {
+      title: $t('copy_short_link'),
+      $if: () => !authManager.isSharedLink,
+      onAction: async () => {
+        const link=await createShortLink({shortLinkCreateDto:{type:'asset',id:asset.id}});
+        await copyToClipboard(new URL(Route.shortLink(link.code),window.location.origin).href);
+      },
+    },
     Share,
     Download,
     DownloadOriginal,

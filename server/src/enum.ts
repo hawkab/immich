@@ -131,6 +131,9 @@ export const AssetOrderWithRandomSchema = z
   .meta({ id: 'MemorySearchOrder' });
 
 export enum Permission {
+  ShortLinkCreate = 'shortLink.create',
+  ShortLinkRead = 'shortLink.read',
+  ShortLinkDelete = 'shortLink.delete',
   All = 'all',
 
   ActivityCreate = 'activity.create',

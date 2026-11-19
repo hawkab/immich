@@ -1,3 +1,4 @@
+import { ShortLinkTable } from 'src/schema/tables/short-link.table.js';
 import { Database, Extensions, Generated, Int8 } from '@immich/sql-tools';
 import {
   album_user_role_enum,
@@ -150,7 +151,8 @@ export class ImmichDatabase {
     PersonGroupAuditTable,
     SessionTable,
     SharedLinkAssetTable,
-    SharedLinkTable,
+    ShortLinkTable,
+  SharedLinkTable,
     SmartSearchTable,
     StackTable,
     StackAuditTable,
@@ -282,6 +284,7 @@ export interface DB {
   session: SessionTable;
   session_sync_checkpoint: SessionSyncCheckpointTable;
 
+  short_link: ShortLinkTable;
   shared_link: SharedLinkTable;
   shared_link_asset: SharedLinkAssetTable;
 

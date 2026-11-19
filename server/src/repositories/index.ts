@@ -1,3 +1,4 @@
+import { ShortLinkRepository } from 'src/repositories/short-link.repository.js';
 import { AccessRepository } from 'src/repositories/access.repository.js';
 import { ActivityRepository } from 'src/repositories/activity.repository.js';
 import { AlbumUserRepository } from 'src/repositories/album-user.repository.js';
@@ -101,6 +102,7 @@ export const repositories = [
   SearchRepository,
   SessionRepository,
   ServerInfoRepository,
+  ShortLinkRepository,
   SharedLinkRepository,
   SharedLinkAssetRepository,
   StackRepository,
