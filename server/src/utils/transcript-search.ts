@@ -1,4 +1,4 @@
-import { sql, type SqlBool } from 'kysely';
+import { sql, type RawBuilder, type SqlBool } from 'kysely';
 import { createHash } from 'node:crypto';
 import { TRANSCRIPT_KEY, type Transcript } from 'src/utils/transcription.js';
 
@@ -6,6 +6,7 @@ export type TranscriptSearchOptions = {
   embedding: string;
   transcriptModel?: string;
   transcriptMinSimilarity?: number;
+  transcriptCenter?: string;
 };
 
 export const transcriptTextChecksum = (text: string) => createHash('md5').update(text).digest('hex');
@@ -34,14 +35,18 @@ export const transcriptLexicalMatch = (query: string) => sql<SqlBool>`(
   or to_tsvector('simple', coalesce(transcript.value->>'text', '')) @@ websearch_to_tsquery('simple', ${query})
 )`;
 
+const normalizedSearchWords = (text: RawBuilder<string>) =>
+  sql<string>`array_to_string(tsvector_to_array(to_tsvector('russian', ${text})), ' ')`;
+
 export const transcriptFuzzyMatch = (query: string) => {
   if (/["-]|\bOR\b/iu.test(query)) {
     return sql<SqlBool>`false`;
   }
   const words = sql`tsvector_to_array(to_tsvector('russian', ${query}))`;
+  const document = normalizedSearchWords(sql<string>`coalesce(transcript.value->>'text', '')`);
   return sql<SqlBool>`cardinality(${words}) > 0 and not exists (
     select 1 from unnest(${words}) term
-    where not (lower(coalesce(transcript.value->>'text', '')) %> term)
+    where not (${document} %>> term)
   )`;
 };
 
@@ -51,10 +56,16 @@ export const transcriptSearchScore = (query: string, options: TranscriptSearchOp
       score: number;
     }>`select 0 as score, null::jsonb as segments, null::integer as part, null::jsonb as segment`;
   }
+  const similarity = options.transcriptCenter
+    ? sql`case when vector_norm(speech.embedding - ${options.transcriptCenter}::vector) > 0
+        and vector_norm(${options.embedding}::vector - ${options.transcriptCenter}::vector) > 0
+      then 1 - ((speech.embedding - ${options.transcriptCenter}::vector)
+        <=> (${options.embedding}::vector - ${options.transcriptCenter}::vector)) else 0 end`
+    : sql`1 - (speech.embedding <=> ${options.embedding}::vector)`;
   const semantic =
     options.embedding && options.transcriptModel && !/["-]|\bOR\b/iu.test(query)
       ? sql`select case when vector_dims(speech.embedding) = vector_dims(${options.embedding}::vector)
-        then 1 - (speech.embedding <=> ${options.embedding}::vector) end as similarity, speech.part
+        then ${similarity} end as similarity, speech.part
       from transcript_search speech
       where speech."assetId" = asset.id
         and speech."sourceChecksum" = transcript.value->>'sourceChecksum'
@@ -72,7 +83,8 @@ export const transcriptSearchScore = (query: string, options: TranscriptSearchOp
     case when ${score} > 0 then transcript.value->'segments' end as segments,
     (select segment.value from jsonb_array_elements(case when jsonb_typeof(transcript.value->'segments') = 'array' then transcript.value->'segments' else '[]'::jsonb end) with ordinality segment(value, position)
      order by ts_rank_cd(to_tsvector('russian', coalesce(segment.value->>'text', '')), websearch_to_tsquery('russian', ${query})) desc,
-       word_similarity(lower(${query}), lower(coalesce(segment.value->>'text', ''))) desc, segment.position limit 1) as segment
+       strict_word_similarity(${normalizedSearchWords(sql<string>`${query}`)},
+         ${normalizedSearchWords(sql<string>`coalesce(segment.value->>'text', '')`)}) desc, segment.position limit 1) as segment
   from asset_metadata transcript
   left join lateral (${semantic}) semantic on true
   where asset.type = 'VIDEO' and transcript."assetId" = asset.id and transcript.key = ${TRANSCRIPT_KEY}

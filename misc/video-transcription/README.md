@@ -24,3 +24,11 @@ A restart resumes the first unfinished segment. An uncertain gateway request is
 reconciled using its stable request ID; confirmed transient HTTP failures get a
 new request identity. No successful audio segment is retranscribed during normal
 recovery. The admin queue exposes failures and supports explicit reprocessing.
+
+### Speech search relevance
+
+Fuzzy speech search compares complete normalized words with `pg_trgm` strict-word similarity. Russian inflections remain supported, and misspellings such as `Камчтка` still match `Камчатку`. A shared prefix such as `ко` in `коза`, `кофе`, or `копали` is insufficient evidence. Excerpt selection uses the same whole-word representation.
+
+Text-to-text semantic scoring removes the common embedding mean before cosine comparison. The mean is calculated once per request from current transcript embeddings of the selected model and dimension, within the viewer's permitted owner scope; locked, trashed, stale and incompatible rows are excluded. Explain requests use the same scope as ordinary searches. This is query-time calibration: stored vectors, transcription, visual image matching and the configured relevance threshold are unchanged. A zero residual supplies no semantic evidence.
+
+The normalization is motivated by [mean removal in embedding postprocessing](https://arxiv.org/abs/1702.01417) and verified with actual configured-model contrasts as well as PostgreSQL regressions. The implementation removes the mean; it does not perform the paper's principal-component removal. [PostgreSQL strict-word operators](https://www.postgresql.org/docs/14/pgtrgm.html) supply the whole-word fuzzy comparison.
