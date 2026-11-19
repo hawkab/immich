@@ -178,7 +178,7 @@
           {$t(draft?.status === 'saving' ? 'video_compression_saving' : 'video_compression_preparing')}
         </p>{/if}
       {#if draft?.status === 'committed'}<p role="status" class="my-3">{$t('video_compression_saved')}</p>{/if}
-      {#if draft?.status === 'failed'}<p role="alert" class="my-3">{draft.error}</p>{/if}
+      {#if draft?.status === 'failed'}<p role="alert" class="my-3">{$t('video_compression_failed')}</p>{/if}
       {#if ready && draft?.compressedSize !== undefined}
         <p class="my-3 font-medium">
           {getByteUnitString(draft.originalSize)} → {getByteUnitString(draft.compressedSize)}

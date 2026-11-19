@@ -2410,6 +2410,7 @@
   "video_compression": "Compress video",
   "video_compression_better": "Better quality",
   "video_compression_confirm": "Replace original video?",
+  "video_compression_failed": "Unable to prepare this preview. The original was preserved. You can try again.",
   "video_compression_irreversible": "This will permanently replace the original with this compressed version. The original cannot be recovered from Immich.",
   "video_compression_preparing": "Preparing the full video preview. You can leave and return later.",
   "video_compression_preview": "Prepare preview",
