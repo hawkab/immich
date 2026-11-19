@@ -17,34 +17,21 @@ import 'package:immich_mobile/services/toast.service.dart';
 import 'package:immich_mobile/utils/error_handler.dart';
 import 'package:immich_mobile/widgets/common/confirm_dialog.dart';
 
-typedef _State = ({
-  List<String> localIds,
-  List<String> remoteIds,
-  bool trash,
-  bool isLocalOnly,
-});
+typedef _State = ({List<String> localIds, List<String> remoteIds, bool trash, bool isLocalOnly});
 
-final _stateProvider = Provider.family.autoDispose<_State?, ActionSource>((
-  ref,
-  source,
-) {
+final _stateProvider = Provider.family.autoDispose<_State?, ActionSource>((ref, source) {
   final assets = ref.watch(assetsActionProvider(source));
   final authUserId = ref.watch(authUserProvider).id;
 
-  final trashEnabled = ref.watch(
-    serverInfoProvider.select((state) => state.serverFeatures.trash),
-  );
-  final hasPartnerAssets = assets.whereType<RemoteAsset>().any(
-    (asset) => asset.ownerId != authUserId,
-  );
+  final trashEnabled = ref.watch(serverInfoProvider.select((state) => state.serverFeatures.trash));
+  final hasPartnerAssets = assets.whereType<RemoteAsset>().any((asset) => asset.ownerId != authUserId);
   final deleteOwners = hasPartnerAssets && trashEnabled
       ? ref.watch(partnerDeleteOwnersProvider).valueOrNull ?? <String>{}
       : <String>{};
   final localIds = <String>[];
   final remoteTargets = <RemoteAsset>[];
   for (final asset in assets) {
-    if ((asset is! RemoteAsset || asset.ownerId == authUserId) &&
-        asset.localId != null) {
+    if ((asset is! RemoteAsset || asset.ownerId == authUserId) && asset.localId != null) {
       localIds.add(asset.localId!);
     }
     if (asset case final RemoteAsset remote when remote.ownerId == authUserId) {
@@ -57,11 +44,8 @@ final _stateProvider = Provider.family.autoDispose<_State?, ActionSource>((
       remoteTargets.add(remote);
     }
   }
-  final includesPartner = remoteTargets.any(
-    (asset) => asset.ownerId != authUserId,
-  );
-  if (includesPartner)
-    remoteTargets.removeWhere((asset) => asset.isTrashed || asset.isLocked);
+  final includesPartner = remoteTargets.any((asset) => asset.ownerId != authUserId);
+  if (includesPartner) remoteTargets.removeWhere((asset) => asset.isTrashed || asset.isLocked);
 
   if (localIds.isEmpty && remoteTargets.isEmpty) {
     return null;
@@ -71,19 +55,11 @@ final _stateProvider = Provider.family.autoDispose<_State?, ActionSource>((
   final trash =
       includesPartner ||
       remoteTargets.isEmpty ||
-      (trashEnabled &&
-          !remoteTargets.every((asset) => asset.isTrashed || asset.isLocked));
-  final remoteIds = remoteTargets
-      .map((asset) => asset.id)
-      .toList(growable: false);
+      (trashEnabled && !remoteTargets.every((asset) => asset.isTrashed || asset.isLocked));
+  final remoteIds = remoteTargets.map((asset) => asset.id).toList(growable: false);
   final isLocalOnly = assets.any((asset) => asset.isLocalOnly);
 
-  return (
-    localIds: localIds,
-    remoteIds: remoteIds,
-    trash: trash,
-    isLocalOnly: isLocalOnly,
-  );
+  return (localIds: localIds, remoteIds: remoteIds, trash: trash, isLocalOnly: isLocalOnly);
 }, dependencies: [assetsActionProvider]);
 
 class DeleteAction extends AssetActionBuilder {
@@ -91,9 +67,7 @@ class DeleteAction extends AssetActionBuilder {
 
   @override
   ActionItem? create(BuildContext context, WidgetRef ref) {
-    final trash = ref.watch(
-      _stateProvider(source).select((state) => state?.trash),
-    );
+    final trash = ref.watch(_stateProvider(source).select((state) => state?.trash));
     if (trash == null) {
       return null;
     }
@@ -121,20 +95,9 @@ class DeleteAction extends AssetActionBuilder {
       // Only trashing is reversible; a permanent delete and a device cleanup are not.
       ToastOption? undo;
       if (remoteIds.isEmpty) {
-        message = await _removeLocalAssets(
-          context,
-          ref,
-          localIds,
-          isLocalOnly: isLocalOnly,
-        );
+        message = await _removeLocalAssets(context, ref, localIds, isLocalOnly: isLocalOnly);
       } else if (trash) {
-        message = await _moveToTrash(
-          context,
-          ref,
-          remoteIds,
-          localIds,
-          isLocalOnly: isLocalOnly,
-        );
+        message = await _moveToTrash(context, ref, remoteIds, localIds, isLocalOnly: isLocalOnly);
         undo = .new(onUndo: () => assetService.restoreTrash(remoteIds));
       } else {
         message = await _deletePermanently(context, ref, remoteIds, localIds);
@@ -157,12 +120,7 @@ class DeleteAction extends AssetActionBuilder {
     List<String> localIds, {
     required bool isLocalOnly,
   }) async {
-    final count = await _cleanupLocalAssets(
-      context,
-      ref,
-      localIds,
-      isLocalOnly: isLocalOnly,
-    );
+    final count = await _cleanupLocalAssets(context, ref, localIds, isLocalOnly: isLocalOnly);
     if (count <= 0 || !context.mounted) {
       return null;
     }
@@ -180,12 +138,7 @@ class DeleteAction extends AssetActionBuilder {
     final assetService = ref.read(assetServiceProvider);
     final message = context.t.trash_action_prompt(count: remoteIds.length);
     if (localIds.isNotEmpty) {
-      final count = await _cleanupLocalAssets(
-        context,
-        ref,
-        localIds,
-        isLocalOnly: isLocalOnly,
-      );
+      final count = await _cleanupLocalAssets(context, ref, localIds, isLocalOnly: isLocalOnly);
       if (count <= 0) {
         return null;
       }
@@ -214,43 +167,29 @@ class DeleteAction extends AssetActionBuilder {
       return null;
     }
 
-    final message = context.t.delete_permanently_action_prompt(
-      count: remoteIds.length,
-    );
+    final message = context.t.delete_permanently_action_prompt(count: remoteIds.length);
     // Server first, so a failed request will not remove the local copy
     await assetService.delete(remoteIds);
     if (localIds.isNotEmpty && context.mounted) {
-      await _cleanupLocalAssets(
-        context,
-        ref,
-        localIds,
-        requestCustomPrompt: false,
-      );
+      await _cleanupLocalAssets(context, ref, localIds, requestCustomPrompt: false);
     }
 
     return message;
   }
 }
 
-final _cleanupStateProvider = Provider.family
-    .autoDispose<List<String>?, ActionSource>((ref, source) {
-      final assets = ref.watch(assetsActionProvider(source));
-      final assetIds = assets
-          .backedUp()
-          .map((asset) => asset.localId)
-          .nonNulls
-          .toList(growable: false);
-      return assetIds.isEmpty ? null : assetIds;
-    }, dependencies: [assetsActionProvider]);
+final _cleanupStateProvider = Provider.family.autoDispose<List<String>?, ActionSource>((ref, source) {
+  final assets = ref.watch(assetsActionProvider(source));
+  final assetIds = assets.backedUp().map((asset) => asset.localId).nonNulls.toList(growable: false);
+  return assetIds.isEmpty ? null : assetIds;
+}, dependencies: [assetsActionProvider]);
 
 class CleanupLocalAction extends AssetActionBuilder {
   const CleanupLocalAction({required super.source});
 
   @override
   ActionItem? create(BuildContext context, WidgetRef ref) {
-    final isVisible = ref.watch(
-      _cleanupStateProvider(source).select((state) => state != null),
-    );
+    final isVisible = ref.watch(_cleanupStateProvider(source).select((state) => state != null));
     if (!isVisible) {
       return null;
     }
@@ -280,11 +219,7 @@ class CleanupLocalAction extends AssetActionBuilder {
       toastService.success(context.t.cleanup_deleted_assets(count: count));
       clearSelection();
     } catch (error, stack) {
-      handleError(
-        error,
-        stack: stack,
-        description: "Failed to remove the device copies",
-      );
+      handleError(error, stack: stack, description: "Failed to remove the device copies");
     }
   }
 }
@@ -302,12 +237,7 @@ Future<int> _cleanupLocalAssets(
   }
 
   final cleanupService = ref.read(cleanupServiceProvider);
-  if (!await _allowsDeletion(
-    context,
-    ref,
-    requestCustomPrompt: requestCustomPrompt,
-    isLocalOnly: isLocalOnly,
-  )) {
+  if (!await _allowsDeletion(context, ref, requestCustomPrompt: requestCustomPrompt, isLocalOnly: isLocalOnly)) {
     return 0;
   }
 
@@ -330,11 +260,8 @@ Future<bool> _allowsDeletion(
     return true;
   }
 
-  final manageMedia = ref
-      .read(storeServiceProvider)
-      .get(.manageLocalMediaAndroid, false);
-  final versionRequiresPrompt =
-      await ref.read(permissionRepositoryProvider).getAndroidSdkVersion() < 30;
+  final manageMedia = ref.read(storeServiceProvider).get(.manageLocalMediaAndroid, false);
+  final versionRequiresPrompt = await ref.read(permissionRepositoryProvider).getAndroidSdkVersion() < 30;
   if (!context.mounted) {
     return false;
   }
@@ -343,12 +270,8 @@ Future<bool> _allowsDeletion(
   if (versionRequiresPrompt) {
     dialog = ConfirmDialog(
       title: context.t.delete_dialog_title,
-      content: isLocalOnly
-          ? context.t.delete_dialog_alert_local_non_backed_up
-          : context.t.delete_dialog_alert_local,
-      ok: isLocalOnly
-          ? context.t.delete_local_dialog_ok_force
-          : context.t.delete_permanently,
+      content: isLocalOnly ? context.t.delete_dialog_alert_local_non_backed_up : context.t.delete_dialog_alert_local,
+      ok: isLocalOnly ? context.t.delete_local_dialog_ok_force : context.t.delete_permanently,
     );
   } else if (manageMedia) {
     dialog = ConfirmDialog(
@@ -360,9 +283,6 @@ Future<bool> _allowsDeletion(
     return true;
   }
 
-  final confirmed = await showDialog<bool>(
-    context: context,
-    builder: (_) => dialog,
-  );
+  final confirmed = await showDialog<bool>(context: context, builder: (_) => dialog);
   return confirmed == true;
 }

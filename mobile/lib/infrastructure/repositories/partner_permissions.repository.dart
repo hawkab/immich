@@ -9,8 +9,7 @@ class PartnerPermissionsRepository {
     final partners = await _api.getPartners(PartnerDirection.sharedWith) ?? [];
     return {
       for (final partner in partners)
-        if (partner.canDelete.isPresent && partner.canDelete.value == true)
-          partner.id,
+        if (partner.canDelete.isPresent && partner.canDelete.value == true) partner.id,
     };
   }
 }
