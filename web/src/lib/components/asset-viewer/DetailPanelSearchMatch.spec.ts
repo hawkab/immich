@@ -204,3 +204,36 @@ test('synchronizing the current asset does not subscribe the caller to its own w
   expect(onSync).toHaveBeenCalledTimes(1);
   expect(assetViewerManager.asset?.id).toBe(asset.id);
 });
+
+test('whole-frame evidence does not draw an arbitrary object box', async ({ api, settle }) => {
+  const asset = factory.asset({
+    checksum: 'source',
+    searchMatch: {
+      sourceChecksum: 'source',
+      query: 'море',
+      sources: [Sources.Visual],
+      filters: [],
+    },
+  });
+  api.on({
+    getVisualEvidence: () => ({
+      status: 200,
+      json: {
+        assetId: asset.id,
+        sourceChecksum: asset.checksum,
+        generation: 'source-generation',
+        model: 'fixture',
+        similarity: 0.9,
+        localized: false,
+        region: { x: 0, y: 0, width: 1, height: 1 },
+      },
+    }),
+  });
+  await render(QueryComponentHost, {
+    props: { component: DetailPanelSearchMatch, props: { asset }, client: queryClient },
+  });
+  await page.getByRole('button', { name: 'search_match_visual — search_match_show_region' }).click();
+  await expect.element(page.getByRole('button', { name: 'search_match_whole_frame' })).toBeVisible();
+  await settle();
+  expect(assetViewerManager.searchFocus?.region).toBeUndefined();
+});

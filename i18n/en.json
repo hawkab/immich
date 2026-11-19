@@ -1999,7 +1999,7 @@
   "search_match_locating": "Locating visual similarity…",
   "search_match_metadata": "Search filters matched",
   "search_match_reference": "Visual similarity to the selected reference photo",
-  "search_match_region": "Region with the strongest visual similarity",
+  "search_match_region": "Matching object",
   "search_match_scene": "Words matched the indexed scene description",
   "search_match_show_region": "Show similar regions",
   "search_match_speech_fuzzy": "Similar wording in spoken video text",

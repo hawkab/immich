@@ -22,7 +22,8 @@
       checksum: asset.checksum,
       revision,
       time: value.time,
-      region: value.region,
+      region: value.localized ? value.region : undefined,
+      pause: value.time !== undefined,
     });
   onDestroy(() => {
     stopped = true;

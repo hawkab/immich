@@ -14,6 +14,7 @@ export type SearchFocus = {
   checksum: string;
   revision?: string;
   time?: number;
+  pause?: boolean;
   speech?: { start: number; end: number; text: string };
   region?: { x: number; y: number; width: number; height: number };
 };
@@ -59,7 +60,7 @@ class AssetViewerManager extends BaseEventManager<Events> {
     if (
       focus?.assetId !== asset.id ||
       focus.checksum !== asset.checksum ||
-      (focus.region && focus.revision !== JSON.stringify([asset.thumbhash, asset.isEdited]))
+      (focus.revision !== undefined && focus.revision !== JSON.stringify([asset.thumbhash, asset.isEdited]))
     )
       return;
     return focus;
