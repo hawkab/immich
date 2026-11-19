@@ -18,7 +18,9 @@ Future<Uri?> resolveServerLink(
   Uri endpoint,
   ShortLinkLookup lookup,
 ) async {
-  if (!sameLinkOrigin(incoming, endpoint)) return null;
+  if (!sameLinkOrigin(incoming, endpoint)) {
+    return null;
+  }
   final segments = incoming.pathSegments;
   if (segments.length == 2 &&
       segments.first == 's' &&
@@ -27,10 +29,13 @@ Future<Uri?> resolveServerLink(
     if (path == null ||
         !path.startsWith('/') ||
         path.startsWith('//') ||
-        path.contains('\\'))
+        path.contains('\\')) {
       return null;
+    }
     final target = Uri.tryParse(path);
-    if (target == null || target.hasScheme || target.hasAuthority) return null;
+    if (target == null || target.hasScheme || target.hasAuthority) {
+      return null;
+    }
     return incoming.replace(
       path: target.path,
       query: target.hasQuery ? target.query : null,
