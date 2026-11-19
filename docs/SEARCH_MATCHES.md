@@ -19,7 +19,7 @@ Selecting it expands the transcript, scrolls to the overlapping segments and pul
 the timestamp seeks the current asset's player. Reduced-motion preferences disable pulsing and smooth scrolling.
 
 Selecting a visual explanation measures cosine similarity with the configured CLIP model against
-rendered image regions. It tests overlapping crops at two scales and shows the strongest region only
+rendered image regions. It tests overlapping square crops at two scales and shows the strongest region only
 when its measured similarity exceeds the whole image. These are relevance regions, not object-detector boxes.
 If no crop improves the score, the explanation explicitly identifies whole-frame similarity.
 

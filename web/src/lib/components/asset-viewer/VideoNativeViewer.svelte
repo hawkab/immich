@@ -86,13 +86,17 @@
   let containerHeight = $state(0);
   let playerWidth = $state(0);
   let playerHeight = $state(0);
+  let hasLoadedMetadata = $state(false);
   let focusedSequence: number | undefined;
   let playbackTime = $state(0);
   let playing = $state(false);
   const searchFocus = $derived(assetViewerManager.getSearchFocus(asset));
   const evidenceSize = $derived(
     scaleToFit(
-      { width: videoPlayer?.videoWidth || asset.width || 1, height: videoPlayer?.videoHeight || asset.height || 1 },
+      {
+        width: (hasLoadedMetadata && videoPlayer?.videoWidth) || asset.width || 1,
+        height: (hasLoadedMetadata && videoPlayer?.videoHeight) || asset.height || 1,
+      },
       { width: playerWidth, height: playerHeight },
     ),
   );
@@ -109,7 +113,7 @@
       playbackTime = searchFocus.time;
     }
   });
-  let hasLoadedMetadata = $state(false);
+
   let assetFileUrl = $derived.by(() => {
     if (publicConfig.ffmpeg.realtime.enabled) {
       return getAssetHlsUrl(assetId);

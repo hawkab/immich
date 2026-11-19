@@ -6,6 +6,7 @@ import { BaseEventManager } from '#lib/utils/base-event-manager.svelte.ts';
 import type { AssetGridRouteSearchParams } from '#lib/utils/navigation.ts';
 import { getAssetInfo, type AssetResponseDto } from '@immich/sdk';
 import type { ZoomImageWheelState } from '@zoom-image/core';
+import { untrack } from 'svelte';
 import { cubicOut } from 'svelte/easing';
 
 export type SearchFocus = {
@@ -273,7 +274,7 @@ class AssetViewerManager extends BaseEventManager<Events> {
   }
 
   setAsset(asset: AssetResponseDto) {
-    if (this.#viewingAssetStoreState?.id !== asset.id) this.searchFocus = undefined;
+    if (untrack(() => this.#viewingAssetStoreState?.id) !== asset.id) this.searchFocus = undefined;
     this.#viewingAssetStoreState = asset;
     this.#viewState = true;
   }
