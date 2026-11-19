@@ -1,4 +1,3 @@
-import { ShortLinkController } from 'src/controllers/short-link.controller.js';
 import { ActivityController } from 'src/controllers/activity.controller.js';
 import { AlbumController } from 'src/controllers/album.controller.js';
 import { ApiKeyController } from 'src/controllers/api-key.controller.js';
@@ -34,6 +33,7 @@ import { SearchController } from 'src/controllers/search.controller.js';
 import { ServerController } from 'src/controllers/server.controller.js';
 import { SessionController } from 'src/controllers/session.controller.js';
 import { SharedLinkController } from 'src/controllers/shared-link.controller.js';
+import { ShortLinkController } from 'src/controllers/short-link.controller.js';
 import { StackController } from 'src/controllers/stack.controller.js';
 import { SyncController } from 'src/controllers/sync.controller.js';
 import { SystemConfigController } from 'src/controllers/system-config.controller.js';

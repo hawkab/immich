@@ -1,4 +1,3 @@
-import { ShortLinkRepository } from 'src/repositories/short-link.repository.js';
 /* eslint-disable unicorn/no-this-outside-of-class */
 import { DatabaseConnectionParams, createPostgres } from '@immich/sql-tools';
 import { CallHandler, ExecutionContext, Provider } from '@nestjs/common';
@@ -63,6 +62,7 @@ import { ServerInfoRepository } from 'src/repositories/server-info.repository.js
 import { SessionRepository } from 'src/repositories/session.repository.js';
 import { SharedLinkAssetRepository } from 'src/repositories/shared-link-asset.repository.js';
 import { SharedLinkRepository } from 'src/repositories/shared-link.repository.js';
+import { ShortLinkRepository } from 'src/repositories/short-link.repository.js';
 import { StackRepository } from 'src/repositories/stack.repository.js';
 import { StorageRepository } from 'src/repositories/storage.repository.js';
 import { SyncCheckpointRepository } from 'src/repositories/sync-checkpoint.repository.js';

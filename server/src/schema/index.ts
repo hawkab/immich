@@ -1,4 +1,3 @@
-import { ShortLinkTable } from 'src/schema/tables/short-link.table.js';
 import { Database, Extensions, Generated, Int8 } from '@immich/sql-tools';
 import {
   album_user_role_enum,
@@ -79,6 +78,7 @@ import { PluginTable } from 'src/schema/tables/plugin.table.js';
 import { SessionTable } from 'src/schema/tables/session.table.js';
 import { SharedLinkAssetTable } from 'src/schema/tables/shared-link-asset.table.js';
 import { SharedLinkTable } from 'src/schema/tables/shared-link.table.js';
+import { ShortLinkTable } from 'src/schema/tables/short-link.table.js';
 import { SmartSearchTable } from 'src/schema/tables/smart-search.table.js';
 import { StackAuditTable } from 'src/schema/tables/stack-audit.table.js';
 import { StackTable } from 'src/schema/tables/stack.table.js';
@@ -154,7 +154,7 @@ export class ImmichDatabase {
     SessionTable,
     SharedLinkAssetTable,
     ShortLinkTable,
-  SharedLinkTable,
+    SharedLinkTable,
     SmartSearchTable,
     TranscriptSearchTable,
     StackTable,
