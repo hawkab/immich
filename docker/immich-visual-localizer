@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+python=/opt/immich-auto-orient/python
+root=/opt/immich-visual-localizer
+export PYTHONHOME="$python"
+export PYTHONPATH="$root/source:$root/site"
+export LD_LIBRARY_PATH="$python/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+exec "$python/bin/python3" -B -m visual_localizer "$@"

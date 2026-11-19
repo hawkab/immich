@@ -4,6 +4,13 @@ COPY misc/auto-orient/runtime-requirements.txt /tmp/runtime-requirements.txt
 RUN python3 -m pip install --disable-pip-version-check --no-cache-dir --require-hashes \
     --target /opt/auto-orient-site -r /tmp/runtime-requirements.txt
 
+FROM orientation AS visual-localization
+COPY misc/visual-localization/runtime-requirements.txt /tmp/visual-localizer-requirements.txt
+RUN python3 -m pip install --disable-pip-version-check --no-cache-dir --require-hashes \
+    --target /opt/visual-localizer-site -r /tmp/visual-localizer-requirements.txt
+COPY misc/visual-localization/models.lock.json misc/visual-localization/download_model.py /tmp/visual-localizer/
+RUN python3 /tmp/visual-localizer/download_model.py /tmp/visual-localizer/models.lock.json /opt/visual-localizer-models
+
 FROM ${BASE_IMAGE}
 
 COPY server/dist/ /usr/src/app/server/dist/
@@ -12,6 +19,11 @@ COPY --from=orientation /usr/local/ /opt/immich-auto-orient/python/
 COPY --from=orientation /opt/auto-orient-site/ /opt/immich-auto-orient/site/
 COPY misc/auto-orient/auto_orient/*.py /opt/immich-auto-orient/source/auto_orient/
 COPY --chmod=0755 docker/immich-auto-orient /usr/local/bin/immich-auto-orient
+
+COPY --from=visual-localization /opt/visual-localizer-site/ /opt/immich-visual-localizer/site/
+COPY --from=visual-localization /opt/visual-localizer-models/ /opt/immich-visual-localizer/models/
+COPY misc/visual-localization/visual_localizer/*.py /opt/immich-visual-localizer/source/visual_localizer/
+COPY --chmod=0755 docker/immich-visual-localizer /usr/local/bin/immich-visual-localizer
 
 ARG BUILD_SOURCE_COMMIT
 ARG BUILD_SOURCE_REF=v3.4.1-combined.1

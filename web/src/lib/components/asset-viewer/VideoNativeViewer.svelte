@@ -108,7 +108,7 @@
       focusedSequence !== searchFocus.sequence
     ) {
       focusedSequence = searchFocus.sequence;
-      if (searchFocus.region) videoPlayer.pause();
+      if (searchFocus.region || searchFocus.pause) videoPlayer.pause();
       videoPlayer.currentTime = searchFocus.time;
       playbackTime = searchFocus.time;
     }

@@ -1968,7 +1968,7 @@
   "search_match_locating": "Ищу визуальное сходство…",
   "search_match_metadata": "Совпали условия поиска",
   "search_match_reference": "Визуальное сходство с выбранной фотографией",
-  "search_match_region": "Область с наибольшим визуальным сходством",
+  "search_match_region": "Найденный объект",
   "search_match_scene": "Совпадение в описании сцены",
   "search_match_show_region": "Показать похожие области",
   "search_match_speech_fuzzy": "Похожие слова в речи видео",

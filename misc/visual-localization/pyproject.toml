@@ -1,0 +1,19 @@
+[project]
+name = "immich-visual-localizer"
+version = "0.1.0"
+description = "CPU object proposals for source-bound Immich search explanations"
+requires-python = ">=3.12"
+dependencies = ["numpy==2.5.4", "onnxruntime==1.31.1", "pillow==12.3.0"]
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "ruff>=0.12,<1"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

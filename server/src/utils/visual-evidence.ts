@@ -1,7 +1,8 @@
 import { LRUMap } from 'mnemonist';
 import sharp from 'sharp';
+import { locateObjectRegions, objectPixelBounds, type VisualRegion } from 'src/utils/visual-localizer.js';
 
-type Region = { x: number; y: number; width: number; height: number };
+type Region = VisualRegion;
 type Evidence = { similarity: number; region: Region; localized: boolean };
 const whole: Region = { x: 0, y: 0, width: 1, height: 1 };
 
@@ -31,6 +32,22 @@ export const cosineSimilarity = (a: string, b: string): number => {
 export class VisualEvidenceEngine {
   private cache = new LRUMap<string, Promise<Evidence> | undefined>(100);
 
+  private objects = new LRUMap<string, Promise<Region[]> | undefined>(100);
+
+  constructor(private locate: (image: Buffer) => Promise<Region[]> = locateObjectRegions) {}
+
+  private objectRegions(key: string, image: Buffer): Promise<Region[]> {
+    let pending = this.objects.get(key);
+    if (!pending) {
+      pending = this.locate(image);
+      this.objects.set(key, pending);
+      pending.catch(() => {
+        if (this.objects.get(key) === pending) this.objects.set(key, undefined);
+      });
+    }
+    return pending;
+  }
+
   async explain(
     key: string,
     image: () => Promise<Buffer>,
@@ -41,7 +58,7 @@ export class VisualEvidenceEngine {
     const identity = JSON.stringify([key, target, localize]);
     let pending = this.cache.get(identity);
     if (!pending) {
-      pending = Promise.try(async () => this.calculate(await image(), target, encode, localize));
+      pending = Promise.try(async () => this.calculate(key, await image(), target, encode, localize));
       this.cache.set(identity, pending);
       pending.catch(() => {
         if (this.cache.get(identity) === pending) this.cache.set(identity, undefined);
@@ -51,6 +68,7 @@ export class VisualEvidenceEngine {
   }
 
   private async calculate(
+    key: string,
     image: Buffer,
     target: string,
     encode: (image: Buffer) => Promise<string>,
@@ -65,21 +83,42 @@ export class VisualEvidenceEngine {
       localized: false,
     };
     if (!localize) return best;
-    for (const scale of [2 / 3, 1 / 2]) {
-      const w = Math.max(1, Math.floor(Math.min(width, height) * scale)),
-        h = w;
-      for (const y of [0, Math.floor((height - h) / 2), height - h]) {
-        for (const x of [0, Math.floor((width - w) / 2), width - w]) {
-          const crop = await sharp(normalized).extract({ left: x, top: y, width: w, height: h }).jpeg().toBuffer();
-          const similarity = cosineSimilarity(await encode(crop), target);
-          if (similarity > best.similarity + 1e-6)
-            best = {
-              similarity,
-              region: { x: x / width, y: y / height, width: w / width, height: h / height },
-              localized: true,
-            };
-        }
+    let strongestContribution = 0;
+    for (const proposal of await this.objectRegions(key, normalized)) {
+      const bounds = objectPixelBounds(proposal, width, height);
+      const masked = await sharp(normalized)
+        .composite([
+          {
+            input: {
+              create: {
+                width: bounds.width,
+                height: bounds.height,
+                channels: 3,
+                background: { r: 114, g: 114, b: 114 },
+              },
+            },
+            left: bounds.left,
+            top: bounds.top,
+          },
+        ])
+        .jpeg()
+        .toBuffer();
+      const contribution = best.similarity - cosineSimilarity(await encode(masked), target);
+      if (!(contribution > strongestContribution + 1e-6)) {
+        continue;
       }
+
+      strongestContribution = contribution;
+      best = {
+        ...best,
+        region: {
+          x: bounds.left / width,
+          y: bounds.top / height,
+          width: bounds.width / width,
+          height: bounds.height / height,
+        },
+        localized: true,
+      };
     }
     return best;
   }
