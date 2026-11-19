@@ -18,10 +18,14 @@ Search explanations link the matched speech excerpt to the existing timestamped 
 Selecting it expands the transcript, scrolls to the overlapping segments and pulses their highlight;
 the timestamp seeks the current asset's player. Reduced-motion preferences disable pulsing and smooth scrolling.
 
-Selecting a visual explanation measures cosine similarity with the configured CLIP model against
-rendered image regions. It tests overlapping square crops at two scales and shows the strongest region only
-when its measured similarity exceeds the whole image. These are relevance regions, not object-detector boxes.
-If no crop improves the score, the explanation explicitly identifies whole-frame similarity.
+Selecting a visual explanation first detects complete objects in the rendered image with the packaged,
+hash-pinned CPU detector. The configured CLIP model compares the whole frame with the same frame after
+each detected object is masked. The object whose removal most reduces query similarity supplies the box.
+This preserves image scale and composition instead of comparing arbitrary cropped fragments with a full image.
+The box is mapped through exact letterboxing and rounded outwards to contain the detected object. If no
+detected object contributes, the explanation identifies whole-frame similarity without an object rectangle.
+Detector proposals are reused for queries of the same source generation; failed inference remains recoverable.
+The model and dependencies are installed in the application image, with no runtime model download.
 
 For video, the viewer checks actual frames throughout the duration at one-second spacing, then localizes
 the strongest sampled frame. Its clickable timestamp seeks and pauses that frame with the same region overlay.
