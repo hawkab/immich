@@ -38,6 +38,18 @@ def pin_source(source):
     return commit
 
 
+def codegen_environment():
+    """Supply the installed host compiler's builtin headers to libclang."""
+    environment = dict(os.environ)
+    if not environment.get('C_INCLUDE_PATH'):
+        compiler = shutil.which('cc')
+        if compiler:
+            headers = run(compiler, '-print-file-name=include', stdout=subprocess.PIPE, text=True).stdout.strip()
+            if (Path(headers) / 'stdarg.h').is_file():
+                environment['C_INCLUDE_PATH'] = headers
+    return environment
+
+
 def main():
     """Keep release signing separate from distributable source and verify the APK."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -68,7 +80,7 @@ def main():
                    'ANDROID_KEY_PASSWORD': credential['password'],
                    'ANDROID_STORE_PASSWORD': credential['password']}
     environment.pop('PR_NUMBER', None)
-    run('mise', '//mobile:codegen', cwd=source)
+    run('mise', '//mobile:codegen', cwd=source, env=codegen_environment())
     verify_source(source, commit)
     environment.pop('C_INCLUDE_PATH', None)
     run('flutter', 'build', 'apk', '--release', '--target-platform', 'android-arm64',
