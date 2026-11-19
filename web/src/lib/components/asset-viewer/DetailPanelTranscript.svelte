@@ -30,6 +30,5 @@
           </p>{/if}
       {/each}
     </details>
-    <p class="mt-2 text-sm whitespace-pre-wrap">{transcript.text}</p>
   </section>
 {/if}
