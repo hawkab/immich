@@ -30,10 +30,11 @@ import {
   withSearchOrder,
 } from 'src/utils/database.js';
 import { paginationHelper, type PaginationOptions } from 'src/utils/pagination.js';
-import { smartSearchEvidence } from 'src/utils/search-scenes.js';
+import { smartSearchEvidence, visualSearchEvidence } from 'src/utils/search-scenes.js';
 import { transcriptSearchScore } from 'src/utils/transcript-search.js';
 
 export interface SearchAssetIdOptions {
+  explainAssetId?: string;
   checksum?: Buffer;
   id?: string;
 }
@@ -105,6 +106,7 @@ export interface SearchEmbeddingOptions {
   minSimilarity?: number | null;
   sceneQuery?: string;
   embedding: string;
+  explainAssetId?: string;
   transcriptQuery?: string;
   transcriptOnly?: boolean;
   transcriptModel?: string;
@@ -246,6 +248,7 @@ export class SearchRepository {
     const orderDirection = (options.orderDirection?.toLowerCase() || 'desc') as OrderByDirection;
     const items = await searchAssetBuilderLegacy(this.db, options)
       .select(columns.searchAsset)
+      .$if(!!options.explainAssetId, (qb) => qb.where('asset.id', '=', options.explainAssetId!))
       .orderBy('asset.fileCreatedAt', orderDirection)
       .orderBy('asset.id', orderDirection)
       .limit(pagination.size + 1)
@@ -353,6 +356,17 @@ export class SearchRepository {
           ),
           (join) => join.onTrue(),
         )
+        .select(
+          sql<import('src/utils/search-match.js').RawSearchMatch>`jsonb_build_object(
+          'visual', ${options.transcriptOnly ? sql`false` : visualSearchEvidence(options)},
+          'scene', ${!!options.sceneQuery},
+          'score', coalesce(transcript_match.score, 0),
+          'part', transcript_match.part,
+          'segments', transcript_match.segments,
+          'segment', transcript_match.segment
+        )`.as('searchProvenance'),
+        )
+        .$if(!!options.explainAssetId, (qb) => qb.where('asset.id', '=', options.explainAssetId!))
         .where(smartSearchEvidence(options))
         .$if(!!options.transcriptQuery, (qb) => qb.orderBy(sql`coalesce(transcript_match.score, 0) desc`))
         .$if(!options.transcriptOnly, (qb) => qb.orderBy(sql`smart_search.embedding <=> ${options.embedding}`))
@@ -589,9 +603,14 @@ export class SearchRepository {
 
   // TODO(v4): drop the V3 suffix once the legacy methods are removed
   @GenerateSql(...searchMetadataV3Examples)
-  async searchMetadataV3(pagination: PaginationOptions, options: AssetSearchBuilderV3Options, scope: AssetSearchScope) {
+  async searchMetadataV3(
+    pagination: PaginationOptions,
+    options: AssetSearchBuilderV3Options & { explainAssetId?: string },
+    scope: AssetSearchScope,
+  ) {
     const items = await withSearchOrder(searchAssetBuilder(this.db, options, scope), options.order)
       .select(columns.searchAsset)
+      .$if(!!options.explainAssetId, (qb) => qb.where('asset.id', '=', options.explainAssetId!))
       .limit(pagination.take + 1)
       .offset(pagination.skip ?? 0)
       .execute();
@@ -618,6 +637,7 @@ export class SearchRepository {
     pagination: PaginationOptions,
     options: Omit<AssetSearchBuilderV3Options, 'order'> & {
       embedding: string;
+      explainAssetId?: string;
       transcriptQuery?: string;
       transcriptOnly?: boolean;
       transcriptModel?: string;
@@ -642,6 +662,17 @@ export class SearchRepository {
           ),
           (join) => join.onTrue(),
         )
+        .select(
+          sql<import('src/utils/search-match.js').RawSearchMatch>`jsonb_build_object(
+          'visual', ${options.transcriptOnly ? sql`false` : visualSearchEvidence(options)},
+          'scene', ${!!options.sceneQuery},
+          'score', coalesce(transcript_match.score, 0),
+          'part', transcript_match.part,
+          'segments', transcript_match.segments,
+          'segment', transcript_match.segment
+        )`.as('searchProvenance'),
+        )
+        .$if(!!options.explainAssetId, (qb) => qb.where('asset.id', '=', options.explainAssetId!))
         .where(smartSearchEvidence(options))
         .$if(!!options.transcriptQuery, (qb) => qb.orderBy(sql`coalesce(transcript_match.score, 0) desc`))
         .$if(!options.transcriptOnly, (qb) => qb.orderBy(sql`smart_search.embedding <=> ${options.embedding}`))
@@ -655,7 +686,7 @@ export class SearchRepository {
 
   // TODO(v4): drop the V3 suffix once the legacy methods are removed
   @GenerateSql(...searchStatisticsV3Examples)
-  searchStatisticsV3(options: AssetSearchBuilderV3Options, scope: AssetSearchScope) {
+  searchStatisticsV3(options: AssetSearchBuilderV3Options & { explainAssetId?: string }, scope: AssetSearchScope) {
     return searchAssetBuilder(this.db, options, scope)
       .select((qb) => qb.fn.countAll<number>().as('total'))
       .executeTakeFirstOrThrow();

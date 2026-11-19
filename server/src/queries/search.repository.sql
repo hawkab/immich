@@ -224,20 +224,41 @@ select
   "asset"."thumbhash",
   "asset"."type",
   "asset"."width",
-  "asset"."height"
+  "asset"."height",
+  jsonb_build_object(
+    'visual',
+    (
+      smart_search."assetId" is not null
+      and true
+      and true
+    ),
+    'scene',
+    $1,
+    'score',
+    coalesce(transcript_match.score, 0),
+    'part',
+    transcript_match.part,
+    'segments',
+    transcript_match.segments,
+    'segment',
+    transcript_match.segment
+  ) as "searchProvenance"
 from
   "asset"
   inner join "asset_exif" on "asset"."id" = "asset_exif"."assetId"
   left join "smart_search" on "asset"."id" = "smart_search"."assetId"
   left join lateral (
     select
-      0 as score
+      0 as score,
+      null::jsonb as segments,
+      null::integer as part,
+      null::jsonb as segment
   ) as "transcript_match" on true
 where
-  "asset"."fileCreatedAt" >= $1
-  and "asset_exif"."lensModel" = $2
-  and "asset"."ownerId" = any ($3::uuid[])
-  and "asset"."isFavorite" = $4
+  "asset"."fileCreatedAt" >= $2
+  and "asset_exif"."lensModel" = $3
+  and "asset"."ownerId" = any ($4::uuid[])
+  and "asset"."isFavorite" = $5
   and "asset"."deletedAt" is null
   and (
     (
@@ -248,12 +269,12 @@ where
     or false
   )
 order by
-  smart_search.embedding <=> $5,
+  smart_search.embedding <=> $6,
   "asset"."id" asc
 limit
-  $6
-offset
   $7
+offset
+  $8
 commit
 
 -- SearchRepository.getEmbedding
@@ -1855,20 +1876,41 @@ select
   "asset"."thumbhash",
   "asset"."type",
   "asset"."width",
-  "asset"."height"
+  "asset"."height",
+  jsonb_build_object(
+    'visual',
+    (
+      smart_search."assetId" is not null
+      and true
+      and true
+    ),
+    'scene',
+    $1,
+    'score',
+    coalesce(transcript_match.score, 0),
+    'part',
+    transcript_match.part,
+    'segments',
+    transcript_match.segments,
+    'segment',
+    transcript_match.segment
+  ) as "searchProvenance"
 from
   "asset"
   left join "asset_exif" on "asset"."id" = "asset_exif"."assetId"
   left join "smart_search" on "asset"."id" = "smart_search"."assetId"
   left join lateral (
     select
-      0 as score
+      0 as score,
+      null::jsonb as segments,
+      null::integer as part,
+      null::jsonb as segment
   ) as "transcript_match" on true
 where
-  "asset"."ownerId" = any ($1::uuid[])
+  "asset"."ownerId" = any ($2::uuid[])
   and (
-    "asset"."visibility" != $2
-    or "asset"."ownerId" = $3
+    "asset"."visibility" != $3
+    or "asset"."ownerId" = $4
   )
   and true
   and (
@@ -1880,12 +1922,12 @@ where
     or false
   )
 order by
-  smart_search.embedding <=> $4,
+  smart_search.embedding <=> $5,
   "asset"."id" asc
 limit
-  $5
-offset
   $6
+offset
+  $7
 commit
 
 -- SearchRepository.searchSmartV3 (with-filter)
@@ -1920,24 +1962,45 @@ select
   "asset"."thumbhash",
   "asset"."type",
   "asset"."width",
-  "asset"."height"
+  "asset"."height",
+  jsonb_build_object(
+    'visual',
+    (
+      smart_search."assetId" is not null
+      and true
+      and true
+    ),
+    'scene',
+    $1,
+    'score',
+    coalesce(transcript_match.score, 0),
+    'part',
+    transcript_match.part,
+    'segments',
+    transcript_match.segments,
+    'segment',
+    transcript_match.segment
+  ) as "searchProvenance"
 from
   "asset"
   left join "asset_exif" on "asset"."id" = "asset_exif"."assetId"
   left join "smart_search" on "asset"."id" = "smart_search"."assetId"
   left join lateral (
     select
-      0 as score
+      0 as score,
+      null::jsonb as segments,
+      null::integer as part,
+      null::jsonb as segment
   ) as "transcript_match" on true
 where
-  "asset"."ownerId" = any ($1::uuid[])
+  "asset"."ownerId" = any ($2::uuid[])
   and (
-    "asset"."visibility" != $2
-    or "asset"."ownerId" = $3
+    "asset"."visibility" != $3
+    or "asset"."ownerId" = $4
   )
   and (
-    "asset"."fileCreatedAt" < $4
-    and "asset"."fileCreatedAt" >= $5
+    "asset"."fileCreatedAt" < $5
+    and "asset"."fileCreatedAt" >= $6
   )
   and (
     (
@@ -1948,12 +2011,12 @@ where
     or false
   )
 order by
-  smart_search.embedding <=> $6,
+  smart_search.embedding <=> $7,
   "asset"."id" asc
 limit
-  $7
-offset
   $8
+offset
+  $9
 commit
 
 -- SearchRepository.searchSmartV3 (cursor-offset)
@@ -1988,20 +2051,41 @@ select
   "asset"."thumbhash",
   "asset"."type",
   "asset"."width",
-  "asset"."height"
+  "asset"."height",
+  jsonb_build_object(
+    'visual',
+    (
+      smart_search."assetId" is not null
+      and true
+      and true
+    ),
+    'scene',
+    $1,
+    'score',
+    coalesce(transcript_match.score, 0),
+    'part',
+    transcript_match.part,
+    'segments',
+    transcript_match.segments,
+    'segment',
+    transcript_match.segment
+  ) as "searchProvenance"
 from
   "asset"
   left join "asset_exif" on "asset"."id" = "asset_exif"."assetId"
   left join "smart_search" on "asset"."id" = "smart_search"."assetId"
   left join lateral (
     select
-      0 as score
+      0 as score,
+      null::jsonb as segments,
+      null::integer as part,
+      null::jsonb as segment
   ) as "transcript_match" on true
 where
-  "asset"."ownerId" = any ($1::uuid[])
+  "asset"."ownerId" = any ($2::uuid[])
   and (
-    "asset"."visibility" != $2
-    or "asset"."ownerId" = $3
+    "asset"."visibility" != $3
+    or "asset"."ownerId" = $4
   )
   and true
   and (
@@ -2013,12 +2097,12 @@ where
     or false
   )
 order by
-  smart_search.embedding <=> $4,
+  smart_search.embedding <=> $5,
   "asset"."id" asc
 limit
-  $5
-offset
   $6
+offset
+  $7
 commit
 
 -- SearchRepository.searchStatisticsV3 (baseline)

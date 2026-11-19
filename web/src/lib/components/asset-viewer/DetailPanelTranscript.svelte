@@ -23,12 +23,14 @@
     {#if transcript.status === 'processing'}<p class="text-sm opacity-70">{$t('transcription_processing')}</p>{/if}
     <details>
       <summary class="cursor-pointer text-sm">{$t('transcript_segments')}</summary>
-      {#each transcript.segments ?? [] as segment (segment.start)}
-        {#if segment.text}<p class="mt-2 text-sm">
-            <span class="font-mono opacity-60">{timestamp(segment.start)}</span>
-            {segment.text}
-          </p>{/if}
-      {/each}
+      {#if transcript.segments?.length}
+        {#each transcript.segments ?? [] as segment (segment.start)}
+          {#if segment.text}<p class="mt-2 text-sm">
+              <span class="font-mono opacity-60">{timestamp(segment.start)}</span>
+              {segment.text}
+            </p>{/if}
+        {/each}
+      {:else}<p class="mt-2 text-sm whitespace-pre-wrap">{transcript.text}</p>{/if}
     </details>
   </section>
 {/if}

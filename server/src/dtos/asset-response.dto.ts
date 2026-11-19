@@ -58,6 +58,18 @@ const AssetStackResponseSchema = z
   })
   .meta({ id: 'AssetStackResponseDto' });
 
+export const SearchMatchSchema = z
+  .object({
+    query: z.string().optional(),
+    sourceChecksum: z.string(),
+    referenceAssetId: z.uuidv4().optional(),
+    sources: z.array(z.enum(['visual', 'scene', 'speech-lexical', 'speech-fuzzy', 'speech-semantic', 'metadata'])),
+    filters: z.array(z.object({ field: z.string(), value: z.string() })),
+    speech: z.object({ text: z.string(), start: z.number(), end: z.number() }).optional(),
+  })
+  .meta({ id: 'SearchMatch' });
+export type SearchMatch = z.infer<typeof SearchMatchSchema>;
+
 export const AssetResponseSchema = SanitizedAssetResponseSchema.extend(
   z.object({
     // TODO: use `isoDatetimeToDate` when using `ZodSerializerDto` on the controllers.
@@ -72,6 +84,7 @@ export const AssetResponseSchema = SanitizedAssetResponseSchema.extend(
       .nullish()
       .describe('Library ID')
       .meta(new HistoryBuilder().added('v1').deprecated('v1').getExtensions()),
+    searchMatch: SearchMatchSchema.optional().describe('Evidence for this search result; does not change the asset'),
     originalPath: z.string().describe('Original file path'),
     originalFileName: z.string().describe('Original file name'),
     // TODO: use `isoDatetimeToDate` when using `ZodSerializerDto` on the controllers.

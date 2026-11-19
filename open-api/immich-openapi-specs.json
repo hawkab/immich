@@ -22384,6 +22384,10 @@
             ],
             "x-immich-state": "Deprecated"
           },
+          "searchMatch": {
+            "$ref": "#/components/schemas/SearchMatch",
+            "description": "Evidence for this search result; does not change the asset"
+          },
           "stack": {
             "allOf": [
               {
@@ -24890,6 +24894,12 @@
               }
             ],
             "x-immich-state": "Deprecated"
+          },
+          "explainAssetId": {
+            "description": "Explain only this asset while applying every original search condition",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+            "type": "string"
           },
           "filter": {
             "$ref": "#/components/schemas/SearchFilter",
@@ -28913,6 +28923,78 @@
         },
         "type": "object"
       },
+      "SearchMatch": {
+        "properties": {
+          "filters": {
+            "items": {
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "field",
+                "value"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "query": {
+            "type": "string"
+          },
+          "referenceAssetId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+            "type": "string"
+          },
+          "sourceChecksum": {
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "enum": [
+                "visual",
+                "scene",
+                "speech-lexical",
+                "speech-fuzzy",
+                "speech-semantic",
+                "metadata"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "speech": {
+            "properties": {
+              "end": {
+                "type": "number"
+              },
+              "start": {
+                "type": "number"
+              },
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "text",
+              "start",
+              "end"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "filters",
+          "sourceChecksum",
+          "sources"
+        ],
+        "type": "object"
+      },
       "SearchOrder": {
         "properties": {
           "direction": {
@@ -30077,6 +30159,12 @@
               }
             ],
             "x-immich-state": "Deprecated"
+          },
+          "explainAssetId": {
+            "description": "Explain only this asset while applying every original search condition",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+            "type": "string"
           },
           "filter": {
             "$ref": "#/components/schemas/SearchFilter",
