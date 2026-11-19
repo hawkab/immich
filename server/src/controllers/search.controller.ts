@@ -18,6 +18,7 @@ import {
   SmartSearchDto,
   StatisticsSearchDto,
 } from 'src/dtos/search.dto.js';
+import { VisualEvidenceDto, VisualEvidenceResponseDto } from 'src/dtos/visual-evidence.dto.js';
 import { ApiTag, Permission } from 'src/enum.js';
 import { Auth, Authenticated } from 'src/middleware/auth.guard.js';
 import { SearchService } from 'src/services/search.service.js';
@@ -89,6 +90,17 @@ export class SearchController {
   })
   searchSmart(@Auth() auth: AuthDto, @Body() dto: SmartSearchDto): Promise<SearchResponseDto> {
     return this.service.searchSmart(auth, dto);
+  }
+
+  @Post('visual-evidence')
+  @Authenticated({ permission: Permission.AssetRead })
+  @HttpCode(HttpStatus.OK)
+  @Endpoint({
+    summary: 'Locate visually similar content in an image or video frame',
+    history: new HistoryBuilder().added('v3.4.1'),
+  })
+  getVisualEvidence(@Auth() auth: AuthDto, @Body() dto: VisualEvidenceDto): Promise<VisualEvidenceResponseDto> {
+    return this.service.visualEvidence(auth, dto);
   }
 
   @Get('explore')

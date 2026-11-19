@@ -13842,6 +13842,56 @@
         "x-immich-state": "Stable"
       }
     },
+    "/search/visual-evidence": {
+      "post": {
+        "operationId": "getVisualEvidence",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VisualEvidenceDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisualEvidenceResponseDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Locate visually similar content in an image or video frame",
+        "tags": [
+          "Search"
+        ],
+        "x-immich-history": [
+          {
+            "version": "v3.4.1",
+            "state": "Added"
+          }
+        ],
+        "x-immich-permission": "asset.read"
+      }
+    },
     "/server/about": {
       "get": {
         "description": "Retrieve a list of information about the server.",
@@ -35649,6 +35699,113 @@
           "webm"
         ],
         "type": "string"
+      },
+      "VisualEvidenceDto": {
+        "properties": {
+          "assetId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+            "type": "string"
+          },
+          "generation": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "localize": {
+            "default": true,
+            "type": "boolean"
+          },
+          "query": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "queryAssetId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+            "type": "string"
+          },
+          "sourceChecksum": {
+            "type": "string"
+          },
+          "time": {
+            "format": "double",
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "assetId",
+          "sourceChecksum"
+        ],
+        "type": "object"
+      },
+      "VisualEvidenceResponseDto": {
+        "properties": {
+          "assetId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+            "type": "string"
+          },
+          "generation": {
+            "type": "string"
+          },
+          "localized": {
+            "type": "boolean"
+          },
+          "model": {
+            "type": "string"
+          },
+          "region": {
+            "properties": {
+              "height": {
+                "format": "double",
+                "type": "number"
+              },
+              "width": {
+                "format": "double",
+                "type": "number"
+              },
+              "x": {
+                "format": "double",
+                "type": "number"
+              },
+              "y": {
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "required": [
+              "x",
+              "y",
+              "width",
+              "height"
+            ],
+            "type": "object"
+          },
+          "similarity": {
+            "format": "double",
+            "type": "number"
+          },
+          "sourceChecksum": {
+            "type": "string"
+          },
+          "time": {
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "assetId",
+          "generation",
+          "localized",
+          "model",
+          "region",
+          "similarity",
+          "sourceChecksum"
+        ],
+        "type": "object"
       },
       "WorkflowCreateDto": {
         "properties": {

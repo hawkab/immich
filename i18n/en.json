@@ -2499,5 +2499,9 @@
   "you": "You",
   "you_dont_have_any_shared_links": "You don't have any shared links",
   "your_wifi_name": "Your Wi-Fi name",
-  "zoom_image": "Zoom Image"
+  "zoom_image": "Zoom Image",
+  "search_match_show_region": "Show similar regions",
+  "search_match_locating": "Locating visual similarity…",
+  "search_match_region": "Region with the strongest visual similarity",
+  "search_match_whole_frame": "Similarity of the whole frame"
 }
