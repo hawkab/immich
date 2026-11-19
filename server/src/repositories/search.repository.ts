@@ -31,6 +31,7 @@ import {
 } from 'src/utils/database.js';
 import { paginationHelper, type PaginationOptions } from 'src/utils/pagination.js';
 import { smartSearchEvidence, visualSearchEvidence } from 'src/utils/search-scenes.js';
+import { transcriptSearchCenter } from 'src/utils/transcript-search-center.js';
 import { transcriptSearchScore } from 'src/utils/transcript-search.js';
 
 export interface SearchAssetIdOptions {
@@ -345,13 +346,20 @@ export class SearchRepository {
     return this.db.transaction().execute(async (trx) => {
       await sql`set local vchordrq.probes = ${sql.lit(probes[VectorIndex.Clip])}`.execute(trx);
       if (options.transcriptQuery) {
-        await sql`set local pg_trgm.word_similarity_threshold = 0.5`.execute(trx);
+        await sql`set local pg_trgm.strict_word_similarity_threshold = 0.5`.execute(trx);
       }
+      const transcriptCenter = await transcriptSearchCenter(trx, options, {
+        userIds: options.userIds,
+        lockedOwnerId: options.viewingUserId ?? options.userIds[0],
+        viewingUserId: options.viewingUserId,
+      });
       const items = await searchAssetBuilderLegacy(trx, options)
         .select(columns.searchAsset)
         .leftJoin('smart_search', 'asset.id', 'smart_search.assetId')
         .leftJoinLateral(
-          sql<{ score: number }>`(${transcriptSearchScore(options.transcriptQuery ?? '', options)})`.as(
+          sql<{
+            score: number;
+          }>`(${transcriptSearchScore(options.transcriptQuery ?? '', { ...options, transcriptCenter })})`.as(
             'transcript_match',
           ),
           (join) => join.onTrue(),
@@ -651,13 +659,16 @@ export class SearchRepository {
     return this.db.transaction().execute(async (trx) => {
       await sql`set local vchordrq.probes = ${sql.lit(probes[VectorIndex.Clip])}`.execute(trx);
       if (options.transcriptQuery) {
-        await sql`set local pg_trgm.word_similarity_threshold = 0.5`.execute(trx);
+        await sql`set local pg_trgm.strict_word_similarity_threshold = 0.5`.execute(trx);
       }
+      const transcriptCenter = await transcriptSearchCenter(trx, options, scope);
       const items = await searchAssetBuilder(trx, options, scope)
         .select(columns.searchAsset)
         .leftJoin('smart_search', 'asset.id', 'smart_search.assetId')
         .leftJoinLateral(
-          sql<{ score: number }>`(${transcriptSearchScore(options.transcriptQuery ?? '', options)})`.as(
+          sql<{
+            score: number;
+          }>`(${transcriptSearchScore(options.transcriptQuery ?? '', { ...options, transcriptCenter })})`.as(
             'transcript_match',
           ),
           (join) => join.onTrue(),
