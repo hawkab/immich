@@ -28,7 +28,7 @@ const lookalikes: Record<string, string> = {
 
 export const tokenizeOcrSearch = (text: string): string[] =>
   tokenizeForSearch(text).flatMap((token) => {
-    if (!/\p{Script=Cyrillic}/u.test(token) || !/\p{Script=Latin}/u.test(token)) return [token];
+    if (!/\p{Script=Cyrillic}/u.test(token) || !/\p{Script=Latin}/u.test(token)) return token;
     const alias = [...token].map((character) => lookalikes[character] ?? character).join('');
-    return alias === token ? [token] : [token, alias.toLowerCase()];
+    return alias === token ? token : [token, alias.toLowerCase()];
   });
