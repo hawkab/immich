@@ -88,6 +88,22 @@ describe(OcrService.name, () => {
       expect(mocks.event.emit).not.toHaveBeenCalled();
     });
 
+    it('indexes mixed-script aliases without changing visible OCR text or scores', async () => {
+      const asset = AssetFactory.create();
+      mocks.machineLearning.ocr.mockResolvedValue({
+        box: [0, 0, 1, 0, 1, 1, 0, 1],
+        boxScore: [0.9],
+        text: ['PОMAH'],
+        textScore: [0.76],
+      });
+      expect(await sut.handleOcr({ id: asset.id })).toEqual(JobStatus.Success);
+      expect(mocks.ocr.upsert).toHaveBeenCalledWith(
+        asset.id,
+        [expect.objectContaining({ text: 'PОMAH', textScore: 0.76 })],
+        'PОMAH роман',
+      );
+    });
+
     it('should save the returned objects', async () => {
       const asset = AssetFactory.create();
       mocks.machineLearning.ocr.mockResolvedValue({

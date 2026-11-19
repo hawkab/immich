@@ -1621,17 +1621,20 @@ describe(MediaService.name, () => {
       expect(mocks.asset.update).toHaveBeenCalledWith(expect.objectContaining({ thumbhash: thumbhashBuffer }));
     });
 
-    it('should keep the ocr search text if the edits have no crop', async () => {
+    it.each([
+      ['Hello World', 'Hello World'],
+      ['PОMAH', 'PОMAH роман'],
+    ])('keeps OCR search tokens after a non-crop edit (%s)', async (text, searchText) => {
       const asset = AssetFactory.from()
         .exif()
         .edit({ action: AssetEditAction.Rotate, parameters: { angle: 90 } })
         .build();
       mocks.assetJob.getForGenerateThumbnailJob.mockResolvedValue(getForGenerateThumbnail(asset));
-      mocks.ocr.getByAssetId.mockResolvedValue([factory.assetOcr({ assetId: asset.id, text: 'Hello World' })]);
+      mocks.ocr.getByAssetId.mockResolvedValue([factory.assetOcr({ assetId: asset.id, text })]);
 
       await sut.handleAssetEditThumbnailGeneration({ id: asset.id });
 
-      expect(mocks.ocr.updateOcrVisibilities).toHaveBeenCalledWith(asset.id, [], [], 'Hello World');
+      expect(mocks.ocr.updateOcrVisibilities).toHaveBeenCalledWith(asset.id, [], [], searchText);
     });
 
     it('should tokenize the ocr search text inside the crop', async () => {

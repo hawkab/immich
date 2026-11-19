@@ -4,8 +4,8 @@ import { AssetVisibility, JobName, JobStatus, QueueName } from 'src/enum.js';
 import { OCR } from 'src/repositories/machine-learning.repository.js';
 import { BaseService } from 'src/services/base.service.js';
 import type { JobOf } from 'src/types.js';
-import { tokenizeForSearch } from 'src/utils/database.js';
 import { batched, isOcrEnabled } from 'src/utils/misc.js';
+import { tokenizeOcrSearch } from 'src/utils/ocr-search.js';
 
 @Injectable()
 export class OcrService extends BaseService {
@@ -78,7 +78,7 @@ export class OcrService extends BaseService {
         textScore: textScore[i],
         text: rawText,
       });
-      searchTokens.push(...tokenizeForSearch(rawText));
+      searchTokens.push(...tokenizeOcrSearch(rawText));
     }
 
     return { ocrDataList, searchText: searchTokens.join(' ') };
