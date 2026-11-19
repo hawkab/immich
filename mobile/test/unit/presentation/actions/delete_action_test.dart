@@ -12,6 +12,7 @@ import 'package:immich_mobile/infrastructure/repositories/settings.repository.da
 import 'package:immich_mobile/presentation/actions/action.widget.dart';
 import 'package:immich_mobile/presentation/actions/delete.action.dart';
 import 'package:immich_mobile/providers/server_info.provider.dart';
+import 'package:immich_mobile/providers/infrastructure/partner_permissions.provider.dart';
 import 'package:immich_mobile/widgets/common/confirm_dialog.dart';
 import 'package:immich_ui/immich_ui.dart';
 import 'package:mocktail/mocktail.dart';
@@ -485,6 +486,65 @@ void main() {
 
       verify(() => cleanupService.deleteLocalAssets([asset.id])).called(1);
       debugDefaultTargetPlatformOverride = null;
+    });
+  });
+  group('partner deletion permission', () {
+    Future<void> pumpPartner(WidgetTester tester, RemoteAsset asset, {required bool granted, bool trash = true}) async {
+      if (!trash) {
+        when(() => context.service.serverInfo.getServerFeatures())
+            .thenAnswer((_) async => const .new(trash: false, map: true, oauthEnabled: false, passwordLogin: true));
+      }
+      await tester.pumpTestWidget(
+        context,
+        const ActionIconButton(action: DeleteAction(source: .timeline)),
+        overrides: [
+          ...context.selected({asset}),
+          partnerDeleteOwnersProvider.overrideWith((ref) async => granted ? {asset.ownerId} : <String>{}),
+        ],
+      );
+      if (!trash) {
+        final scope = ProviderScope.containerOf(tester.element(find.byType(ActionIconButton)), listen: false);
+        await scope.read(serverInfoProvider.notifier).getServerFeatures();
+      }
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('trashes a granted partner photo while keeping its device copy', (tester) async {
+      final asset = RemoteAssetFactory.create(ownerId: 'partner', localId: 'partner-device-copy');
+      await pumpPartner(tester, asset, granted: true);
+      expect(find.byType(ImmichIconButton), findsOneWidget);
+      await tester.tap(find.byType(ImmichIconButton));
+      await tester.pumpAndSettle();
+      verify(() => assetService.trash([asset.id])).called(1);
+      verifyNever(() => assetService.delete(any()));
+      verifyNever(() => cleanupService.deleteLocalAssets(any()));
+    });
+
+    testWidgets('does not expose deletion without a grant', (tester) async {
+      await pumpPartner(tester, RemoteAssetFactory.create(ownerId: 'partner'), granted: false);
+      expect(find.byType(ImmichIconButton), findsNothing);
+    });
+
+    testWidgets('never offers permanent deletion when the server trash is disabled', (tester) async {
+      await pumpPartner(tester, RemoteAssetFactory.create(ownerId: 'partner'), granted: true, trash: false);
+      expect(find.byType(ImmichIconButton), findsNothing);
+      verifyNever(() => assetService.delete(any()));
+    });
+
+    for (final visibility in [AssetVisibility.archive, AssetVisibility.locked, AssetVisibility.hidden]) {
+      testWidgets('does not extend a partner grant to $visibility photos', (tester) async {
+        await pumpPartner(tester, RemoteAssetFactory.create(ownerId: 'partner', visibility: visibility), granted: true);
+        expect(find.byType(ImmichIconButton), findsNothing);
+      });
+    }
+
+    testWidgets('cannot permanently delete a partner photo already in trash', (tester) async {
+      await pumpPartner(
+        tester,
+        RemoteAssetFactory.create(ownerId: 'partner', deletedAt: DateTime.now()),
+        granted: true,
+      );
+      expect(find.byType(ImmichIconButton), findsNothing);
     });
   });
 }

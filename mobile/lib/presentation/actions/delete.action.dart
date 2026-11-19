@@ -6,6 +6,7 @@ import 'package:immich_mobile/extensions/platform_extensions.dart';
 import 'package:immich_mobile/generated/translations.g.dart';
 import 'package:immich_mobile/presentation/actions/action.dart';
 import 'package:immich_mobile/providers/infrastructure/asset.provider.dart';
+import 'package:immich_mobile/providers/infrastructure/partner_permissions.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/deletion_policy.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/settings.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/store.provider.dart';
@@ -25,29 +26,36 @@ final _stateProvider = Provider.family.autoDispose<_State?, ActionSource>((ref, 
   final authUserId = ref.watch(authUserProvider).id;
   final independent = ref.watch(appConfigProvider.select((config) => config.keepCopiesIndependent));
 
+  final trashEnabled = ref.watch(serverInfoProvider.select((state) => state.serverFeatures.trash));
+  final hasPartnerAssets = assets.whereType<RemoteAsset>().any((asset) => asset.ownerId != authUserId);
+  final deleteOwners = hasPartnerAssets && trashEnabled ? ref.watch(partnerDeleteOwnersProvider).valueOrNull ?? <String>{} : <String>{};
   final localIds = <String>[];
-  final ownedRemote = <RemoteAsset>[];
+  final remoteTargets = <RemoteAsset>[];
   for (final asset in assets) {
-    if (asset.localId case final localId?) {
-      localIds.add(localId);
+    if ((asset is! RemoteAsset || asset.ownerId == authUserId) && asset.localId != null) {
+      localIds.add(asset.localId!);
     }
     if (asset case final RemoteAsset remote when remote.ownerId == authUserId) {
-      ownedRemote.add(remote);
+      remoteTargets.add(remote);
+    } else if (asset case final RemoteAsset remote
+        when trashEnabled && deleteOwners.contains(remote.ownerId) && remote.visibility == AssetVisibility.timeline && !remote.isTrashed) {
+      remoteTargets.add(remote);
     }
   }
+  final includesPartner = remoteTargets.any((asset) => asset.ownerId != authUserId);
+  if (includesPartner) remoteTargets.removeWhere((asset) => asset.isTrashed || asset.isLocked);
 
-  if (localIds.isEmpty && ownedRemote.isEmpty) {
+  if (localIds.isEmpty && remoteTargets.isEmpty) {
     return null;
   }
-  if (independent && ownedRemote.isEmpty) {
+  if (independent && remoteTargets.isEmpty) {
     return null;
   }
 
-  final trashEnabled = ref.watch(serverInfoProvider.select((state) => state.serverFeatures.trash));
   // Assets already in the trash or in the locked folder are deleted outright, irrespective of the server setting.
   final trash =
-      ownedRemote.isEmpty || (trashEnabled && !ownedRemote.every((asset) => asset.isTrashed || asset.isLocked));
-  final remoteIds = ownedRemote.map((asset) => asset.id).toList(growable: false);
+      includesPartner || remoteTargets.isEmpty || (trashEnabled && !remoteTargets.every((asset) => asset.isTrashed || asset.isLocked));
+  final remoteIds = remoteTargets.map((asset) => asset.id).toList(growable: false);
   final isLocalOnly = assets.any((asset) => asset.isLocalOnly);
 
   return (
