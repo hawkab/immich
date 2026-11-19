@@ -39,11 +39,11 @@ import type {
   VideoStreamInfo,
 } from 'src/types.js';
 import { getAssetFile, getDimensions } from 'src/utils/asset.util.js';
-import { tokenizeForSearch } from 'src/utils/database.js';
 import { checkFaceVisibility, checkOcrVisibility } from 'src/utils/editor.js';
 import { BaseConfig, ThumbnailConfig } from 'src/utils/media.js';
 import { mimeTypes } from 'src/utils/mime-types.js';
 import { batched, clamp } from 'src/utils/misc.js';
+import { tokenizeOcrSearch } from 'src/utils/ocr-search.js';
 import { getOutputDimensions } from 'src/utils/transform.js';
 
 interface UpsertFileOptions {
@@ -862,7 +862,7 @@ export class MediaService extends BaseService {
 
     const ocrStatuses = checkOcrVisibility(ocrData, originalDimensions, cropBox);
     const searchText = (cropBox ? ocrStatuses.visible : ocrData)
-      .flatMap(({ text }) => tokenizeForSearch(text))
+      .flatMap(({ text }) => tokenizeOcrSearch(text))
       .join(' ');
     await this.ocrRepository.updateOcrVisibilities(asset.id, ocrStatuses.visible, ocrStatuses.hidden, searchText);
 
