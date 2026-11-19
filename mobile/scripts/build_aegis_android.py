@@ -12,6 +12,7 @@ import re
 import shutil
 import subprocess
 import zipfile
+from urllib.parse import urlparse
 
 
 def run(*arguments, **kwargs):
@@ -43,7 +44,15 @@ def main():
     parser.add_argument('--credentials', type=Path, required=True)
     parser.add_argument('--keystore', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--app-link-origin')
+    parser.add_argument('--build-number', type=int)
     args = parser.parse_args()
+    if args.app_link_origin:
+        origin = urlparse(args.app_link_origin)
+        if origin.scheme != 'https' or not origin.hostname or origin.username or origin.password or origin.path not in ('', '/') or origin.query or origin.fragment:
+            raise ValueError('Use an HTTPS app-link origin without a path or credentials')
+    if args.build_number is not None and args.build_number <= 0:
+        raise ValueError('Android build number must be positive')
     mobile = Path(__file__).resolve().parents[1]
     source = mobile.parent
     commit = pin_source(source)
@@ -64,7 +73,10 @@ def main():
     environment.pop('C_INCLUDE_PATH', None)
     run('flutter', 'build', 'apk', '--release', '--target-platform', 'android-arm64',
         '-P', 'disable-abi-filtering=true',
-        '--dart-define=AEGIS_BUILD=true', cwd=mobile, env=environment)
+        '--dart-define=AEGIS_BUILD=true',
+        *(['--dart-define=IMMICH_APP_LINK_ORIGIN=' + args.app_link_origin] if args.app_link_origin else []),
+        *(['--build-number=' + str(args.build_number)] if args.build_number else []),
+        cwd=mobile, env=environment)
     verify_source(source, commit)
     sdk = Path(os.environ.get('ANDROID_HOME') or os.environ['ANDROID_SDK_ROOT'])
     tools = sorted((sdk / 'build-tools').iterdir(), key=lambda p: tuple(map(int, p.name.split('.'))))[-1]
@@ -79,6 +91,10 @@ def main():
     identity = re.search(r"package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'", badging)
     if not identity or identity[1] != 'app.alextran.immich.aegis':
         raise RuntimeError('The APK must coexist with the official Immich application')
+    if args.app_link_origin:
+        manifest = run(str(tools / 'aapt'), 'dump', 'xmltree', str(apk), 'AndroidManifest.xml', stdout=subprocess.PIPE, text=True).stdout
+        if f'\"{origin.hostname}\"' not in manifest or f'\"{origin.port or 443}\"' not in manifest:
+            raise RuntimeError('The built APK does not advertise the requested app-link host and port')
     with zipfile.ZipFile(apk) as archive:
         abis = sorted({name.split('/')[1] for name in archive.namelist() if name.startswith('lib/')})
     if abis != ['arm64-v8a']:
@@ -93,7 +109,7 @@ def main():
     result = {'application_id': identity[1], 'version_code': int(identity[2]), 'version_name': identity[3],
               'source_commit': commit, 'certificate_sha256': expected, 'abis': abis,
               'sha256': checksum,
-              'bytes': target.stat().st_size, 'flutter': flutter['frameworkVersion'],
+              'bytes': target.stat().st_size, 'app_link_origin': args.app_link_origin, 'flutter': flutter['frameworkVersion'],
               'dart': flutter['dartSdkVersion'], 'android_build_tools': tools.name}
     (args.output / 'APK.json').write_text(json.dumps(result, indent=2) + '\n')
     print(json.dumps(result))
