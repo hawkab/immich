@@ -22,6 +22,7 @@ patch --no-backup-if-mismatch -u ../mobile/generated/openapi/pubspec.yaml <./pat
 patch --no-backup-if-mismatch -u ../mobile/generated/openapi/lib/model/asset_edit_action_item_dto.dart <./patch/asset_edit_action_item_dto.dart.patch
 patch --no-backup-if-mismatch -u ../mobile/generated/openapi/lib/model/asset_edit_action_item_response_dto.dart <./patch/asset_edit_action_item_response_dto.dart.patch
 patch --no-backup-if-mismatch -u ../mobile/generated/openapi/lib/model/passkey_authentication_finish_dto.dart <./patch/passkey_authentication_finish_dto.dart.patch
+patch --no-backup-if-mismatch -u ../mobile/generated/openapi/lib/model/admin_config_transcription_dto.dart <./patch/admin_config_transcription_dto.dart.patch
 # Don't include analysis_options.yaml for the generated openapi files
 # so that language servers can properly exclude the mobile/generated/openapi directory
 rm ../mobile/generated/openapi/analysis_options.yaml

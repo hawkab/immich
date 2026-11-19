@@ -182,3 +182,15 @@ test('a visual explanation locates a real candidate frame and sends its measured
     region: { x: 0.5, y: 0.25, width: 0.5, height: 0.5 },
   });
 });
+
+test('a visual region cannot follow an edited preview with an unchanged original checksum', () => {
+  const asset = factory.asset({ checksum: 'same-original', thumbhash: 'first-preview' });
+  assetViewerManager.focusSearch({
+    assetId: asset.id,
+    checksum: asset.checksum,
+    revision: JSON.stringify([asset.thumbhash, asset.isEdited]),
+    region: { x: 0.5, y: 0, width: 0.5, height: 1 },
+  });
+  expect(assetViewerManager.getSearchFocus(asset)).toBeDefined();
+  expect(assetViewerManager.getSearchFocus({ ...asset, thumbhash: 'edited-preview' })).toBeUndefined();
+});
