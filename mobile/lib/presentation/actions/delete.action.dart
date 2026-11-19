@@ -45,7 +45,9 @@ final _stateProvider = Provider.family.autoDispose<_State?, ActionSource>((ref, 
     }
   }
   final includesPartner = remoteTargets.any((asset) => asset.ownerId != authUserId);
-  if (includesPartner) remoteTargets.removeWhere((asset) => asset.isTrashed || asset.isLocked);
+  if (includesPartner) {
+    remoteTargets.removeWhere((asset) => asset.isTrashed || asset.isLocked);
+  }
 
   if (localIds.isEmpty && remoteTargets.isEmpty) {
     return null;

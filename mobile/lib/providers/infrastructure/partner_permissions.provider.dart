@@ -11,7 +11,9 @@ final partnerPermissionsRepositoryProvider = Provider(
 final partnerDeleteOwnersProvider = FutureProvider.autoDispose<Set<String>>((ref) {
   ref.watch(authUserProvider.select((user) => user.id));
   ref.listen(appStateProvider, (previous, next) {
-    if (next == AppLifeCycleEnum.resumed || next == AppLifeCycleEnum.active) ref.invalidateSelf();
+    if (next == AppLifeCycleEnum.resumed || next == AppLifeCycleEnum.active) {
+      ref.invalidateSelf();
+    }
   });
   return ref.watch(partnerPermissionsRepositoryProvider).deleteOwners();
 });
