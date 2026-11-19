@@ -3,18 +3,17 @@ import 'dart:convert';
 import 'package:auto_route/auto_route.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/data/store.dart';
-import 'package:immich_mobile/entities/store.entity.dart' as settings;
-import 'package:immich_mobile/domain/models/store.model.dart';
-import 'package:immich_mobile/domain/utils/server_link.dart';
-import 'package:immich_mobile/infrastructure/repositories/network.repository.dart';
-import 'package:immich_mobile/services/api.service.dart';
 import 'package:immich_mobile/domain/models/memory.model.dart';
+import 'package:immich_mobile/domain/models/store.model.dart';
 import 'package:immich_mobile/domain/models/user.model.dart';
 import 'package:immich_mobile/domain/services/asset.service.dart'
     as beta_asset_service;
 import 'package:immich_mobile/domain/services/memory.service.dart';
 import 'package:immich_mobile/domain/services/remote_album.service.dart';
 import 'package:immich_mobile/domain/services/timeline.service.dart';
+import 'package:immich_mobile/domain/utils/server_link.dart';
+import 'package:immich_mobile/entities/store.entity.dart' as settings;
+import 'package:immich_mobile/infrastructure/repositories/network.repository.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/asset_viewer.page.dart';
 import 'package:immich_mobile/providers/infrastructure/album.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/asset.provider.dart'
@@ -23,6 +22,7 @@ import 'package:immich_mobile/providers/infrastructure/db.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/timeline.provider.dart';
 import 'package:immich_mobile/providers/user.provider.dart';
 import 'package:immich_mobile/routing/router.dart';
+import 'package:immich_mobile/services/api.service.dart';
 
 final deepLinkServiceProvider = Provider(
   (ref) => DeepLinkService(
@@ -72,8 +72,12 @@ class DeepLinkService {
     PlatformDeepLink link,
     WidgetRef ref,
   ) async {
-    final endpoint = Uri.tryParse(settings.Store.tryGet(StoreKey.serverEndpoint) ?? '');
-    if (endpoint == null || !sameLinkOrigin(link.uri, endpoint)) return null;
+    final endpoint = Uri.tryParse(
+      settings.Store.tryGet(StoreKey.serverEndpoint) ?? '',
+    );
+    if (endpoint == null || !sameLinkOrigin(link.uri, endpoint)) {
+      return null;
+    }
     try {
       final resolved = await resolveServerLink(link.uri, endpoint, (
         code,
@@ -88,13 +92,18 @@ class DeepLinkService {
           uri,
           headers: ApiService.getRequestHeaders(),
         );
-        if (response.statusCode != 200) return null;
+        if (response.statusCode != 200) {
+          return null;
+        }
         final value = jsonDecode(response.body);
         return value is Map<String, dynamic> && value['path'] is String
             ? value['path'] as String
             : null;
       });
-      return resolved == null ? null : _buildWebPath(resolved.path, ref);
+      if (resolved == null) {
+        return null;
+      }
+      return await _buildWebPath(resolved.path, ref);
     } catch (_) {
       return null;
     }
@@ -106,7 +115,9 @@ class DeepLinkService {
   ) => _buildWebPath(link.uri.path, ref);
 
   Future<PageRouteInfo?> _buildWebPath(String path, WidgetRef ref) async {
-    if (path == '/') return const TabShellRoute();
+    if (path == '/') {
+      return const TabShellRoute();
+    }
 
     const uuidRegex =
         r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
