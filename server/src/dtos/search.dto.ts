@@ -365,6 +365,10 @@ const RandomSearchSchema = withShapeExclusivity(RandomSearchBaseSchema).meta({ i
 
 const MetadataSearchSchema = withShapeExclusivity(
   RandomSearchBaseSchema.extend({
+    explainAssetId: z
+      .uuidv4()
+      .optional()
+      .describe('Explain only this asset while applying every original search condition'),
     id: z.uuidv4().optional().describe('Filter by asset ID').meta(DEPRECATED_FLAT_FIELD),
     description: z.string().trim().optional().describe('Filter by description text').meta(DEPRECATED_FLAT_FIELD),
     checksum: z.string().optional().describe('Filter by file checksum').meta(DEPRECATED_FLAT_FIELD),
@@ -395,6 +399,10 @@ const SmartSearchSchema = withShapeExclusivity(
       .optional()
       .describe('Search spoken video words only; also available with speech: or речь: prefix'),
     query: z.string().trim().optional().describe('Natural language search query'),
+    explainAssetId: z
+      .uuidv4()
+      .optional()
+      .describe('Explain only this asset while applying every original search condition'),
     useSceneDescriptions: z
       .boolean()
       .optional()

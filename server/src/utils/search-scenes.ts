@@ -28,18 +28,16 @@ export function sceneDescriptionMatches(query: string, includeDepictions = false
   )`;
 }
 
-export const smartSearchEvidence = (options: {
+export type SmartSearchEvidenceOptions = {
   embedding: string;
   transcriptQuery?: string;
   transcriptOnly?: boolean;
   sceneQuery?: string;
   includeDepictions?: boolean;
   minSimilarity?: number | null;
-}) => {
-  const speech = options.transcriptQuery ? sql<SqlBool>`transcript_match.score > 0` : sql<SqlBool>`false`;
-  if (options.transcriptOnly) {
-    return speech;
-  }
+};
+
+export const visualSearchEvidence = (options: SmartSearchEvidenceOptions) => {
   const scene = options.sceneQuery
     ? sceneDescriptionMatches(options.sceneQuery, options.includeDepictions)
     : sql<SqlBool>`true`;
@@ -47,5 +45,10 @@ export const smartSearchEvidence = (options: {
     typeof options.minSimilarity === 'number'
       ? sql<SqlBool>`smart_search.embedding <=> ${options.embedding} <= ${1 - options.minSimilarity}`
       : sql<SqlBool>`true`;
-  return sql<SqlBool>`((smart_search."assetId" is not null and ${scene} and ${threshold}) or ${speech})`;
+  return sql<SqlBool>`(smart_search."assetId" is not null and ${scene} and ${threshold})`;
+};
+
+export const smartSearchEvidence = (options: SmartSearchEvidenceOptions) => {
+  const speech = options.transcriptQuery ? sql<SqlBool>`transcript_match.score > 0` : sql<SqlBool>`false`;
+  return options.transcriptOnly ? speech : sql<SqlBool>`(${visualSearchEvidence(options)} or ${speech})`;
 };

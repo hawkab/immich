@@ -3,6 +3,7 @@
   import DetailPanelDescription from '#lib/components/asset-viewer/DetailPanelDescription.svelte';
   import DetailPanelLocation from '#lib/components/asset-viewer/DetailPanelLocation.svelte';
   import DetailPanelPeople from '#lib/components/asset-viewer/DetailPanelPeople.svelte';
+  import DetailPanelSearchMatch from '#lib/components/asset-viewer/DetailPanelSearchMatch.svelte';
   import DetailPanelRating from '#lib/components/asset-viewer/DetailPanelStarRating.svelte';
   import DetailPanelTags from '#lib/components/asset-viewer/DetailPanelTags.svelte';
   import DetailPanelTranscript from '#lib/components/asset-viewer/DetailPanelTranscript.svelte';
@@ -139,6 +140,7 @@
       </section>
     {/if}
 
+    <DetailPanelSearchMatch {asset} />
     <DetailPanelDescription {asset} {isOwner} />
     <DetailPanelTranscript {asset} />
     <DetailPanelRating {asset} {isOwner} />

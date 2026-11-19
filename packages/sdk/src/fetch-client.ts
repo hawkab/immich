@@ -1296,6 +1296,21 @@ export type PersonResponseDto = {
     /** Last update date */
     updatedAt?: string;
 };
+export type SearchMatch = {
+    filters: {
+        field: string;
+        value: string;
+    }[];
+    query?: string;
+    referenceAssetId?: string;
+    sourceChecksum: string;
+    sources: Sources[];
+    speech?: {
+        end: number;
+        start: number;
+        text: string;
+    };
+};
 export type AssetStackResponseDto = {
     /** Number of assets in stack */
     assetCount: number;
@@ -1372,6 +1387,8 @@ export type AssetResponseDto = {
     people?: PersonResponseDto[];
     /** Is resized */
     resized?: boolean;
+    /** Evidence for this search result; does not change the asset */
+    searchMatch?: SearchMatch;
     stack?: (AssetStackResponseDto) | null;
     tags?: TagResponseDto[];
     /** Thumbhash for thumbnail generation (base64) also used as the c query param for thumbnail cache busting. */
@@ -2586,6 +2603,8 @@ export type MetadataSearchDto = {
     description?: string;
     /** Filter by encoded video file path */
     encodedVideoPath?: string;
+    /** Explain only this asset while applying every original search condition */
+    explainAssetId?: string;
     filter?: SearchFilter;
     /** Filter by asset ID */
     id?: string;
@@ -2778,6 +2797,8 @@ export type SmartSearchDto = {
     createdAfter?: string;
     /** Filter by creation date (before) */
     createdBefore?: string;
+    /** Explain only this asset while applying every original search condition */
+    explainAssetId?: string;
     filter?: SearchFilter;
     /** Include subjects present only as drawings, toys, models or text mentions */
     includeDepictions?: boolean;
@@ -8750,6 +8771,14 @@ export enum PersonUserRole {
     Read = "read",
     Write = "write",
     Admin = "admin"
+}
+export enum Sources {
+    Visual = "visual",
+    Scene = "scene",
+    SpeechLexical = "speech-lexical",
+    SpeechFuzzy = "speech-fuzzy",
+    SpeechSemantic = "speech-semantic",
+    Metadata = "metadata"
 }
 export enum AssetTypeEnum {
     Image = "IMAGE",

@@ -31,6 +31,7 @@ import { isSmartSearchEnabled } from 'src/utils/misc.js';
 import { decodeSearchCursor, encodeSearchCursor } from 'src/utils/search-cursor.js';
 import { applyLockedVisibilityPolicy, collectFilterIds } from 'src/utils/search-filter.js';
 import { resolveNamedSearch } from 'src/utils/search-intent.js';
+import { searchMatch, type RawSearchMatch } from 'src/utils/search-match.js';
 import { speechQuery } from 'src/utils/transcription.js';
 
 @Injectable()
@@ -112,7 +113,7 @@ export class SearchService extends BaseService {
       },
     );
 
-    return this.mapResponse(items, { auth }, { nextPage: hasNextPage ? (page + 1).toString() : null });
+    return this.mapResponse(items, { auth }, { nextPage: hasNextPage ? (page + 1).toString() : null }, dto);
   }
 
   async searchStatistics(auth: AuthDto, dto: StatisticsSearchDto): Promise<SearchStatisticsResponseDto> {
@@ -167,7 +168,7 @@ export class SearchService extends BaseService {
     return items.map((item) => mapAsset(item, { auth }));
   }
 
-  async searchSmart(auth: AuthDto, dto: SmartSearchDto): Promise<SearchResponseDto> {
+  async searchSmart(auth: AuthDto, dto: SmartSearchDto & { matchedPeople?: string[] }): Promise<SearchResponseDto> {
     const speech = speechQuery(dto.query);
     dto = { ...dto, query: speech.query, ...((dto.transcriptOnly || speech.only) && { transcriptOnly: true }) };
     const planned = dto.transcriptOnly ? undefined : await this.resolveNamedQuery(auth, dto);
@@ -219,7 +220,7 @@ export class SearchService extends BaseService {
       },
     );
 
-    return this.mapResponse(items, { auth }, { nextPage: hasNextPage ? (page + 1).toString() : null });
+    return this.mapResponse(items, { auth }, { nextPage: hasNextPage ? (page + 1).toString() : null }, dto);
   }
 
   async getAssetsByCity(auth: AuthDto): Promise<AssetResponseDto[]> {
@@ -272,6 +273,7 @@ export class SearchService extends BaseService {
       { take: size, skip: offset },
       {
         filter,
+        explainAssetId: dto.explainAssetId,
         withExif: dto.withExif,
         withPeople: dto.withPeople,
         withStacked: dto.withStacked,
@@ -280,7 +282,12 @@ export class SearchService extends BaseService {
       scope,
     );
 
-    return this.mapResponse(items, { auth }, { nextCursor: hasNextPage ? encodeSearchCursor(offset + size) : null });
+    return this.mapResponse(
+      items,
+      { auth },
+      { nextCursor: hasNextPage ? encodeSearchCursor(offset + size) : null },
+      dto,
+    );
   }
 
   private async searchStatisticsV3(auth: AuthDto, dto: StatisticsSearchDto): Promise<SearchStatisticsResponseDto> {
@@ -303,7 +310,10 @@ export class SearchService extends BaseService {
     return items.map((item) => mapAsset(item, { auth }));
   }
 
-  private async searchSmartV3(auth: AuthDto, dto: SmartSearchDto): Promise<SearchResponseDto> {
+  private async searchSmartV3(
+    auth: AuthDto,
+    dto: SmartSearchDto & { matchedPeople?: string[] },
+  ): Promise<SearchResponseDto> {
     const { machineLearning } = await this.getConfig({ withCache: false });
     if (dto.transcriptOnly && (!machineLearning.enabled || !machineLearning.transcription.enabled)) {
       throw new BadRequestException('Video transcription is not enabled');
@@ -324,6 +334,7 @@ export class SearchService extends BaseService {
       { take: dto.size },
       {
         filter,
+        explainAssetId: dto.explainAssetId,
         withExif: dto.withExif,
         embedding,
         ...(machineLearning.transcription.enabled &&
@@ -338,7 +349,7 @@ export class SearchService extends BaseService {
       scope,
     );
 
-    return this.mapResponse(items, { auth });
+    return this.mapResponse(items, { auth }, {}, dto);
   }
 
   private async resolveSearchScopeV3(
@@ -378,7 +389,10 @@ export class SearchService extends BaseService {
     };
   }
 
-  private async resolveNamedQuery(auth: AuthDto, dto: SmartSearchDto): Promise<SmartSearchDto | undefined> {
+  private async resolveNamedQuery(
+    auth: AuthDto,
+    dto: SmartSearchDto,
+  ): Promise<(SmartSearchDto & { matchedPeople?: string[] }) | undefined> {
     if (
       !dto.query ||
       auth.sharedLink ||
@@ -392,10 +406,18 @@ export class SearchService extends BaseService {
     if (!intent) {
       return;
     }
+    const matchedPeople = people
+      .filter((person) => intent.personIds.includes(person.personGroupId))
+      .map((person) => person.name);
     if (isNewShapeRequest(dto)) {
-      return { ...dto, query: intent.query, filter: { ...dto.filter, personIds: { all: intent.personIds } } };
+      return {
+        ...dto,
+        matchedPeople,
+        query: intent.query,
+        filter: { ...dto.filter, personIds: { all: intent.personIds } },
+      };
     }
-    return { ...dto, query: intent.query, personIds: intent.personIds };
+    return { ...dto, matchedPeople, query: intent.query, personIds: intent.personIds };
   }
 
   private async resolveEmbedding(
@@ -443,16 +465,23 @@ export class SearchService extends BaseService {
   }
 
   private mapResponse(
-    assets: MapAsset[],
+    assets: (MapAsset & { searchProvenance?: RawSearchMatch })[],
     options: AssetMapOptions,
     page: { nextPage?: string | null; nextCursor?: string | null } = {},
+    criteria?: SmartSearchDto | MetadataSearchDto,
   ): SearchResponseDto {
     return {
       albums: { total: 0, count: 0, items: [], facets: [] },
       assets: {
         total: assets.length,
         count: assets.length,
-        items: assets.map((asset) => mapAsset(asset, options)),
+        items: assets.map((asset) => ({
+          ...mapAsset(asset, options),
+          ...(criteria &&
+            !options.auth?.sharedLink && {
+              searchMatch: searchMatch(asset.checksum, criteria, asset.searchProvenance),
+            }),
+        })),
         facets: [],
         nextPage: page.nextPage ?? null,
         nextCursor: page.nextCursor ?? null,

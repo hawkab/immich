@@ -104,6 +104,14 @@ it('combines semantic, fuzzy and literal evidence while rejecting stale, incompa
   }
   const result = await searchFor('врач', { embedding: '[1,0]', transcriptModel: 'fixture-model' });
   expect(result.items.map((row) => row.id)).toEqual([exact.id, semantic.id]);
+  expect(result.items[0].searchProvenance).toMatchObject({ visual: false, score: 3 });
+  expect(result.items[1].searchProvenance).toMatchObject({ visual: false, score: expect.any(Number), part: 0 });
+  const explanation = await searchFor('врач', {
+    embedding: '[1,0]',
+    transcriptModel: 'fixture-model',
+    explainAssetId: semantic.id,
+  });
+  expect(explanation.items.map((row) => row.id)).toEqual([semantic.id]);
   const context = await searchFor('врач', {
     embedding: '[1,0]',
     transcriptModel: 'fixture-model',

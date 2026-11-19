@@ -1,6 +1,7 @@
 <script lang="ts">
   import { shortcuts, type ShortcutOptions } from '#lib/actions/shortcut.ts';
   import type { AssetCursor } from '#lib/components/asset-viewer/AssetViewer.svelte';
+  import SearchMatchBadge from '#lib/components/asset-viewer/SearchMatchBadge.svelte';
   import type { Action } from '#lib/components/asset-viewer/actions/action.ts';
   import Thumbnail from '#lib/components/assets/thumbnail/Thumbnail.svelte';
   import { AssetAction } from '#lib/constants.ts';
@@ -354,6 +355,7 @@
             thumbnailWidth={geometry.getWidth(index)}
             thumbnailHeight={geometry.getHeight(index)}
           />
+          {#if asset.searchMatch}<SearchMatchBadge match={asset.searchMatch} />{/if}
           {#if showAssetName && !isTimelineAsset(asset)}
             <div
               class="absolute bottom-0 w-full overflow-clip bg-slate-50/75 bg-linear-to-t p-1 text-center font-mono text-xs font-semibold text-ellipsis whitespace-pre-wrap dark:bg-slate-800/75"
