@@ -2,7 +2,8 @@ import 'dart:convert';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:immich_mobile/entities/store.entity.dart';
+import 'package:immich_mobile/data/store.dart';
+import 'package:immich_mobile/entities/store.entity.dart' as settings;
 import 'package:immich_mobile/domain/models/store.model.dart';
 import 'package:immich_mobile/domain/utils/server_link.dart';
 import 'package:immich_mobile/infrastructure/repositories/network.repository.dart';
@@ -71,7 +72,7 @@ class DeepLinkService {
     PlatformDeepLink link,
     WidgetRef ref,
   ) async {
-    final endpoint = Uri.tryParse(Store.tryGet(StoreKey.serverEndpoint) ?? '');
+    final endpoint = Uri.tryParse(settings.Store.tryGet(StoreKey.serverEndpoint) ?? '');
     if (endpoint == null || !sameLinkOrigin(link.uri, endpoint)) return null;
     try {
       final resolved = await resolveServerLink(link.uri, endpoint, (
