@@ -47,7 +47,7 @@ android {
 
   defaultConfig {
     applicationId "app.alextran.immich"
-    manifestPlaceholders["immichAppLinkHost"] = appLinkOrigin.host
+    manifestPlaceholders["immichAppLinkHost"] = appLinkOrigin.host.toLowerCase(Locale.ROOT)
     manifestPlaceholders["immichAppLinkPort"] = appLinkOrigin.port < 0 ? "443" : appLinkOrigin.port.toString()
     minSdk = 26
     targetSdk = flutter.targetSdkVersion
