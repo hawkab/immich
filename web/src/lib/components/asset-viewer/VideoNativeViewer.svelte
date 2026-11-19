@@ -88,11 +88,8 @@
   let playerHeight = $state(0);
   let focusedSequence: number | undefined;
   let playbackTime = $state(0);
-  const searchFocus = $derived(
-    assetViewerManager.searchFocus?.assetId === asset.id && assetViewerManager.searchFocus.checksum === asset.checksum
-      ? assetViewerManager.searchFocus
-      : undefined,
-  );
+  let playing = $state(false);
+  const searchFocus = $derived(assetViewerManager.getSearchFocus(asset));
   const evidenceSize = $derived(
     scaleToFit(
       { width: videoPlayer?.videoWidth || asset.width || 1, height: videoPlayer?.videoHeight || asset.height || 1 },
@@ -424,9 +421,11 @@
             oncanplay={(e: Event) => handleCanPlay(e.currentTarget as HTMLVideoElement)}
             onloadedmetadata={() => (hasLoadedMetadata = true)}
             ontimeupdate={() => (playbackTime = videoPlayer?.currentTime ?? 0)}
+            onpause={() => (playing = false)}
             onended={onVideoEnded}
             onseeking={onSeeking}
             onplaying={(e: Event) => {
+              playing = true;
               if (hasFocused) {
                 return;
               }
@@ -451,9 +450,11 @@
             oncanplay={(e) => handleCanPlay(e.currentTarget)}
             onloadedmetadata={() => (hasLoadedMetadata = true)}
             ontimeupdate={() => (playbackTime = videoPlayer?.currentTime ?? 0)}
+            onpause={() => (playing = false)}
             onended={onVideoEnded}
             onseeking={onSeeking}
             onplaying={(e) => {
+              playing = true;
               if (hasFocused) {
                 return;
               }
@@ -525,7 +526,7 @@
           </media-control-bar>
           <immich-time-range class="h-8 w-full rounded-lg px-2 pb-3 outline-none"></immich-time-range>
         </div>
-        {#if searchFocus?.region && searchFocus.time !== undefined && Math.abs(playbackTime - searchFocus.time) < 0.5}
+        {#if searchFocus?.region && searchFocus.time !== undefined && Math.abs(playbackTime - searchFocus.time) < 0.5 && !playing}
           <div
             slot="centered-chrome"
             class="absolute"

@@ -20,6 +20,7 @@
     assetViewerManager.focusSearch({
       assetId: asset.id,
       checksum: asset.checksum,
+      revision,
       time: value.time,
       region: value.region,
     });

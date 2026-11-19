@@ -11,6 +11,7 @@ import { cubicOut } from 'svelte/easing';
 export type SearchFocus = {
   assetId: string;
   checksum: string;
+  revision?: string;
   time?: number;
   speech?: { start: number; end: number; text: string };
   region?: { x: number; y: number; width: number; height: number };
@@ -50,6 +51,17 @@ class AssetViewerManager extends BaseEventManager<Events> {
 
   focusSearch(focus: SearchFocus) {
     this.searchFocus = { ...focus, sequence: ++this.focusSequence };
+  }
+
+  getSearchFocus(asset: AssetResponseDto) {
+    const focus = this.searchFocus;
+    if (
+      focus?.assetId !== asset.id ||
+      focus.checksum !== asset.checksum ||
+      (focus.region && focus.revision !== JSON.stringify([asset.thumbhash, asset.isEdited]))
+    )
+      return;
+    return focus;
   }
 
   imgRef = $state<HTMLImageElement | undefined>();

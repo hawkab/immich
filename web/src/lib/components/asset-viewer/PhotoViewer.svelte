@@ -38,11 +38,7 @@
 
   const { slideshowState, slideshowLook } = slideshowStore;
   const asset = $derived(cursor.current);
-  const searchFocus = $derived(
-    assetViewerManager.searchFocus?.assetId === asset.id && assetViewerManager.searchFocus.checksum === asset.checksum
-      ? assetViewerManager.searchFocus
-      : undefined,
-  );
+  const searchFocus = $derived(assetViewerManager.getSearchFocus(asset));
 
   let visibleImageReady: boolean = $state(false);
 

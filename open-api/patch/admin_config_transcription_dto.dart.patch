@@ -1,0 +1,11 @@
+--- admin_config_transcription_dto.dart
++++ admin_config_transcription_dto.dart
+@@ -17,7 +17,7 @@
+     this.enabled = const Optional.present(false),
+     this.language = const Optional.present('ru'),
+     this.model = const Optional.present('v3_e2e_ctc'),
+-    this.provider = const Optional.present(const AdminConfigTranscriptionDtoProviderEnum._('gigaam')),
++    this.provider = const Optional.present(AdminConfigTranscriptionDtoProviderEnum.gigaam),
+     this.searchMinSimilarity = const Optional.present(0.85),
+     this.url = const Optional.present('http://172.30.72.254:8000/v1/audio/transcriptions'),
+   });
