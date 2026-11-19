@@ -111,6 +111,20 @@
         <data android:scheme="immich" />
       </intent-filter>
 
+      <intent-filter android:autoVerify="true">
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="https" android:host="${immichAppLinkHost}" android:port="${immichAppLinkPort}" />
+        <data android:path="/" />
+        <data android:pathPrefix="/photos/" />
+        <data android:pathPrefix="/albums/" />
+        <data android:pathPrefix="/people/" />
+        <data android:pathPrefix="/search/" />
+        <data android:pathPrefix="/utilities/" />
+        <data android:pathPrefix="/s/" />
+      </intent-filter>
+
       <!-- my.immich.app deep link -->
       <intent-filter android:autoVerify="true">
         <action android:name="android.intent.action.VIEW" />
