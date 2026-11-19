@@ -3248,6 +3248,14 @@ export type AssetIdsResponseDto = {
     /** Whether operation succeeded */
     success: boolean;
 };
+export type ShortLinkResponseDto = {
+    code: string;
+    path: string;
+};
+export type ShortLinkCreateDto = {
+    id: string;
+    "type": ShortLinkTargetType;
+};
 export type StackResponseDto = {
     assets: AssetResponseDto[];
     /** Stack ID */
@@ -7556,6 +7564,56 @@ export function addSharedLinkAssets({ id, assetIdsDto }: {
     })));
 }
 /**
+ * List your private short links
+ */
+export function getShortLinks(opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchJson<{
+        status: 200;
+        data: ShortLinkResponseDto[];
+    }>("/short-links", {
+        ...opts
+    }));
+}
+/**
+ * Create a private short link
+ */
+export function createShortLink({ shortLinkCreateDto }: {
+    shortLinkCreateDto: ShortLinkCreateDto;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchJson<{
+        status: 201;
+        data: ShortLinkResponseDto;
+    }>("/short-links", oazapfts.json({
+        ...opts,
+        method: "POST",
+        body: shortLinkCreateDto
+    })));
+}
+/**
+ * Revoke your private short link
+ */
+export function deleteShortLink({ code }: {
+    code: string;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchText(`/short-links/${encodeURIComponent(code)}`, {
+        ...opts,
+        method: "DELETE"
+    }));
+}
+/**
+ * Resolve a private short link
+ */
+export function getShortLink({ code }: {
+    code: string;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchJson<{
+        status: 200;
+        data: ShortLinkResponseDto;
+    }>(`/short-links/${encodeURIComponent(code)}`, {
+        ...opts
+    }));
+}
+/**
  * Delete stacks
  */
 export function deleteStacks({ bulkIdsDto }: {
@@ -8566,6 +8624,9 @@ export enum BulkIdErrorReason {
     Validation = "validation"
 }
 export enum Permission {
+    ShortLinkCreate = "shortLink.create",
+    ShortLinkRead = "shortLink.read",
+    ShortLinkDelete = "shortLink.delete",
     All = "all",
     ActivityCreate = "activity.create",
     ActivityRead = "activity.read",
@@ -9003,6 +9064,11 @@ export enum AssetIdErrorReason {
     Duplicate = "duplicate",
     NoPermission = "no_permission",
     NotFound = "not_found"
+}
+export enum ShortLinkTargetType {
+    Asset = "asset",
+    Album = "album",
+    Person = "person"
 }
 export enum SyncEntityType {
     AuthUserV1 = "AuthUserV1",
