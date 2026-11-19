@@ -2926,6 +2926,31 @@ export type SearchStatisticsResponseDto = {
     /** Total number of matching assets */
     total: number;
 };
+export type VisualEvidenceDto = {
+    assetId: string;
+    generation?: string;
+    language?: string;
+    localize?: boolean;
+    query?: string;
+    queryAssetId?: string;
+    sourceChecksum: string;
+    time?: number;
+};
+export type VisualEvidenceResponseDto = {
+    assetId: string;
+    generation: string;
+    localized: boolean;
+    model: string;
+    region: {
+        height: number;
+        width: number;
+        x: number;
+        y: number;
+    };
+    similarity: number;
+    sourceChecksum: string;
+    time?: number;
+};
 export type ServerAboutResponseDto = {
     /** Build identifier */
     build?: string;
@@ -7182,6 +7207,21 @@ export function getSearchSuggestions({ country, includeNull, lensModel, make, mo
     }))}`, {
         ...opts
     }));
+}
+/**
+ * Locate visually similar content in an image or video frame
+ */
+export function getVisualEvidence({ visualEvidenceDto }: {
+    visualEvidenceDto: VisualEvidenceDto;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchJson<{
+        status: 200;
+        data: VisualEvidenceResponseDto;
+    }>("/search/visual-evidence", oazapfts.json({
+        ...opts,
+        method: "POST",
+        body: visualEvidenceDto
+    })));
 }
 /**
  * Get server information

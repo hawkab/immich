@@ -1,5 +1,6 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { LRUMap } from 'mnemonist';
+import { readFile } from 'node:fs/promises';
 import { AssetMapOptions, AssetResponseDto, MapAsset, mapAsset } from 'src/dtos/asset-response.dto.js';
 import { AuthDto } from 'src/dtos/auth.dto.js';
 import { SystemConfig } from 'src/dtos/config.dto.js';
@@ -22,20 +23,77 @@ import {
   isNewShapeRequest,
   mapPlaces,
 } from 'src/dtos/search.dto.js';
-import { AssetOrder, AssetVisibility, Permission } from 'src/enum.js';
+import { VisualEvidenceDto, VisualEvidenceResponseDto } from 'src/dtos/visual-evidence.dto.js';
+import { AssetFileType, AssetOrder, AssetType, AssetVisibility, Permission } from 'src/enum.js';
 import { AssetSearchScope } from 'src/repositories/search.repository.js';
 import { BaseService } from 'src/services/base.service.js';
 import { requireElevatedPermission } from 'src/utils/access.js';
 import { getMyPartnerIds } from 'src/utils/asset.util.js';
+import { mediaProof, proofForPath } from 'src/utils/media-generation.js';
 import { isSmartSearchEnabled } from 'src/utils/misc.js';
 import { decodeSearchCursor, encodeSearchCursor } from 'src/utils/search-cursor.js';
 import { applyLockedVisibilityPolicy, collectFilterIds } from 'src/utils/search-filter.js';
 import { resolveNamedSearch } from 'src/utils/search-intent.js';
 import { searchMatch, type RawSearchMatch } from 'src/utils/search-match.js';
 import { speechQuery } from 'src/utils/transcription.js';
+import { VisualEvidenceEngine } from 'src/utils/visual-evidence.js';
 
 @Injectable()
 export class SearchService extends BaseService {
+  private visualEvidenceEngine = new VisualEvidenceEngine();
+
+  async visualEvidence(auth: AuthDto, dto: VisualEvidenceDto): Promise<VisualEvidenceResponseDto> {
+    await this.requireAccess({ auth, ids: [dto.assetId], permission: Permission.AssetRead });
+    const { machineLearning } = await this.getConfig({ withCache: true });
+    if (!isSmartSearchEnabled(machineLearning)) throw new BadRequestException('Smart search is disabled');
+    const asset = await this.assetRepository.getById(dto.assetId, { files: true, edits: true });
+    if (!asset || asset.deletedAt) throw new BadRequestException('Asset is unavailable');
+    const proof = mediaProof({ ...asset, edits: asset.edits ?? [] });
+    if (proof.sourceChecksum !== dto.sourceChecksum || (dto.generation && proof.generation !== dto.generation))
+      throw new ConflictException('The displayed media changed');
+    let time: number | undefined;
+    let path: string;
+    if (asset.type === AssetType.Video) {
+      time = dto.time ?? 0;
+      if (!asset.duration || time >= asset.duration / 1000 || (asset.edits ?? []).length > 0)
+        throw new BadRequestException('The video frame is unavailable');
+      path = asset.originalPath;
+    } else {
+      const preview = (asset.files ?? []).find(
+        (file) => file.type === AssetFileType.Preview && file.isEdited === (asset.edits ?? []).length > 0,
+      );
+      if (!preview || ((asset.edits ?? []).length > 0 && !proofForPath(preview.path, proof)))
+        throw new ConflictException('The current preview is not ready');
+      path = preview.path;
+    }
+    const target = await this.resolveEmbedding(auth, { ...dto, size: 1 }, machineLearning);
+    const model = machineLearning.clip.modelName;
+    const evidence = await this.visualEvidenceEngine.explain(
+      JSON.stringify([proof.generation, path, time, model]),
+      () => (time === undefined ? readFile(path) : this.mediaRepository.extractVideoFrame(path, time)),
+      target,
+      (image) => this.machineLearningRepository.encodeImageBuffer(image, machineLearning.clip),
+      dto.localize,
+    );
+    await this.requireAccess({ auth, ids: [dto.assetId], permission: Permission.AssetRead });
+    if (dto.queryAssetId) await this.requireAccess({ auth, ids: [dto.queryAssetId], permission: Permission.AssetRead });
+    const current = await this.assetRepository.getById(dto.assetId, { edits: true });
+    if (
+      !current ||
+      current.deletedAt ||
+      mediaProof({ ...current, edits: current.edits ?? [] }).generation !== proof.generation
+    )
+      throw new ConflictException('The media changed during analysis');
+    return {
+      assetId: asset.id,
+      sourceChecksum: proof.sourceChecksum,
+      generation: proof.generation,
+      model,
+      time,
+      ...evidence,
+    };
+  }
+
   private embeddingCache = new LRUMap<string, string>(100);
 
   async searchPerson(auth: AuthDto, dto: SearchPeopleDto): Promise<PersonResponseDto[]> {

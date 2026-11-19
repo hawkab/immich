@@ -1,4 +1,5 @@
 <script lang="ts">
+  import SearchMatchOverlay from '#lib/components/asset-viewer/SearchMatchOverlay.svelte';
   import VideoRemoteViewer from '#lib/components/asset-viewer/VideoRemoteViewer.svelte';
   import FaceEditor from '#lib/components/asset-viewer/face-editor/FaceEditor.svelte';
   import { assetViewerFadeDuration } from '#lib/constants.ts';
@@ -10,6 +11,7 @@
   import { getPublicConfigQuery } from '#lib/queries/config-public.query.ts';
   import { autoPlayVideo, lang, loopVideo as loopVideoPreference } from '#lib/stores/preferences.store.ts';
   import { getAssetHlsSessionUrl, getAssetHlsUrl, getAssetMediaUrl, getAssetPlaybackUrl } from '#lib/utils.ts';
+  import { scaleToFit } from '#lib/utils/container-utils.ts';
   import { AssetMediaSize, type AssetResponseDto } from '@immich/sdk';
   import { Icon, LoadingSpinner, shortcuts } from '@immich/ui';
   import {
@@ -80,6 +82,36 @@
 
   let videoPlayer: HTMLVideoElement | undefined = $state();
   let isLoading = $state(true);
+  let containerWidth = $state(0);
+  let containerHeight = $state(0);
+  let playerWidth = $state(0);
+  let playerHeight = $state(0);
+  let focusedSequence: number | undefined;
+  let playbackTime = $state(0);
+  const searchFocus = $derived(
+    assetViewerManager.searchFocus?.assetId === asset.id && assetViewerManager.searchFocus.checksum === asset.checksum
+      ? assetViewerManager.searchFocus
+      : undefined,
+  );
+  const evidenceSize = $derived(
+    scaleToFit(
+      { width: videoPlayer?.videoWidth || asset.width || 1, height: videoPlayer?.videoHeight || asset.height || 1 },
+      { width: playerWidth, height: playerHeight },
+    ),
+  );
+  $effect(() => {
+    if (
+      videoPlayer &&
+      hasLoadedMetadata &&
+      searchFocus?.time !== undefined &&
+      focusedSequence !== searchFocus.sequence
+    ) {
+      focusedSequence = searchFocus.sequence;
+      if (searchFocus.region) videoPlayer.pause();
+      videoPlayer.currentTime = searchFocus.time;
+      playbackTime = searchFocus.time;
+    }
+  });
   let hasLoadedMetadata = $state(false);
   let assetFileUrl = $derived.by(() => {
     if (publicConfig.ffmpeg.realtime.enabled) {
@@ -319,9 +351,6 @@
     }
   };
 
-  let containerWidth = $state(0);
-  let containerHeight = $state(0);
-
   $effect(() => {
     if (assetViewerManager.isFaceEditMode) {
       videoPlayer?.pause();
@@ -357,7 +386,7 @@
 {#if showVideo}
   <div
     transition:fade={{ duration: assetViewerFadeDuration }}
-    class="flex h-full place-content-center place-items-center select-none"
+    class="relative flex h-full place-content-center place-items-center select-none"
     bind:clientWidth={containerWidth}
     bind:clientHeight={containerHeight}
   >
@@ -376,6 +405,8 @@
         dir="ltr"
         lang={$lang}
         nohotkeys
+        bind:clientWidth={playerWidth}
+        bind:clientHeight={playerHeight}
         class="dark h-full max-w-full"
         style:aspect-ratio={aspectRatio}
         defaultduration={asset.duration! / 1000}
@@ -392,6 +423,7 @@
             class="h-full object-contain"
             oncanplay={(e: Event) => handleCanPlay(e.currentTarget as HTMLVideoElement)}
             onloadedmetadata={() => (hasLoadedMetadata = true)}
+            ontimeupdate={() => (playbackTime = videoPlayer?.currentTime ?? 0)}
             onended={onVideoEnded}
             onseeking={onSeeking}
             onplaying={(e: Event) => {
@@ -418,6 +450,7 @@
             class="h-full object-contain"
             oncanplay={(e) => handleCanPlay(e.currentTarget)}
             onloadedmetadata={() => (hasLoadedMetadata = true)}
+            ontimeupdate={() => (playbackTime = videoPlayer?.currentTime ?? 0)}
             onended={onVideoEnded}
             onseeking={onSeeking}
             onplaying={(e) => {
@@ -492,6 +525,17 @@
           </media-control-bar>
           <immich-time-range class="h-8 w-full rounded-lg px-2 pb-3 outline-none"></immich-time-range>
         </div>
+        {#if searchFocus?.region && searchFocus.time !== undefined && Math.abs(playbackTime - searchFocus.time) < 0.5}
+          <div
+            slot="centered-chrome"
+            class="absolute"
+            style:pointer-events="none"
+            style:width={`${evidenceSize.width}px`}
+            style:height={`${evidenceSize.height}px`}
+          >
+            <SearchMatchOverlay region={searchFocus.region} sequence={searchFocus.sequence} />
+          </div>
+        {/if}
       </media-controller>
 
       {#if isLoading}

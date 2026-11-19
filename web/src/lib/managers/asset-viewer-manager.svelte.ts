@@ -8,6 +8,14 @@ import { getAssetInfo, type AssetResponseDto } from '@immich/sdk';
 import type { ZoomImageWheelState } from '@zoom-image/core';
 import { cubicOut } from 'svelte/easing';
 
+export type SearchFocus = {
+  assetId: string;
+  checksum: string;
+  time?: number;
+  speech?: { start: number; end: number; text: string };
+  region?: { x: number; y: number; width: number; height: number };
+};
+
 export interface Faces {
   id: string;
   imageHeight: number;
@@ -36,6 +44,13 @@ export type Events = {
 class AssetViewerManager extends BaseEventManager<Events> {
   #zoomState = $state(createDefaultZoomState());
   #animationFrameId: number | null = null;
+
+  searchFocus = $state<(SearchFocus & { sequence: number }) | undefined>();
+  private focusSequence = 0;
+
+  focusSearch(focus: SearchFocus) {
+    this.searchFocus = { ...focus, sequence: ++this.focusSequence };
+  }
 
   imgRef = $state<HTMLImageElement | undefined>();
   imageLoaderStatus = $state<ImageLoaderStatus | undefined>();
@@ -246,6 +261,7 @@ class AssetViewerManager extends BaseEventManager<Events> {
   }
 
   setAsset(asset: AssetResponseDto) {
+    if (this.#viewingAssetStoreState?.id !== asset.id) this.searchFocus = undefined;
     this.#viewingAssetStoreState = asset;
     this.#viewState = true;
   }

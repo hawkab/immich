@@ -254,6 +254,27 @@ export class MediaRepository {
     return Buffer.from(rgbaToThumbHash(info.width, info.height, data));
   }
 
+  extractVideoFrame(input: string, time: number): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const output = new PassThrough();
+      const chunks: Buffer[] = [];
+      output.on('data', (chunk: Buffer) => {
+        chunks.push(chunk);
+      });
+      output.on('error', reject);
+      ffmpeg(input, { niceness: 10 })
+        .seekInput(time)
+        .frames(1)
+        .noAudio()
+        .videoFilters("scale=w='min(960,iw)':h='min(960,ih)':force_original_aspect_ratio=decrease")
+        .format('image2pipe')
+        .videoCodec('mjpeg')
+        .on('error', reject)
+        .on('end', () => resolve(Buffer.concat(chunks)))
+        .pipe(output);
+    });
+  }
+
   extractSpeech(input: string, start: number, duration: number): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const output = new PassThrough();

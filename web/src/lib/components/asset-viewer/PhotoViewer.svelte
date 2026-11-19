@@ -5,6 +5,7 @@
   import AssetViewerEvents from '#lib/components/AssetViewerEvents.svelte';
   import Thumbhash from '#lib/components/Thumbhash.svelte';
   import OcrBoundingBox from '#lib/components/asset-viewer/OcrBoundingBox.svelte';
+  import SearchMatchOverlay from '#lib/components/asset-viewer/SearchMatchOverlay.svelte';
   import FaceEditor from '#lib/components/asset-viewer/face-editor/FaceEditor.svelte';
   import { assetViewerManager, type Faces } from '#lib/managers/asset-viewer-manager.svelte.ts';
   import { castManager } from '#lib/managers/cast-manager.svelte.ts';
@@ -37,6 +38,11 @@
 
   const { slideshowState, slideshowLook } = slideshowStore;
   const asset = $derived(cursor.current);
+  const searchFocus = $derived(
+    assetViewerManager.searchFocus?.assetId === asset.id && assetViewerManager.searchFocus.checksum === asset.checksum
+      ? assetViewerManager.searchFocus
+      : undefined,
+  );
 
   let visibleImageReady: boolean = $state(false);
 
@@ -248,6 +254,7 @@
       {/if}
     {/snippet}
     {#snippet overlays()}
+      {#if searchFocus?.region}<SearchMatchOverlay region={searchFocus.region} sequence={searchFocus.sequence} />{/if}
       <div
         class="pointer-events-none absolute inset-0 transition-opacity duration-150"
         style:opacity={isHighlighting ? 1 : 0}

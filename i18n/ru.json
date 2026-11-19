@@ -2465,5 +2465,9 @@
   "you": "Вы",
   "you_dont_have_any_shared_links": "У вас нет публичных ссылок",
   "your_wifi_name": "Имя вашей Wi-Fi сети",
-  "zoom_image": "Изменить масштаб"
+  "zoom_image": "Изменить масштаб",
+  "search_match_show_region": "Показать похожие области",
+  "search_match_locating": "Ищу визуальное сходство…",
+  "search_match_region": "Область с наибольшим визуальным сходством",
+  "search_match_whole_frame": "Сходство всего кадра"
 }
