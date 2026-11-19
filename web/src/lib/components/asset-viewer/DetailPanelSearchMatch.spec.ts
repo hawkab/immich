@@ -1,6 +1,7 @@
 import DetailPanelSearchMatch from '#lib/components/asset-viewer/DetailPanelSearchMatch.svelte';
 import DetailPanelTranscript from '#lib/components/asset-viewer/DetailPanelTranscript.svelte';
 import SearchMatchOverlay from '#lib/components/asset-viewer/SearchMatchOverlay.svelte';
+import AssetSyncProbe from '#lib/components/asset-viewer/fixtures/AssetSyncProbe.svelte';
 import { assetViewerManager } from '#lib/managers/asset-viewer-manager.svelte.ts';
 import { authManager } from '#lib/managers/auth-manager.svelte.ts';
 import { queryClient } from '#lib/queries/client.ts';
@@ -8,7 +9,7 @@ import { factory } from '#test/unit/factories.ts';
 import { test } from '#test/unit/fixtures.ts';
 import QueryComponentHost from '#test/unit/mocks/QueryComponentHost.svelte';
 import { AssetTypeEnum, Sources } from '@immich/sdk';
-import { expect } from 'vitest';
+import { expect, vitest } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
 
@@ -193,4 +194,13 @@ test('a visual region cannot follow an edited preview with an unchanged original
   });
   expect(assetViewerManager.getSearchFocus(asset)).toBeDefined();
   expect(assetViewerManager.getSearchFocus({ ...asset, thumbhash: 'edited-preview' })).toBeUndefined();
+});
+
+test('synchronizing the current asset does not subscribe the caller to its own write', async ({ settle }) => {
+  const asset = factory.asset();
+  const onSync = vitest.fn();
+  await render(AssetSyncProbe, { props: { asset, onSync } });
+  await settle();
+  expect(onSync).toHaveBeenCalledTimes(1);
+  expect(assetViewerManager.asset?.id).toBe(asset.id);
 });

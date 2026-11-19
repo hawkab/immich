@@ -66,8 +66,8 @@ export class VisualEvidenceEngine {
     };
     if (!localize) return best;
     for (const scale of [2 / 3, 1 / 2]) {
-      const w = Math.max(1, Math.floor(width * scale)),
-        h = Math.max(1, Math.floor(height * scale));
+      const w = Math.max(1, Math.floor(Math.min(width, height) * scale)),
+        h = w;
       for (const y of [0, Math.floor((height - h) / 2), height - h]) {
         for (const x of [0, Math.floor((width - w) / 2), width - w]) {
           const crop = await sharp(normalized).extract({ left: x, top: y, width: w, height: h }).jpeg().toBuffer();
