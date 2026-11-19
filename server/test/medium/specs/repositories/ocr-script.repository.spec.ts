@@ -53,14 +53,20 @@ it('finds mixed-script OCR in both search contracts without admitting unrelated 
   const legacy = (ocr: string) =>
     search.searchMetadata({ page: 1, size: 100 }, { ...scope, ocr, visibility: AssetVisibility.Timeline });
   await write(asset.id, text);
-  expect((await legacy('роман')).items).toHaveLength(0);
+  const before = await legacy('роман');
+  expect(before.items).toHaveLength(0);
   await write(asset.id, tokenizeOcrSearch(text).join(' '));
   await write(forbidden.id, tokenizeOcrSearch(text).join(' '));
   for (const query of ['роман', 'ОЛЬГА']) {
     const modern = await search.searchMetadataV3({ take: 100 }, { filter: { ocr: { matches: query } } }, scope);
     expect(modern.items.map((row) => row.id)).toEqual([asset.id]);
-    expect((await legacy(query)).items.map((row) => row.id)).toEqual([asset.id]);
+    const result = await legacy(query);
+    expect(result.items.map((row) => row.id)).toEqual([asset.id]);
   }
-  for (const query of ['кошка', 'кофе']) expect((await legacy(query)).items).toHaveLength(0);
-  expect((await ocr.getByAssetId(asset.id))[0].text).toBe(text);
+  for (const query of ['кошка', 'кофе']) {
+    const result = await legacy(query);
+    expect(result.items).toHaveLength(0);
+  }
+  const regions = await ocr.getByAssetId(asset.id);
+  expect(regions[0].text).toBe(text);
 });
