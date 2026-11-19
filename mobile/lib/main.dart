@@ -35,6 +35,7 @@ import 'package:immich_mobile/providers/view_intent/view_intent_handler.provider
 import 'package:immich_mobile/routing/app_navigation_observer.dart';
 import 'package:immich_mobile/routing/router.dart';
 import 'package:immich_mobile/services/deep_link.service.dart';
+import 'package:immich_mobile/domain/utils/server_link.dart';
 import 'package:immich_mobile/theme/dynamic_theme.dart';
 import 'package:immich_mobile/theme/theme_data.dart';
 import 'package:immich_mobile/utils/bootstrap.dart';
@@ -201,6 +202,8 @@ class ImmichAppState extends ConsumerState<ImmichApp> with WidgetsBindingObserve
       route = await deepLinkHandler.handleScheme(deepLink, ref);
     } else if (deepLink.uri.host == "my.immich.app") {
       route = await deepLinkHandler.handleMyImmichApp(deepLink, ref);
+    } else if (sameLinkOrigin(deepLink.uri, Uri.parse(appLinkOrigin))) {
+      route = await deepLinkHandler.handleServerLink(deepLink, ref);
     } else {
       return DeepLink.path(deepLink.path);
     }

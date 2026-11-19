@@ -15,6 +15,15 @@ if (keystorePropertiesFile.exists()) {
   keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
 }
 
+def linkDefines = (project.findProperty('dart-defines') ?: '').split(',').findAll { it }.collectEntries {
+  def pair = new String(it.decodeBase64(), 'UTF-8').split('=', 2)
+  pair.length == 2 ? [(pair[0]): pair[1]] : [:]
+}
+def appLinkOrigin = new URI(linkDefines['IMMICH_APP_LINK_ORIGIN'] ?: 'https://my.immich.app')
+if (appLinkOrigin.scheme != 'https' || !appLinkOrigin.host || appLinkOrigin.userInfo || appLinkOrigin.query || appLinkOrigin.fragment || (appLinkOrigin.path && appLinkOrigin.path != '/')) {
+  throw new GradleException('IMMICH_APP_LINK_ORIGIN must be an HTTPS origin without path or credentials')
+}
+
 android {
   compileSdk = flutter.compileSdkVersion
   ndkVersion = flutter.ndkVersion
@@ -40,6 +49,8 @@ android {
 
   defaultConfig {
     applicationId aegisBuild ? "app.alextran.immich.aegis" : "app.alextran.immich"
+    manifestPlaceholders["immichAppLinkHost"] = appLinkOrigin.host
+    manifestPlaceholders["immichAppLinkPort"] = appLinkOrigin.port < 0 ? "443" : appLinkOrigin.port.toString()
     minSdk = 26
     targetSdk = flutter.targetSdkVersion
     versionCode flutter.versionCode

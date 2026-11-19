@@ -1,15 +1,23 @@
+import 'dart:convert';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:immich_mobile/data/store.dart';
+import 'package:immich_mobile/domain/models/store.model.dart';
+import 'package:immich_mobile/domain/utils/server_link.dart';
+import 'package:immich_mobile/infrastructure/repositories/network.repository.dart';
+import 'package:immich_mobile/services/api.service.dart';
 import 'package:immich_mobile/domain/models/memory.model.dart';
 import 'package:immich_mobile/domain/models/user.model.dart';
-import 'package:immich_mobile/domain/services/asset.service.dart' as beta_asset_service;
+import 'package:immich_mobile/domain/services/asset.service.dart'
+    as beta_asset_service;
 import 'package:immich_mobile/domain/services/memory.service.dart';
 import 'package:immich_mobile/domain/services/remote_album.service.dart';
 import 'package:immich_mobile/domain/services/timeline.service.dart';
 import 'package:immich_mobile/presentation/widgets/asset_viewer/asset_viewer.page.dart';
 import 'package:immich_mobile/providers/infrastructure/album.provider.dart';
-import 'package:immich_mobile/providers/infrastructure/asset.provider.dart' as beta_asset_provider;
+import 'package:immich_mobile/providers/infrastructure/asset.provider.dart'
+    as beta_asset_provider;
 import 'package:immich_mobile/providers/infrastructure/db.provider.dart';
 import 'package:immich_mobile/providers/infrastructure/timeline.provider.dart';
 import 'package:immich_mobile/providers/user.provider.dart';
@@ -41,7 +49,10 @@ class DeepLinkService {
     this._currentUser,
   );
 
-  Future<PageRouteInfo?> handleScheme(PlatformDeepLink link, WidgetRef ref) async {
+  Future<PageRouteInfo?> handleScheme(
+    PlatformDeepLink link,
+    WidgetRef ref,
+  ) async {
     // get everything after the scheme, since Uri cannot parse path
     final intent = link.uri.host;
     final queryParams = link.uri.queryParameters;
@@ -56,10 +67,48 @@ class DeepLinkService {
     };
   }
 
-  Future<PageRouteInfo?> handleMyImmichApp(PlatformDeepLink link, WidgetRef ref) async {
-    final path = link.uri.path;
+  Future<PageRouteInfo?> handleServerLink(
+    PlatformDeepLink link,
+    WidgetRef ref,
+  ) async {
+    final endpoint = Uri.tryParse(Store.tryGet(StoreKey.serverEndpoint) ?? '');
+    if (endpoint == null || !sameLinkOrigin(link.uri, endpoint)) return null;
+    try {
+      final resolved = await resolveServerLink(link.uri, endpoint, (
+        code,
+      ) async {
+        final uri = endpoint.replace(
+          path:
+              '${endpoint.path.replaceFirst(RegExp(r'/$'), '')}/short-links/$code',
+          query: '',
+          fragment: '',
+        );
+        final response = await NetworkRepository.client.get(
+          uri,
+          headers: ApiService.getRequestHeaders(),
+        );
+        if (response.statusCode != 200) return null;
+        final value = jsonDecode(response.body);
+        return value is Map<String, dynamic> && value['path'] is String
+            ? value['path'] as String
+            : null;
+      });
+      return resolved == null ? null : _buildWebPath(resolved.path, ref);
+    } catch (_) {
+      return null;
+    }
+  }
 
-    const uuidRegex = r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
+  Future<PageRouteInfo?> handleMyImmichApp(
+    PlatformDeepLink link,
+    WidgetRef ref,
+  ) => _buildWebPath(link.uri.path, ref);
+
+  Future<PageRouteInfo?> _buildWebPath(String path, WidgetRef ref) async {
+    if (path == '/') return const TabShellRoute();
+
+    const uuidRegex =
+        r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
     final assetRegex = RegExp('/photos/($uuidRegex)');
     final albumRegex = RegExp('/albums/($uuidRegex)');
     final peopleRegex = RegExp('/people/($uuidRegex)');
@@ -106,13 +155,19 @@ class DeepLinkService {
     return MemoryRoute(memories: memories, memoryIndex: 0);
   }
 
-  Future<PageRouteInfo?> _buildAssetDeepLink(String assetId, WidgetRef ref, {String? albumId}) async {
+  Future<PageRouteInfo?> _buildAssetDeepLink(
+    String assetId,
+    WidgetRef ref, {
+    String? albumId,
+  }) async {
     final asset = await _betaAssetService.getRemoteAsset(assetId);
     if (asset == null) {
       return null;
     }
 
-    final album = albumId != null ? await _betaRemoteAlbumService.get(albumId) : null;
+    final album = albumId != null
+        ? await _betaRemoteAlbumService.get(albumId)
+        : null;
 
     AssetViewer.setAsset(ref, asset);
     return AssetViewerRoute(
@@ -142,7 +197,10 @@ class DeepLinkService {
     return ActivitiesRoute(album: album);
   }
 
-  Future<PageRouteInfo?> _buildPeopleDeepLink(String personId, WidgetRef ref) async {
+  Future<PageRouteInfo?> _buildPeopleDeepLink(
+    String personId,
+    WidgetRef ref,
+  ) async {
     final person = await ref.read(Store.people.byId(personId).future);
 
     if (person == null) {
