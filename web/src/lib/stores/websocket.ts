@@ -126,23 +126,40 @@ export const closeWebsocketConnection = () => {
 export const waitForWebsocketEvent = <T extends keyof Events>(
   event: T,
   predicate?: (...args: Parameters<Events[T]>) => boolean,
-  timeout: number = 10_000,
+  timeout: number | null = 10_000,
+  signal?: AbortSignal,
 ): Promise<Parameters<Events[T]>> => {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason);
+      return;
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const finish = () => {
+      cleanup();
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', abort);
+    };
+    const abort = () => {
+      finish();
+      reject(signal?.reason);
+    };
     // @ts-expect-error: The typings are weird on this?
     const cleanup = websocketEvents.on(event, (...args: Parameters<Events[T]>) => {
       if (predicate && !predicate(...args)) {
         return;
       }
 
-      cleanup();
-      clearTimeout(timer);
+      finish();
       resolve(args);
     });
 
-    const timer = setTimeout(() => {
-      cleanup();
-      reject(new Error(`Timeout waiting for event: ${event}`));
-    }, timeout);
+    signal?.addEventListener('abort', abort, { once: true });
+    if (timeout !== null) {
+      timer = setTimeout(() => {
+        finish();
+        reject(new Error(`Timeout waiting for event: ${event}`));
+      }, timeout);
+    }
   });
 };

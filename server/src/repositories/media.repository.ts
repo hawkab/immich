@@ -39,6 +39,8 @@ import type {
   VideoInfo,
   VideoPacketInfo,
 } from 'src/types.js';
+import { projectAnnotations } from 'src/utils/annotation-transform.js';
+import { applyAnnotations } from 'src/utils/annotations.js';
 import { handlePromiseError } from 'src/utils/misc.js';
 import { createAffineMatrix } from 'src/utils/transform.js';
 
@@ -183,7 +185,7 @@ export class MediaRepository {
       });
     }
 
-    const affineEditOperations = edits.filter((edit) => edit.action !== 'crop');
+    const affineEditOperations = edits.filter((edit) => edit.action === 'rotate' || edit.action === 'mirror');
     if (affineEditOperations.length > 0) {
       const { a, b, c, d } = createAffineMatrix(affineEditOperations);
       pipeline = pipeline.affine([
@@ -234,13 +236,34 @@ export class MediaRepository {
 
   /* Resamples in linear light; averaging gamma-encoded values darkens the result and loses detail. `colorspace`
    * always has a sRGB transfer function and scRGB applies no primaries matrix, so linearising as sRGB is exact. */
-  private transform(image: Bitmap, { size, fit = 'outside', edits = [] }: TransformOptions): Promise<Bitmap> {
+  private async transform(
+    image: Bitmap,
+    { size, fit = 'outside', edits = [], colorspace = Colorspace.Srgb }: TransformOptions & { colorspace?: string },
+  ): Promise<Bitmap> {
     if (!size && edits.length === 0) {
-      return Promise.resolve(image);
+      return image;
     }
 
-    return this.edit(this.raw(image).pipelineColorspace('scrgb'), edits)
+    const transformed = await this.edit(this.raw(image).pipelineColorspace('scrgb'), edits)
       .resize(size, size, { fit, withoutEnlargement: true })
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const annotation = edits.find((edit) => edit.action === 'annotate');
+    if (!annotation) {
+      return transformed;
+    }
+    const display = await this.tag(transformed, colorspace)
+      .toColourspace('srgb')
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const { a, b, c, d } = createAffineMatrix(edits);
+    const annotated = await applyAnnotations(display, projectAnnotations(annotation.parameters, edits, image.info), [
+      [a, b],
+      [c, d],
+    ]);
+    return sharp(annotated.data, { raw: annotated.info })
+      .withIccProfile(colorspace)
       .raw()
       .toBuffer({ resolveWithObject: true });
   }

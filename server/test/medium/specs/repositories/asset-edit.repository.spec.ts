@@ -1,5 +1,5 @@
 import { Kysely } from 'kysely';
-import { AssetEditAction, MirrorAxis } from 'src/dtos/editing.dto.js';
+import { AssetEditAction, MirrorAxis, type AssetEditActionItem } from 'src/dtos/editing.dto.js';
 import { AssetEditRepository } from 'src/repositories/asset-edit.repository.js';
 import { LoggingRepository } from 'src/repositories/logging.repository.js';
 import { DB } from 'src/schema/index.js';
@@ -25,6 +25,30 @@ beforeAll(async () => {
 
 describe(AssetEditRepository.name, () => {
   describe('replaceAll', () => {
+    it('round-trips annotations and preserves them across legacy writes, but allows an explicit reset', async () => {
+      const { ctx, sut } = setup();
+      const { user } = await ctx.newUser();
+      const { asset } = await ctx.newAsset({ ownerId: user.id });
+      const annotation: AssetEditActionItem = {
+        action: AssetEditAction.Annotate,
+        parameters: { layers: [{ type: 'emoji' as const, emoji: '1f600', x: 0.5, y: 0.5, size: 0.2 }] },
+      };
+      await sut.replaceAll(asset.id, [annotation], { includeAnnotations: true });
+      expect(await sut.getAll(asset.id)).toEqual([expect.objectContaining(annotation)]);
+      expect(await sut.getWithSyncInfo(asset.id)).toEqual([]);
+      await sut.replaceAll(asset.id, [{ action: AssetEditAction.Rotate, parameters: { angle: 90 } }]);
+      const rotated = await sut.getAll(asset.id);
+      expect(rotated.map((edit) => edit.action)).toEqual([AssetEditAction.Rotate, AssetEditAction.Annotate]);
+      await sut.replaceAll(asset.id, []);
+      const reset = await sut.getAll(asset.id);
+      expect(reset.map((edit) => edit.action)).toEqual([AssetEditAction.Annotate]);
+      await sut.replaceAll(asset.id, [], { includeAnnotations: true });
+      expect(await sut.getAll(asset.id)).toEqual([]);
+      expect(
+        await ctx.database.selectFrom('asset').select('isEdited').where('id', '=', asset.id).executeTakeFirstOrThrow(),
+      ).toEqual({ isEdited: false });
+    });
+
     it('should set isEdited on insert', async () => {
       const { ctx, sut } = setup();
       const { user } = await ctx.newUser();

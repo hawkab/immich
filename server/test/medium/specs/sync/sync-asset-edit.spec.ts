@@ -21,6 +21,30 @@ beforeAll(async () => {
 });
 
 describe(SyncRequestType.AssetEditsV1, () => {
+  it('keeps annotation-only updates out of the legacy edit stream without blocking later crop updates', async () => {
+    const { auth, ctx } = await setup();
+    const { asset } = await ctx.newAsset({ ownerId: auth.user.id });
+    const repository = ctx.get(AssetEditRepository);
+    await repository.replaceAll(
+      asset.id,
+      [
+        {
+          action: AssetEditAction.Annotate,
+          parameters: { layers: [{ type: 'emoji', emoji: '1f600', x: 0.5, y: 0.5, size: 0.2 }] },
+        },
+      ],
+      { includeAnnotations: true },
+    );
+    const first = await ctx.syncStream(auth, [SyncRequestType.AssetEditsV1]);
+    ctx.assertSyncResponse(first, []);
+    await ctx.syncAckAll(auth, first);
+    await repository.replaceAll(asset.id, [{ action: AssetEditAction.Rotate, parameters: { angle: 90 } }]);
+    const next = await ctx.syncStream(auth, [SyncRequestType.AssetEditsV1]);
+    expect(next.filter((event) => event.type === SyncEntityType.AssetEditV1).map((event) => event.data)).toEqual([
+      expect.objectContaining({ action: AssetEditAction.Rotate }),
+    ]);
+  });
+
   it('should detect and sync the first asset edit', async () => {
     const { auth, ctx } = await setup();
     const { asset } = await ctx.newAsset({ ownerId: auth.user.id });

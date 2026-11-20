@@ -1398,12 +1398,41 @@ export type RotateParameters = {
 export type MirrorParameters = {
     axis: MirrorAxis;
 };
+export type AnnotationPoint = {
+    x: number;
+    y: number;
+};
+export type AnnotationLayer = {
+    points: AnnotationPoint[];
+    shape: AnnotationRectangleShape;
+    /** Effect strength as a fraction of the shorter image edge */
+    strength: number;
+    style: AnnotationBlurStyle;
+    "type": AnnotationBlurType;
+} | {
+    points: AnnotationPoint[];
+    shape: AnnotationBrushShape;
+    size: number;
+    /** Effect strength as a fraction of the shorter image edge */
+    strength: number;
+    style: AnnotationBlurStyle;
+    "type": AnnotationBlurType;
+} | {
+    emoji: string;
+    size: number;
+    "type": AnnotationEmojiType;
+    x: number;
+    y: number;
+};
+export type AnnotationParameters = {
+    layers: AnnotationLayer[];
+};
 export type AssetEditActionItemResponseDto = {
     action: AssetEditAction;
     /** Asset edit ID */
     id: string;
-    /** List of edit actions to apply (crop, rotate, or mirror) */
-    parameters: CropParameters | RotateParameters | MirrorParameters;
+    /** List of edit actions to apply (crop, rotate, mirror, or annotate) */
+    parameters: CropParameters | RotateParameters | MirrorParameters | AnnotationParameters;
 };
 export type AssetEditsResponseDto = {
     /** Asset ID these edits belong to */
@@ -1413,11 +1442,11 @@ export type AssetEditsResponseDto = {
 };
 export type AssetEditActionItemDto = {
     action: AssetEditAction;
-    /** List of edit actions to apply (crop, rotate, or mirror) */
-    parameters: CropParameters | RotateParameters | MirrorParameters;
+    /** List of edit actions to apply (crop, rotate, mirror, or annotate) */
+    parameters: CropParameters | RotateParameters | MirrorParameters | AnnotationParameters;
 };
 export type AssetEditsCreateDto = {
-    /** List of edit actions to apply (crop, rotate, or mirror) */
+    /** List of edit actions to apply (crop, rotate, mirror, or annotate) */
     edits: AssetEditActionItemDto[];
 };
 export type AssetMetadataResponseDto = {
@@ -4979,10 +5008,13 @@ export function updateAsset({ id, updateAssetDto }: {
 /**
  * Remove edits from an existing asset
  */
-export function removeAssetEdits({ id }: {
+export function removeAssetEdits({ id, includeAnnotations }: {
     id: string;
+    includeAnnotations?: boolean;
 }, opts?: Oazapfts.RequestOpts) {
-    return oazapfts.ok(oazapfts.fetchText(`/assets/${encodeURIComponent(id)}/edits`, {
+    return oazapfts.ok(oazapfts.fetchText(`/assets/${encodeURIComponent(id)}/edits${QS.query(QS.explode({
+        includeAnnotations
+    }))}`, {
         ...opts,
         method: "DELETE"
     }));
@@ -4990,27 +5022,33 @@ export function removeAssetEdits({ id }: {
 /**
  * Retrieve edits for an existing asset
  */
-export function getAssetEdits({ id }: {
+export function getAssetEdits({ id, includeAnnotations }: {
     id: string;
+    includeAnnotations?: boolean;
 }, opts?: Oazapfts.RequestOpts) {
     return oazapfts.ok(oazapfts.fetchJson<{
         status: 200;
         data: AssetEditsResponseDto;
-    }>(`/assets/${encodeURIComponent(id)}/edits`, {
+    }>(`/assets/${encodeURIComponent(id)}/edits${QS.query(QS.explode({
+        includeAnnotations
+    }))}`, {
         ...opts
     }));
 }
 /**
  * Apply edits to an existing asset
  */
-export function editAsset({ id, assetEditsCreateDto }: {
+export function editAsset({ id, includeAnnotations, assetEditsCreateDto }: {
     id: string;
+    includeAnnotations?: boolean;
     assetEditsCreateDto: AssetEditsCreateDto;
 }, opts?: Oazapfts.RequestOpts) {
     return oazapfts.ok(oazapfts.fetchJson<{
         status: 200;
         data: AssetEditsResponseDto;
-    }>(`/assets/${encodeURIComponent(id)}/edits`, oazapfts.json({
+    }>(`/assets/${encodeURIComponent(id)}/edits${QS.query(QS.explode({
+        includeAnnotations
+    }))}`, oazapfts.json({
         ...opts,
         method: "PUT",
         body: assetEditsCreateDto
@@ -8534,11 +8572,28 @@ export enum AssetTypeEnum {
 export enum AssetEditAction {
     Crop = "crop",
     Rotate = "rotate",
-    Mirror = "mirror"
+    Mirror = "mirror",
+    Annotate = "annotate"
 }
 export enum MirrorAxis {
     Horizontal = "horizontal",
     Vertical = "vertical"
+}
+export enum AnnotationRectangleShape {
+    Rectangle = "rectangle"
+}
+export enum AnnotationBlurStyle {
+    Pixelated = "pixelated",
+    Frosted = "frosted"
+}
+export enum AnnotationBlurType {
+    Blur = "blur"
+}
+export enum AnnotationBrushShape {
+    Brush = "brush"
+}
+export enum AnnotationEmojiType {
+    Emoji = "emoji"
 }
 export enum AssetMediaSize {
     Original = "original",

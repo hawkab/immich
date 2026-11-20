@@ -12,6 +12,11 @@
           "introspectComments": true
         }
       }
+    ],
+    "assets": [
+      {
+        "include": "data/editor-emoji-graphics.json"
+      }
     ]
   }
 }

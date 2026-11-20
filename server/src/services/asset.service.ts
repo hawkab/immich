@@ -531,17 +531,22 @@ export class AssetService extends BaseService {
     return true;
   }
 
-  async getAssetEdits(auth: AuthDto, id: string): Promise<AssetEditsResponseDto> {
+  async getAssetEdits(auth: AuthDto, id: string, includeAnnotations = false): Promise<AssetEditsResponseDto> {
     await this.requireAccess({ auth, permission: Permission.AssetRead, ids: [id] });
     const edits = await this.assetEditRepository.getAll(id);
 
     return {
       assetId: id,
-      edits,
+      edits: includeAnnotations ? edits : edits.filter((edit) => edit.action !== AssetEditAction.Annotate),
     };
   }
 
-  async editAsset(auth: AuthDto, id: string, dto: AssetEditsCreateDto): Promise<AssetEditsResponseDto> {
+  async editAsset(
+    auth: AuthDto,
+    id: string,
+    dto: AssetEditsCreateDto,
+    includeAnnotations = false,
+  ): Promise<AssetEditsResponseDto> {
     await this.requireAccess({ auth, permission: Permission.AssetEditCreate, ids: [id] });
 
     const asset = await this.assetRepository.getForEdit(id);
@@ -596,17 +601,17 @@ export class AssetService extends BaseService {
       }
     }
 
-    const newEdits = await this.assetEditRepository.replaceAll(id, edits);
+    const newEdits = await this.assetEditRepository.replaceAll(id, edits, { includeAnnotations });
     await this.jobRepository.queue({ name: JobName.AssetEditThumbnailGeneration, data: { id } });
 
     // Return the asset and its applied edits
     return {
       assetId: id,
-      edits: newEdits,
+      edits: includeAnnotations ? newEdits : newEdits.filter((edit) => edit.action !== AssetEditAction.Annotate),
     };
   }
 
-  async removeAssetEdits(auth: AuthDto, id: string): Promise<void> {
+  async removeAssetEdits(auth: AuthDto, id: string, includeAnnotations = false): Promise<void> {
     await this.requireAccess({ auth, permission: Permission.AssetEditDelete, ids: [id] });
 
     const asset = await this.assetRepository.getById(id);
@@ -614,7 +619,7 @@ export class AssetService extends BaseService {
       throw new BadRequestException('Asset not found');
     }
 
-    await this.assetEditRepository.replaceAll(id, []);
+    await this.assetEditRepository.replaceAll(id, [], { includeAnnotations });
     await this.jobRepository.queue({ name: JobName.AssetEditThumbnailGeneration, data: { id } });
   }
 }

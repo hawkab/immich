@@ -1,11 +1,13 @@
+import AnnotationTool from '#lib/components/asset-viewer/editor/annotation-tool/AnnotationTool.svelte';
 import TransformTool from '#lib/components/asset-viewer/editor/transform-tool/TransformTool.svelte';
+import { annotationManager } from '#lib/managers/edit/annotation-manager.svelte.ts';
 import { transformManager } from '#lib/managers/edit/transform-manager.svelte.ts';
 import { eventManager } from '#lib/managers/event-manager.svelte.ts';
 import { waitForWebsocketEvent } from '#lib/stores/websocket.ts';
 import { getFormatter } from '#lib/utils/i18n.ts';
 import { editAsset, removeAssetEdits, type AssetEditsCreateDto, type AssetResponseDto } from '@immich/sdk';
 import { ConfirmModal, modalManager, toastManager } from '@immich/ui';
-import { mdiCropRotate } from '@mdi/js';
+import { mdiCropRotate, mdiDraw } from '@mdi/js';
 import type { Component } from 'svelte';
 
 export type EditAction = AssetEditsCreateDto['edits'][number];
@@ -22,6 +24,7 @@ export interface EditToolManager {
 
 export enum EditToolType {
   Transform = 'transform',
+  Annotate = 'annotate',
 }
 
 export interface EditTool {
@@ -32,14 +35,20 @@ export interface EditTool {
 }
 
 export class EditManager {
-  tools: EditTool[] = [
-    {
-      type: EditToolType.Transform,
-      icon: mdiCropRotate,
-      component: TransformTool,
-      manager: transformManager,
-    },
-  ];
+  private saveController?: AbortController;
+  private toolDefinitions?: EditTool[];
+
+  get tools(): EditTool[] {
+    return (this.toolDefinitions ??= [
+      {
+        type: EditToolType.Transform,
+        icon: mdiCropRotate,
+        component: TransformTool,
+        manager: transformManager,
+      },
+      { type: EditToolType.Annotate, icon: mdiDraw, component: AnnotationTool, manager: annotationManager },
+    ]);
+  }
 
   currentAsset = $state<AssetResponseDto | null>(null);
   selectedTool = $state<EditTool | null>(null);
@@ -86,21 +95,28 @@ export class EditManager {
 
   async activateTool(toolType: EditToolType, asset: AssetResponseDto, edits: AssetEditsCreateDto) {
     this.hasAppliedEdits = false;
-    if (this.selectedTool?.type === toolType) {
+    const newTool = this.tools.find((tool) => tool.type === toolType);
+    if (!newTool) {
       return;
     }
-
-    this.currentAsset = asset;
-
-    this.selectedTool?.manager.onDeactivate?.();
-    const newTool = this.tools.find((t) => t.type === toolType);
-    if (newTool) {
+    if (this.currentAsset?.id === asset.id) {
       this.selectedTool = newTool;
-      await newTool.manager.onActivate?.(asset, edits.edits);
+    } else {
+      this.cleanup();
+      this.currentAsset = asset;
+      this.selectedTool = newTool;
+      for (const tool of this.tools) {
+        await tool.manager.onActivate(asset, edits.edits);
+      }
     }
   }
 
+  selectTool(type: EditToolType) {
+    this.selectedTool = this.tools.find((tool) => tool.type === type) ?? null;
+  }
+
   cleanup() {
+    this.saveController?.abort();
     for (const tool of this.tools) {
       tool.manager.onDeactivate?.();
     }
@@ -115,10 +131,14 @@ export class EditManager {
   }
 
   async applyEdits(): Promise<boolean> {
+    if (this.isApplyingEdits) {
+      return false;
+    }
     this.isApplyingEdits = true;
 
     const edits = this.tools.flatMap((tool) => tool.manager.edits);
     if (!this.currentAsset) {
+      this.isApplyingEdits = false;
       return false;
     }
 
@@ -127,18 +147,26 @@ export class EditManager {
 
     try {
       // Setup the websocket listener before sending the edit request
-      const editCompleted = waitForWebsocketEvent('AssetEditReadyV2', (event) => event.asset.id === assetId, 10_000);
+      this.saveController = new AbortController();
+      const editCompleted = waitForWebsocketEvent(
+        'AssetEditReadyV2',
+        (event) => event.asset.id === assetId,
+        null,
+        this.saveController.signal,
+      );
 
-      await (edits.length === 0
-        ? removeAssetEdits({ id: assetId })
-        : editAsset({
-            id: assetId,
-            assetEditsCreateDto: {
-              edits,
-            },
-          }));
-
-      await editCompleted;
+      await Promise.all([
+        editCompleted,
+        edits.length === 0
+          ? removeAssetEdits({ id: assetId, includeAnnotations: true })
+          : editAsset({
+              id: assetId,
+              includeAnnotations: true,
+              assetEditsCreateDto: {
+                edits,
+              },
+            }),
+      ]);
 
       eventManager.emit('AssetEditsApplied', assetId);
 
@@ -150,6 +178,8 @@ export class EditManager {
       toastManager.danger(t('editor_edits_applied_error'));
       return false;
     } finally {
+      this.saveController?.abort();
+      this.saveController = undefined;
       this.isApplyingEdits = false;
     }
   }

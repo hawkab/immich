@@ -1,0 +1,96 @@
+{
+  "unicodeVersion": "18.0",
+  "twemoji": {
+    "url": "https://codeload.github.com/jdecked/twemoji/tar.gz/refs/tags/v17.0.3",
+    "sha256": "a0855654b633045ae2337537e77f1bb4361162f7fcd910e613eaab1d6d9c5fca"
+  },
+  "emojibase": {
+    "url": "https://registry.npmjs.org/emojibase-data/-/emojibase-data-18.0.0.tgz",
+    "sha256": "ed207c64f31baab5db419686135be3696bbd196a88228a3564383d7918db8f34"
+  },
+  "openmoji": {
+    "commit": "3e01de523ddefe9c5e46a7765b15efef04bf9002",
+    "files": {
+      "1faeb": {
+        "url": "https://raw.githubusercontent.com/hfg-gmuend/openmoji/3e01de523ddefe9c5e46a7765b15efef04bf9002/color/svg/1FAEB.svg",
+        "sha256": "f3a890f9bee51ba61422d2500bf9070ccfda8a2de3d467fad3485a5e3f76307b"
+      },
+      "1faf9": {
+        "url": "https://raw.githubusercontent.com/hfg-gmuend/openmoji/3e01de523ddefe9c5e46a7765b15efef04bf9002/color/svg/1FAF9.svg",
+        "sha256": "434404f9bc5e1701301ab94f0d88772402f058cb2e880212768d5da0c1f87aab"
+      },
+      "1faf9-1f3fb": {
+        "url": "https://raw.githubusercontent.com/hfg-gmuend/openmoji/3e01de523ddefe9c5e46a7765b15efef04bf9002/color/svg/1FAF9-1F3FB.svg",
+        "sha256": "1dcd53a1654bcf2c16a05d13bda8549d313d184392004575ce5e0d8d341fc8ff"
+      },
+      "1faf9-1f3fc": {
+        "url": "https://raw.githubusercontent.com/hfg-gmuend/openmoji/3e01de523ddefe9c5e46a7765b15efef04bf9002/color/svg/1FAF9-1F3FC.svg",
+        "sha256": "f1fb75b06c5b2ae05558fbe9ed0878a16c1df702533c94cc5c28e315d7614916"
+      },
+      "1faf9-1f3fd": {
+        "url": "https://raw.githubusercontent.com/hfg-gmuend/openmoji/3e01de523ddefe9c5e46a7765b15efef04bf9002/color/svg/1FAF9-1F3FD.svg",
+        "sha256": "248535defc18077c1f48a593a2bbce8185ee2edd1d4b4313b26cdd8b174fce23"
+      },
+      "1faf9-1f3fe": {
+        "url": "https://raw.githubusercontent.com/hfg-gmuend/openmoji/3e01de523ddefe9c5e46a7765b15efef04bf9002/color/svg/1FAF9-1F3FE.svg",
+        "sha256": "341a06ea69341ebccdab900b9ffe300ce4e6a5ba459763126a0b2acf4100cc13"
+      },
+      "1faf9-1f3ff": {
+        "url": "https://raw.githubusercontent.com/hfg-gmuend/openmoji/3e01de523ddefe9c5e46a7765b15efef04bf9002/color/svg/1FAF9-1F3FF.svg",
+        "sha256": "dba36a0e42f0e43e12084ee75eec569f728d6f65420fddcc68dba2b7ffd274b0"
+      },
+      "1fafa": {
+        "url": "https://raw.githubusercontent.com/hfg-gmuend/openmoji/3e01de523ddefe9c5e46a7765b15efef04bf9002/color/svg/1FAFA.svg",
+        "sha256": "e2b15e25e36f05483b3c114880b9c33e4efec675d96c3b668ff7bbacc095536f"
+      },
+      "1fafa-1f3fb": {
+        "url": "https://raw.githubusercontent.com/hfg-gmuend/openmoji/3e01de523ddefe9c5e46a7765b15efef04bf9002/color/svg/1FAFA-1F3FB.svg",
+        "sha256": "bcdd3d32a5d42a839354622e0097ea27a8ff015a1ba49783cc69cd8d4773283e"
+      },
+      "1fafa-1f3fc": {
+        "url": "https://raw.githubusercontent.com/hfg-gmuend/openmoji/3e01de523ddefe9c5e46a7765b15efef04bf9002/color/svg/1FAFA-1F3FC.svg",
+        "sha256": "f3f40fcfa03579cf3519b9622e7dd14f3d3747a119378ef9f93e4389ff4930aa"
+      },
+      "1fafa-1f3fd": {
+        "url": "https://raw.githubusercontent.com/hfg-gmuend/openmoji/3e01de523ddefe9c5e46a7765b15efef04bf9002/color/svg/1FAFA-1F3FD.svg",
+        "sha256": "fb85a2b0d131a198fe9ce906cad1d07fed4f030ba486595085468301e871f5ed"
+      },
+      "1fafa-1f3fe": {
+        "url": "https://raw.githubusercontent.com/hfg-gmuend/openmoji/3e01de523ddefe9c5e46a7765b15efef04bf9002/color/svg/1FAFA-1F3FE.svg",
+        "sha256": "e6e9daf820b0088f098f72441a1d7f9b5c3db9f805e4cbe74f9b00e50d4e931b"
+      },
+      "1fafa-1f3ff": {
+        "url": "https://raw.githubusercontent.com/hfg-gmuend/openmoji/3e01de523ddefe9c5e46a7765b15efef04bf9002/color/svg/1FAFA-1F3FF.svg",
+        "sha256": "69f3d79a3f939a2d56311d889b78e5f8370831ea7830dbaac9d674a86d614627"
+      },
+      "1facc": {
+        "url": "https://raw.githubusercontent.com/hfg-gmuend/openmoji/3e01de523ddefe9c5e46a7765b15efef04bf9002/color/svg/1FACC.svg",
+        "sha256": "cc0dbe5c18501844b7617a67fbb25298a1e981e3651be18dfa73ff76ed6f50fc"
+      },
+      "1fadd": {
+        "url": "https://raw.githubusercontent.com/hfg-gmuend/openmoji/3e01de523ddefe9c5e46a7765b15efef04bf9002/color/svg/1FADD.svg",
+        "sha256": "b6b2e02f6b15278c5afb16face24056d6c3a5170378d1d0e9138488f10993aab"
+      },
+      "1f6d9": {
+        "url": "https://raw.githubusercontent.com/hfg-gmuend/openmoji/3e01de523ddefe9c5e46a7765b15efef04bf9002/color/svg/1F6D9.svg",
+        "sha256": "349b2a47de7a7fb01a0ff9e97e469eea715d33370f6297c3bff6c84b51fffa6b"
+      },
+      "1fa8b": {
+        "url": "https://raw.githubusercontent.com/hfg-gmuend/openmoji/3e01de523ddefe9c5e46a7765b15efef04bf9002/color/svg/1FA8B.svg",
+        "sha256": "38520c33eb4fd5a5b61370adf0dd02de8ee534206f14486f9a00d8c1767ae767"
+      },
+      "1fa8c": {
+        "url": "https://raw.githubusercontent.com/hfg-gmuend/openmoji/3e01de523ddefe9c5e46a7765b15efef04bf9002/color/svg/1FA8C.svg",
+        "sha256": "212045773d4fc5bf40d7d0a75df8dc49af6710dcf1a119fec8d71fdb62c06cad"
+      },
+      "1fa8d": {
+        "url": "https://raw.githubusercontent.com/hfg-gmuend/openmoji/3e01de523ddefe9c5e46a7765b15efef04bf9002/color/svg/1FA8D.svg",
+        "sha256": "2e649b52948a33ecb668e080aa35bffa6af5fd738b69dd5e036a3604b5d8b9bc"
+      },
+      "license": {
+        "url": "https://raw.githubusercontent.com/hfg-gmuend/openmoji/3e01de523ddefe9c5e46a7765b15efef04bf9002/LICENSE.txt",
+        "sha256": "5e436ff8ffbb77d8607220e9bce20c8915d860010feeb6c1ebef5a85688e9b39"
+      }
+    }
+  }
+}

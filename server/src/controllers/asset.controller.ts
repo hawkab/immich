@@ -18,7 +18,7 @@ import {
   UpdateAssetDto,
 } from 'src/dtos/asset.dto.js';
 import type { AuthDto } from 'src/dtos/auth.dto.js';
-import { AssetEditsCreateDto, AssetEditsResponseDto } from 'src/dtos/editing.dto.js';
+import { AssetEditOptionsDto, AssetEditsCreateDto, AssetEditsResponseDto } from 'src/dtos/editing.dto.js';
 import { AssetOcrResponseDto } from 'src/dtos/ocr.dto.js';
 import { ApiTag, Permission, RouteKey } from 'src/enum.js';
 import { Auth, Authenticated } from 'src/middleware/auth.guard.js';
@@ -227,26 +227,33 @@ export class AssetController {
   @Authenticated({ permission: Permission.AssetEditGet })
   @Endpoint({
     summary: 'Retrieve edits for an existing asset',
-    description: 'Retrieve a series of edit actions (crop, rotate, mirror) associated with the specified asset.',
+    description:
+      'Retrieve a series of edit actions (crop, rotate, mirror, and opt-in blur/emoji layers) associated with the specified asset.',
     history: new HistoryBuilder().added('v2.5.0').beta('v2.5.0'),
   })
-  getAssetEdits(@Auth() auth: AuthDto, @Param() { id }: UUIDParamDto): Promise<AssetEditsResponseDto> {
-    return this.service.getAssetEdits(auth, id);
+  getAssetEdits(
+    @Auth() auth: AuthDto,
+    @Param() { id }: UUIDParamDto,
+    @Query() options: AssetEditOptionsDto,
+  ): Promise<AssetEditsResponseDto> {
+    return this.service.getAssetEdits(auth, id, options.includeAnnotations);
   }
 
   @Put(':id/edits')
   @Authenticated({ permission: Permission.AssetEditCreate })
   @Endpoint({
     summary: 'Apply edits to an existing asset',
-    description: 'Apply a series of edit actions (crop, rotate, mirror) to the specified asset.',
+    description:
+      'Apply a series of edit actions (crop, rotate, mirror, and opt-in blur/emoji layers) to the specified asset.',
     history: new HistoryBuilder().added('v2.5.0').beta('v2.5.0'),
   })
   editAsset(
     @Auth() auth: AuthDto,
     @Param() { id }: UUIDParamDto,
     @Body() dto: AssetEditsCreateDto,
+    @Query() options: AssetEditOptionsDto,
   ): Promise<AssetEditsResponseDto> {
-    return this.service.editAsset(auth, id, dto);
+    return this.service.editAsset(auth, id, dto, options.includeAnnotations);
   }
 
   @Delete(':id/edits')
@@ -254,10 +261,15 @@ export class AssetController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @Endpoint({
     summary: 'Remove edits from an existing asset',
-    description: 'Removes all edit actions (crop, rotate, mirror) associated with the specified asset.',
+    description:
+      'Removes all edit actions (crop, rotate, mirror, and opt-in blur/emoji layers) associated with the specified asset.',
     history: new HistoryBuilder().added('v2.5.0').beta('v2.5.0'),
   })
-  removeAssetEdits(@Auth() auth: AuthDto, @Param() { id }: UUIDParamDto): Promise<void> {
-    return this.service.removeAssetEdits(auth, id);
+  removeAssetEdits(
+    @Auth() auth: AuthDto,
+    @Param() { id }: UUIDParamDto,
+    @Query() options: AssetEditOptionsDto,
+  ): Promise<void> {
+    return this.service.removeAssetEdits(auth, id, options.includeAnnotations);
   }
 }
