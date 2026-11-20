@@ -19,7 +19,7 @@
   import { ocrManager } from '#lib/stores/ocr.svelte.ts';
   import { alwaysLoadOriginalVideo } from '#lib/stores/preferences.store.ts';
   import { SlideshowNavigation, SlideshowState, slideshowStore } from '#lib/stores/slideshow.store.ts';
-  import { getSharedLink, handlePromiseError } from '#lib/utils.ts';
+  import { getAssetMediaUrl, getSharedLink, handlePromiseError } from '#lib/utils.ts';
   import type { OnUndoDelete } from '#lib/utils/actions.ts';
   import { navigateToAsset } from '#lib/utils/asset-utils.ts';
   import { handleError } from '#lib/utils/handle-error.ts';
@@ -28,6 +28,7 @@
   import { SlideshowHistory } from '#lib/utils/slideshow-history.ts';
   import { toTimelineAsset } from '#lib/utils/timeline-util.ts';
   import {
+    AssetMediaSize,
     AssetTypeEnum,
     getAssetInfo,
     getStack,
@@ -53,6 +54,7 @@
   import SlideshowMetadataOverlay from './SlideshowMetadataOverlay.svelte';
   import VideoViewer from './VideoWrapperViewer.svelte';
   import EditorPanel from './editor/EditorPanel.svelte';
+  import AnnotationCanvas from './editor/annotation-tool/AnnotationCanvas.svelte';
   import CropArea from './editor/transform-tool/CropArea.svelte';
 
   export type AssetCursor = {
@@ -447,6 +449,9 @@
     if (assetViewerManager.isShowEditor && editManager.selectedTool?.type === EditToolType.Transform) {
       return 'CropArea';
     }
+    if (assetViewerManager.isShowEditor && editManager.selectedTool?.type === EditToolType.Annotate) {
+      return 'AnnotationCanvas';
+    }
     return 'PhotoViewer';
   });
 
@@ -579,6 +584,11 @@
       <ImagePanoramaViewer {asset} />
     {:else if viewerKind === 'CropArea'}
       <CropArea {asset} />
+    {:else if viewerKind === 'AnnotationCanvas'}
+      <AnnotationCanvas
+        {asset}
+        src={getAssetMediaUrl({ id: asset.id, cacheKey: asset.thumbhash, edited: false, size: AssetMediaSize.Preview })}
+      />
     {:else if viewerKind === 'PhotoViewer'}
       <PhotoViewer cursor={{ ...cursor, current: asset }} {sharedLink} {onSwipe} />
     {:else if viewerKind === 'VideoViewer'}

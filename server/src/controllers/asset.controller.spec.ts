@@ -305,6 +305,53 @@ describe(AssetController.name, () => {
   });
 
   describe('PUT /assets/:id/edits', () => {
+    it('decodes the annotation opt-in on reads and resets', async () => {
+      const id = factory.uuid();
+      const read = await request(ctx.getHttpServer()).get(`/assets/${id}/edits?includeAnnotations=true`);
+      expect(read.status).toBe(200);
+      expect(service.getAssetEdits).toHaveBeenCalledWith(undefined, id, true);
+      const reset = await request(ctx.getHttpServer()).delete(`/assets/${id}/edits?includeAnnotations=true`);
+      expect(reset.status).toBe(204);
+      expect(service.removeAssetEdits).toHaveBeenCalledWith(undefined, id, true);
+    });
+
+    it('accepts ordered blur and emoji layers and passes the explicit capability to the service', async () => {
+      const id = factory.uuid();
+      const dto = {
+        edits: [
+          {
+            action: 'annotate',
+            parameters: {
+              layers: [
+                {
+                  type: 'blur',
+                  shape: 'rectangle',
+                  style: 'frosted',
+                  strength: 0.025,
+                  points: [
+                    { x: 0.2, y: 0.2 },
+                    { x: 0.7, y: 0.7 },
+                  ],
+                },
+                { type: 'emoji', emoji: '1faeb', x: 0.5, y: 0.5, size: 0.2 },
+              ],
+            },
+          },
+        ],
+      };
+      const result = await request(ctx.getHttpServer()).put(`/assets/${id}/edits?includeAnnotations=true`).send(dto);
+      expect(result.status).toBe(200);
+      expect(service.editAsset).toHaveBeenCalledWith(undefined, id, dto, true);
+    });
+
+    it('decodes false as the legacy annotation-preserving contract', async () => {
+      const id = factory.uuid();
+      const dto = { edits: [{ action: 'rotate', parameters: { angle: 90 } }] };
+      const result = await request(ctx.getHttpServer()).put(`/assets/${id}/edits?includeAnnotations=false`).send(dto);
+      expect(result.status).toBe(200);
+      expect(service.editAsset).toHaveBeenCalledWith(undefined, id, dto, false);
+    });
+
     it('should pass a conditional source checksum to the service', async () => {
       const assetId = factory.uuid();
       const dto = {
@@ -313,7 +360,7 @@ describe(AssetController.name, () => {
       };
       const { status } = await request(ctx.getHttpServer()).put(`/assets/${assetId}/edits`).send(dto);
       expect(status).toBe(200);
-      expect(service.editAsset).toHaveBeenCalledWith(undefined, assetId, dto);
+      expect(service.editAsset).toHaveBeenCalledWith(undefined, assetId, dto, undefined);
     });
 
     it('should reject a non-digest conditional checksum', async () => {
@@ -345,7 +392,7 @@ describe(AssetController.name, () => {
         edits,
       });
 
-      expect(service.editAsset).toHaveBeenCalledWith(undefined, assetId, { edits });
+      expect(service.editAsset).toHaveBeenCalledWith(undefined, assetId, { edits }, undefined);
       expect(status).toBe(200);
     });
 

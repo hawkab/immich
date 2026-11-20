@@ -4738,7 +4738,7 @@
     },
     "/assets/{id}/edits": {
       "delete": {
-        "description": "Removes all edit actions (crop, rotate, mirror) associated with the specified asset.",
+        "description": "Removes all edit actions (crop, rotate, mirror, and opt-in blur/emoji layers) associated with the specified asset.",
         "operationId": "removeAssetEdits",
         "parameters": [
           {
@@ -4749,6 +4749,15 @@
               "format": "uuid",
               "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
               "type": "string"
+            }
+          },
+          {
+            "name": "includeAnnotations",
+            "required": false,
+            "in": "query",
+            "description": "Read and replace blur/emoji layers. Omit for legacy crop/rotate clients, preserving existing annotations.",
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -4786,7 +4795,7 @@
         "x-immich-state": "Beta"
       },
       "get": {
-        "description": "Retrieve a series of edit actions (crop, rotate, mirror) associated with the specified asset.",
+        "description": "Retrieve a series of edit actions (crop, rotate, mirror, and opt-in blur/emoji layers) associated with the specified asset.",
         "operationId": "getAssetEdits",
         "parameters": [
           {
@@ -4797,6 +4806,15 @@
               "format": "uuid",
               "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
               "type": "string"
+            }
+          },
+          {
+            "name": "includeAnnotations",
+            "required": false,
+            "in": "query",
+            "description": "Read and replace blur/emoji layers. Omit for legacy crop/rotate clients, preserving existing annotations.",
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -4841,7 +4859,7 @@
         "x-immich-state": "Beta"
       },
       "put": {
-        "description": "Apply a series of edit actions (crop, rotate, mirror) to the specified asset.",
+        "description": "Apply a series of edit actions (crop, rotate, mirror, and opt-in blur/emoji layers) to the specified asset.",
         "operationId": "editAsset",
         "parameters": [
           {
@@ -4852,6 +4870,15 @@
               "format": "uuid",
               "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
               "type": "string"
+            }
+          },
+          {
+            "name": "includeAnnotations",
+            "required": false,
+            "in": "query",
+            "description": "Read and replace blur/emoji layers. Omit for legacy crop/rotate clients, preserving existing annotations.",
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -21264,6 +21291,196 @@
         },
         "type": "object"
       },
+      "AnnotationBlurStyle": {
+        "enum": [
+          "pixelated",
+          "frosted"
+        ],
+        "type": "string"
+      },
+      "AnnotationBlurType": {
+        "enum": [
+          "blur"
+        ],
+        "type": "string"
+      },
+      "AnnotationBrushShape": {
+        "enum": [
+          "brush"
+        ],
+        "type": "string"
+      },
+      "AnnotationEmojiType": {
+        "enum": [
+          "emoji"
+        ],
+        "type": "string"
+      },
+      "AnnotationLayer": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "$ref": "#/components/schemas/AnnotationBlurType"
+              },
+              "style": {
+                "$ref": "#/components/schemas/AnnotationBlurStyle"
+              },
+              "strength": {
+                "type": "number",
+                "exclusiveMinimum": true,
+                "maximum": 1,
+                "format": "double",
+                "description": "Effect strength as a fraction of the shorter image edge",
+                "minimum": 0
+              },
+              "shape": {
+                "$ref": "#/components/schemas/AnnotationRectangleShape"
+              },
+              "points": {
+                "minItems": 2,
+                "maxItems": 2,
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/AnnotationPoint"
+                }
+              }
+            },
+            "required": [
+              "type",
+              "style",
+              "strength",
+              "shape",
+              "points"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "$ref": "#/components/schemas/AnnotationBlurType"
+              },
+              "style": {
+                "$ref": "#/components/schemas/AnnotationBlurStyle"
+              },
+              "strength": {
+                "type": "number",
+                "exclusiveMinimum": true,
+                "maximum": 1,
+                "format": "double",
+                "description": "Effect strength as a fraction of the shorter image edge",
+                "minimum": 0
+              },
+              "shape": {
+                "$ref": "#/components/schemas/AnnotationBrushShape"
+              },
+              "points": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/AnnotationPoint"
+                }
+              },
+              "size": {
+                "type": "number",
+                "exclusiveMinimum": true,
+                "maximum": 1,
+                "format": "double",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "type",
+              "style",
+              "strength",
+              "shape",
+              "points",
+              "size"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "$ref": "#/components/schemas/AnnotationEmojiType"
+              },
+              "emoji": {
+                "type": "string"
+              },
+              "x": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "format": "double"
+              },
+              "y": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "format": "double"
+              },
+              "size": {
+                "type": "number",
+                "exclusiveMinimum": true,
+                "maximum": 1,
+                "format": "double",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "type",
+              "emoji",
+              "x",
+              "y",
+              "size"
+            ]
+          }
+        ]
+      },
+      "AnnotationParameters": {
+        "description": "Ordered annotation layers in normalized coordinates of the oriented original image",
+        "properties": {
+          "layers": {
+            "items": {
+              "$ref": "#/components/schemas/AnnotationLayer"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "layers"
+        ],
+        "type": "object"
+      },
+      "AnnotationPoint": {
+        "properties": {
+          "x": {
+            "format": "double",
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "y": {
+            "format": "double",
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "type": "object"
+      },
+      "AnnotationRectangleShape": {
+        "enum": [
+          "rectangle"
+        ],
+        "type": "string"
+      },
       "ApiKeyCreateDto": {
         "properties": {
           "name": {
@@ -21639,7 +21856,8 @@
         "enum": [
           "crop",
           "rotate",
-          "mirror"
+          "mirror",
+          "annotate"
         ],
         "type": "string"
       },
@@ -21658,9 +21876,12 @@
               },
               {
                 "$ref": "#/components/schemas/MirrorParameters"
+              },
+              {
+                "$ref": "#/components/schemas/AnnotationParameters"
               }
             ],
-            "description": "List of edit actions to apply (crop, rotate, or mirror)"
+            "description": "List of edit actions to apply (crop, rotate, mirror, or annotate)"
           }
         },
         "required": [
@@ -21690,9 +21911,12 @@
               },
               {
                 "$ref": "#/components/schemas/MirrorParameters"
+              },
+              {
+                "$ref": "#/components/schemas/AnnotationParameters"
               }
             ],
-            "description": "List of edit actions to apply (crop, rotate, or mirror)"
+            "description": "List of edit actions to apply (crop, rotate, mirror, or annotate)"
           }
         },
         "required": [
@@ -21705,7 +21929,7 @@
       "AssetEditsCreateDto": {
         "properties": {
           "edits": {
-            "description": "List of edit actions to apply (crop, rotate, or mirror)",
+            "description": "List of edit actions to apply (crop, rotate, mirror, or annotate)",
             "items": {
               "$ref": "#/components/schemas/AssetEditActionItemDto"
             },

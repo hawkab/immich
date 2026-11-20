@@ -163,6 +163,7 @@ class TransformManager implements EditToolManager {
   }
 
   async resetAllChanges() {
+    this.hasChanges = true;
     this.imageRotation = 0;
     this.mirrorHorizontal = false;
     this.mirrorVertical = false;

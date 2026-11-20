@@ -15,6 +15,7 @@ import { SharedLinkRepository } from 'src/repositories/shared-link.repository.js
 import { StackRepository } from 'src/repositories/stack.repository.js';
 import { StorageRepository } from 'src/repositories/storage.repository.js';
 import { UserRepository } from 'src/repositories/user.repository.js';
+import { VideoCompressionRepository } from 'src/repositories/video-compression.repository.js';
 import { DB } from 'src/schema/index.js';
 import { AssetService } from 'src/services/asset.service.js';
 import { newMediumService } from 'test/medium.factory.js';
@@ -31,6 +32,7 @@ const setup = (db?: Kysely<DB>) => {
       AssetRepository,
       AssetEditRepository,
       AssetJobRepository,
+      VideoCompressionRepository,
       AlbumRepository,
       AccessRepository,
       SharedLinkAssetRepository,
@@ -46,6 +48,30 @@ beforeAll(async () => {
 });
 
 describe(AssetService.name, () => {
+  it('exposes full layers only to the annotation-aware read contract and enforces ownership', async () => {
+    const { sut, ctx } = setup();
+    const { user } = await ctx.newUser();
+    const { user: other } = await ctx.newUser();
+    const { asset } = await ctx.newAsset({ ownerId: user.id });
+    await ctx.get(AssetEditRepository).replaceAll(
+      asset.id,
+      [
+        {
+          action: AssetEditAction.Annotate,
+          parameters: { layers: [{ type: 'emoji', emoji: '1f600', x: 0.5, y: 0.5, size: 0.2 }] },
+        },
+      ],
+      { includeAnnotations: true },
+    );
+    const legacy = await sut.getAssetEdits(factory.auth({ user }), asset.id);
+    expect(legacy.edits).toEqual([]);
+    const complete = await sut.getAssetEdits(factory.auth({ user }), asset.id, true);
+    expect(complete.edits).toHaveLength(1);
+    await expect(sut.getAssetEdits(factory.auth({ user: other }), asset.id, true)).rejects.toThrow(
+      'Not found or no asset.read access',
+    );
+  });
+
   describe('get', () => {
     it('should not return an asset of another user', async () => {
       const { sut, ctx } = setup();

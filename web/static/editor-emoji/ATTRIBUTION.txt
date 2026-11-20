@@ -1,0 +1,6 @@
+Twemoji graphics © Twitter, Inc. and other contributors, CC-BY-4.0.
+https://github.com/jdecked/twemoji/tree/v17.0.3
+Emoji names and keywords: Emojibase / Unicode CLDR, MIT and Unicode licenses.
+https://github.com/milesj/emojibase
+Unicode 18 additions: OpenMoji contributors, CC-BY-SA-4.0.
+https://github.com/hfg-gmuend/openmoji/tree/3e01de523ddefe9c5e46a7765b15efef04bf9002

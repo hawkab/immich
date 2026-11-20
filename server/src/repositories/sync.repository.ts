@@ -3,6 +3,7 @@ import { sql, type Kysely } from 'kysely';
 import { InjectKysely } from 'nestjs-kysely';
 import { columns } from 'src/database.js';
 import { DummyValue, GenerateSql } from 'src/decorators.js';
+import { AssetEditAction } from 'src/dtos/editing.dto.js';
 import { MemoryType } from 'src/enum.js';
 import { DB } from 'src/schema/index.js';
 import type { SyncAck } from 'src/types.js';
@@ -542,6 +543,7 @@ class AssetEditSync extends BaseSync {
   getUpserts(options: SyncQueryOptions) {
     return this.upsertQuery('asset_edit', options)
       .select([...columns.syncAssetEdit, 'asset_edit.updateId'])
+      .where('asset_edit.action', '!=', AssetEditAction.Annotate)
       .innerJoin('asset', 'asset.id', 'asset_edit.assetId')
       .where('asset.ownerId', '=', options.userId)
       .stream();

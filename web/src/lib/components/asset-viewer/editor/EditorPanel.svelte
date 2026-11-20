@@ -22,7 +22,7 @@
   }
 
   onMount(async () => {
-    const edits = await getAssetEdits({ id: asset.id });
+    const edits = await getAssetEdits({ id: asset.id, includeAnnotations: true });
     await editManager.activateTool(EditToolType.Transform, asset, edits);
   });
 
@@ -49,7 +49,7 @@
 
 <svelte:document
   use:shortcuts={[
-    { shortcut: { key: 'Escape' }, onShortcut: onClose },
+    { shortcut: { key: 'Escape' }, onShortcut: closeEditor },
     { shortcut: { key: 'Enter' }, onShortcut: applyEdits },
   ]}
 />
@@ -70,7 +70,18 @@
     <Button shape="round" size="small" onclick={applyEdits} loading={editManager.isApplyingEdits}>{$t('save')}</Button>
   </HStack>
 
-  <section>
+  <HStack class="m-4">
+    {#each editManager.tools as tool (tool.type)}
+      <Button
+        size="small"
+        color={editManager.selectedTool?.type === tool.type ? 'primary' : 'secondary'}
+        onclick={() => editManager.selectTool(tool.type)}
+      >
+        {$t(tool.type === EditToolType.Transform ? 'editor_transform_tool' : 'editor_annotation_tool')}
+      </Button>
+    {/each}
+  </HStack>
+  <section class="min-h-0 overflow-y-auto">
     {#if editManager.selectedTool}
       <editManager.selectedTool.component />
     {/if}
