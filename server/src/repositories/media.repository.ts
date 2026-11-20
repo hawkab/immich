@@ -203,6 +203,7 @@ export class MediaRepository {
     const transformed = await this.transform(image, options);
     await this.tag(transformed, options.colorspace)
       .toFormat(options.format, {
+        palette: options.format === ImageFormat.Png ? false : undefined,
         quality: options.quality,
         // this is default in libvips (except the threshold is 90), but we need to set it manually in sharp
         chromaSubsampling: options.quality >= 80 ? '4:4:4' : '4:2:0',

@@ -61,3 +61,36 @@ it('renders annotations after crop and rotation and carries them into preview an
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+it('keeps full-resolution PNG pixels and transparency lossless instead of quantizing a palette', async () => {
+  const logger = automock(LoggingRepository, { args: [undefined, { getEnv: () => ({}) }], strict: false });
+  const repository = new MediaRepository(logger);
+  const width = 48,
+    height = 48;
+  const data = Buffer.alloc(width * height * 4);
+  for (let y = 0; y < height; y++)
+    for (let x = 0; x < width; x++) data.set([x * 5, y * 5, (x + y) * 2, x < 2 ? 0 : 255], (y * width + x) * 4);
+  const directory = await mkdtemp(join(tmpdir(), 'immich-png-'));
+  try {
+    const output = join(directory, 'original.png');
+    await repository.generateThumbnail(
+      { data, info: { width, height, channels: 4 } },
+      {
+        colorspace: Colorspace.Srgb,
+        processInvalidImages: false,
+        quality: 80,
+        effort: ImageEffort.Low,
+        format: ImageFormat.Png,
+        decodingTier: 0,
+        edits: [],
+      },
+      output,
+    );
+    const info = await sharp(output).metadata();
+    expect(info.isPalette).toBe(false);
+    const result = await sharp(output).ensureAlpha().raw().toBuffer();
+    expect(result).toEqual(data);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

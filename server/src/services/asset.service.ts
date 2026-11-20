@@ -594,25 +594,6 @@ export class AssetService extends BaseService {
     }
 
     const edits = dto.edits as AssetEditActionItem[];
-    const crop = edits.find((e) => e.action === AssetEditAction.Crop);
-    if (crop) {
-      if (edits[0].action !== AssetEditAction.Crop) {
-        throw new BadRequestException('Crop action must be the first edit action');
-      }
-
-      // check that crop parameters will not go out of bounds
-      const { width: assetWidth, height: assetHeight } = getDimensions(asset);
-
-      if (!assetWidth || !assetHeight) {
-        throw new BadRequestException('Asset dimensions are not available for editing');
-      }
-
-      const { x, y, width, height } = crop.parameters;
-      if (x + width > assetWidth || y + height > assetHeight) {
-        throw new BadRequestException('Crop parameters are out of bounds');
-      }
-    }
-
     if (
       dto.replaceOriginal &&
       (!dto.saveRequestId || !includeAnnotations || edits.every((e) => e.action !== AssetEditAction.Annotate))
@@ -637,6 +618,25 @@ export class AssetService extends BaseService {
       });
       return { assetId: id, edits: await this.assetEditRepository.getAll(id) };
     }
+    const crop = edits.find((e) => e.action === AssetEditAction.Crop);
+    if (crop) {
+      if (edits[0].action !== AssetEditAction.Crop) {
+        throw new BadRequestException('Crop action must be the first edit action');
+      }
+
+      // check that crop parameters will not go out of bounds
+      const { width: assetWidth, height: assetHeight } = getDimensions(asset);
+
+      if (!assetWidth || !assetHeight) {
+        throw new BadRequestException('Asset dimensions are not available for editing');
+      }
+
+      const { x, y, width, height } = crop.parameters;
+      if (x + width > assetWidth || y + height > assetHeight) {
+        throw new BadRequestException('Crop parameters are out of bounds');
+      }
+    }
+
     const sourceFileHash = dto.replaceOriginal ? await this.cryptoRepository.hashFile(asset.originalPath) : undefined;
     const sourceFileChecksum = sourceFileHash?.toString('base64');
     const newEdits = await this.assetEditRepository.replaceAll(id, edits, {

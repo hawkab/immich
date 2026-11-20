@@ -277,7 +277,7 @@ export class MediaService extends BaseService {
         files: generated.files,
       });
       if (!committed) throw new Error('The photo or edit permission changed before saving');
-      const saved = await this.assetEditRepository.getPhotoSave(id);
+      const saved = await this.assetEditRepository.getPhotoSave(id, request.requestId);
       if (!saved || saved.status !== 'committed') throw new Error('Image save could not be reconciled');
       await this.cleanupPhotoSave(id, saved);
       await this.jobRepository.queue({ name: JobName.AssetExtractMetadata, data: { id } });
@@ -285,7 +285,7 @@ export class MediaService extends BaseService {
       this.photoSaveReceipt(id, saved, 'saved');
       return JobStatus.Success;
     } catch (error) {
-      const current = await this.assetEditRepository.getPhotoSave(id);
+      const current = await this.assetEditRepository.getPhotoSave(id, request.requestId);
       if (current?.requestId === request.requestId && current.status === 'committed') {
         this.logger.warn(`Photo ${id} saved; finalization will resume after restart`);
         this.photoSaveReceipt(id, current, 'saved');
