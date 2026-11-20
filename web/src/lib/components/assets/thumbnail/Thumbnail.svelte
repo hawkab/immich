@@ -5,7 +5,7 @@
   import type { TimelineAsset } from '#lib/managers/timeline-manager/types.ts';
   import { mediaQueryManager } from '#lib/stores/media-query-manager.svelte.ts';
   import { locale, playVideoThumbnailOnHover } from '#lib/stores/preferences.store.ts';
-  import { getAssetMediaUrl, getAssetPlaybackUrl } from '#lib/utils.ts';
+  import { getAssetCacheKey, getAssetMediaUrl, getAssetPlaybackUrl } from '#lib/utils.ts';
   import { moveFocus } from '#lib/utils/focus-util.ts';
   import { currentUrlReplaceAssetId } from '#lib/utils/navigation.ts';
   import { getAltText } from '#lib/utils/thumbnail-util.ts';
@@ -241,7 +241,7 @@
       <ImageThumbnail
         class={['absolute group-focus-visible:rounded-lg', imageClass]}
         brokenAssetClass={['z-1 absolute group-focus-visible:rounded-lg', brokenAssetClass]}
-        url={getAssetMediaUrl({ id: asset.id, size: AssetMediaSize.Thumbnail, cacheKey: asset.thumbhash })}
+        url={getAssetMediaUrl({ id: asset.id, size: AssetMediaSize.Thumbnail, cacheKey: getAssetCacheKey(asset) })}
         altText={$getAltText(asset)}
         widthStyle="{width}px"
         heightStyle="{height}px"
@@ -257,7 +257,7 @@
         <div class="pointer-events-none absolute size-full group-focus-visible:rounded-lg">
           <VideoThumbnail
             class="group-focus-visible:rounded-lg"
-            url={getAssetPlaybackUrl({ id: asset.id, cacheKey: asset.thumbhash })}
+            url={getAssetPlaybackUrl({ id: asset.id, cacheKey: getAssetCacheKey(asset) })}
             enablePlayback={mouseOver && $playVideoThumbnailOnHover}
             curve={selected}
             durationInSeconds={asset.duration ? asset.duration / 1000 : 0}
@@ -268,7 +268,7 @@
         <div class="pointer-events-none absolute size-full group-focus-visible:rounded-lg">
           <VideoThumbnail
             class="group-focus-visible:rounded-lg"
-            url={getAssetPlaybackUrl({ id: asset.livePhotoVideoId, cacheKey: asset.thumbhash })}
+            url={getAssetPlaybackUrl({ id: asset.livePhotoVideoId, cacheKey: getAssetCacheKey(asset) })}
             enablePlayback={mouseOver && $playVideoThumbnailOnHover}
             pauseIcon={mdiMotionPauseOutline}
             playIcon={mdiMotionPlayOutline}
@@ -283,7 +283,7 @@
           <ImageThumbnail
             class={imageClass}
             {brokenAssetClass}
-            url={getAssetMediaUrl({ id: asset.id, size: AssetMediaSize.Original, cacheKey: asset.thumbhash })}
+            url={getAssetMediaUrl({ id: asset.id, size: AssetMediaSize.Original, cacheKey: getAssetCacheKey(asset) })}
             altText={$getAltText(asset)}
             widthStyle="{width}px"
             heightStyle="{height}px"

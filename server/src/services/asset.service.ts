@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, PreconditionFailedException } from '@nestjs/common';
 import { isUndefined, omitBy } from 'lodash-es';
 import { DateTime, Duration } from 'luxon';
 import type { AssetFile } from 'src/database.js';
@@ -27,6 +27,7 @@ import {
   type AssetEditActionItem,
 } from 'src/dtos/editing.dto.js';
 import { AssetOcrResponseDto } from 'src/dtos/ocr.dto.js';
+import type { PhotoSaveStatusDto } from 'src/dtos/photo-save.dto.js';
 import {
   AssetFileType,
   AssetStatus,
@@ -50,6 +51,7 @@ import {
 } from 'src/utils/asset.util.js';
 import { updateLockedColumns } from 'src/utils/database.js';
 import { extractTimeZone } from 'src/utils/date.js';
+import { mediaProof } from 'src/utils/media-generation.js';
 import { batched, findOrFail } from 'src/utils/misc.js';
 import { transformOcrBoundingBox } from 'src/utils/transform.js';
 
@@ -531,6 +533,16 @@ export class AssetService extends BaseService {
     return true;
   }
 
+  async getPhotoSaveStatus(auth: AuthDto, id: string, requestId: string): Promise<PhotoSaveStatusDto> {
+    await this.requireAccess({ auth, permission: Permission.AssetRead, ids: [id] });
+    const save = await this.assetEditRepository.getPhotoSave(id, requestId);
+    if (!save || save.requestId !== requestId) throw new BadRequestException('Save request not found for this photo');
+    return {
+      requestId,
+      status: save.status === 'requested' ? 'processing' : save.status === 'committed' ? 'saved' : 'failed',
+    };
+  }
+
   async getAssetEdits(auth: AuthDto, id: string, includeAnnotations = false): Promise<AssetEditsResponseDto> {
     await this.requireAccess({ auth, permission: Permission.AssetRead, ids: [id] });
     const edits = await this.assetEditRepository.getAll(id);
@@ -601,7 +613,43 @@ export class AssetService extends BaseService {
       }
     }
 
-    const newEdits = await this.assetEditRepository.replaceAll(id, edits, { includeAnnotations });
+    if (
+      dto.replaceOriginal &&
+      (!dto.saveRequestId || !includeAnnotations || edits.every((e) => e.action !== AssetEditAction.Annotate))
+    ) {
+      throw new BadRequestException('Replacing a photo requires annotation edits and a save request ID');
+    }
+    const saved = dto.replaceOriginal ? await this.assetEditRepository.getPhotoSave(id, dto.saveRequestId) : undefined;
+    if (saved?.requestId === dto.saveRequestId && saved?.status === 'committed') {
+      const current = await this.assetRepository.getById(id);
+      if (
+        saved.actorId !== auth.user.id ||
+        saved.generation !==
+          mediaProof({ id, checksum: Buffer.from(saved.sourceChecksum, 'base64'), edits }).generation ||
+        current?.checksum.toString('base64') !== saved.outputChecksum
+      ) {
+        throw new PreconditionFailedException('This save request belongs to a different photo version');
+      }
+      this.websocketRepository.clientSend('PhotoSaveReadyV1', auth.user.id, {
+        assetId: id,
+        requestId: saved.requestId,
+        status: 'saved',
+      });
+      return { assetId: id, edits: await this.assetEditRepository.getAll(id) };
+    }
+    const sourceFileHash = dto.replaceOriginal ? await this.cryptoRepository.hashFile(asset.originalPath) : undefined;
+    const sourceFileChecksum = sourceFileHash?.toString('base64');
+    const newEdits = await this.assetEditRepository.replaceAll(id, edits, {
+      includeAnnotations,
+      ...(dto.replaceOriginal && {
+        saveOriginal: {
+          actorId: auth.user.id,
+          requestId: dto.saveRequestId!,
+          sourcePath: asset.originalPath,
+          sourceFileChecksum: sourceFileChecksum!,
+        },
+      }),
+    });
     await this.jobRepository.queue({ name: JobName.AssetEditThumbnailGeneration, data: { id } });
 
     // Return the asset and its applied edits

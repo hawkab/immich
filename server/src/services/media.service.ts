@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { dirname, join } from 'node:path';
 import { FACE_THUMBNAIL_SIZE, THUMBNAIL_DECODING_TIER } from 'src/constants.js';
 import { ImagePathOptions, StorageCore, ThumbnailPathEntity } from 'src/cores/storage.core.js';
 import { AssetFile } from 'src/database.js';
@@ -26,6 +27,7 @@ import {
 } from 'src/enum.js';
 import { AssetJobRepository } from 'src/repositories/asset-job.repository.js';
 import { BoundingBox } from 'src/repositories/machine-learning.repository.js';
+import type { PhotoSave } from 'src/repositories/photo-save.store.js';
 import { BaseService } from 'src/services/base.service.js';
 import type {
   AudioStreamInfo,
@@ -41,6 +43,7 @@ import type {
 import { getAssetFile, getDimensions } from 'src/utils/asset.util.js';
 import { tokenizeForSearch } from 'src/utils/database.js';
 import { checkFaceVisibility, checkOcrVisibility } from 'src/utils/editor.js';
+import { generationPath, mediaProof } from 'src/utils/media-generation.js';
 import { BaseConfig, ThumbnailConfig } from 'src/utils/media.js';
 import { mimeTypes } from 'src/utils/mime-types.js';
 import { batched, clamp } from 'src/utils/misc.js';
@@ -64,6 +67,8 @@ export class MediaService extends BaseService {
   @OnEvent({ name: 'AppBootstrap', workers: [ImmichWorker.Microservices] })
   async onBootstrap() {
     this.videoInterfaces = await this.storageCore.getVideoInterfaces();
+    for (const { assetId } of await this.assetEditRepository.pendingPhotoSaves())
+      await this.jobRepository.queue({ name: JobName.AssetEditThumbnailGeneration, data: { id: assetId } });
   }
 
   @OnJob({ name: JobName.AssetGenerateThumbnailsQueueAll, queue: QueueName.ThumbnailGeneration })
@@ -154,6 +159,12 @@ export class MediaService extends BaseService {
 
   @OnJob({ name: JobName.AssetEditThumbnailGeneration, queue: QueueName.Editor })
   async handleAssetEditThumbnailGeneration({ id }: JobOf<JobName.AssetEditThumbnailGeneration>): Promise<JobStatus> {
+    const save = await this.assetEditRepository.getPhotoSave(id);
+    if (
+      save &&
+      (save.status === 'requested' || save.cleanup.length > 0 || (save.status === 'committed' && !save.finalized))
+    )
+      return this.assetEditRepository.withPhotoSaveLock(id, () => this.saveAnnotatedOriginal(id));
     const asset = await this.assetJobRepository.getForGenerateThumbnailJob(id);
     const config = await this.getConfig({ withCache: true });
 
@@ -188,8 +199,134 @@ export class MediaService extends BaseService {
     return JobStatus.Success;
   }
 
+  /** Bake explicit annotation saves into a lossless, full-resolution original. */
+  private async saveAnnotatedOriginal(id: string): Promise<JobStatus> {
+    const request = await this.assetEditRepository.getPhotoSave(id);
+    if (!request) return JobStatus.Skipped;
+    if (request.status === 'committed') {
+      await this.cleanupPhotoSave(id, request);
+      if (!request.finalized) {
+        await this.jobRepository.queue({ name: JobName.AssetExtractMetadata, data: { id } });
+        await this.assetEditRepository.finalizePhotoSave(id, request.requestId);
+      }
+      this.photoSaveReceipt(id, request, 'saved');
+      return JobStatus.Success;
+    }
+    if (request.status !== 'requested') {
+      await this.cleanupPhotoSave(id, request);
+      return JobStatus.Skipped;
+    }
+    let candidates: string[] = [];
+    try {
+      const published = await this.assetJobRepository.getForGenerateThumbnailJob(id);
+      if (!published || mediaProof(published).generation !== request.baseGeneration || !request.edits)
+        throw new Error('The photo changed before saving');
+      const sourceBeforeRendering = await this.cryptoRepository.hashFile(published.originalPath);
+      if (sourceBeforeRendering.toString('base64') !== request.sourceFileChecksum)
+        throw new Error('Source photo file changed');
+      const asset = { ...published, edits: request.edits };
+      const original = await this.assetRepository.getById(id);
+      if (!original) throw new Error('Source photo no longer exists');
+      const config = await this.getConfig({ withCache: true });
+      const lossless = {
+        ...config,
+        image: {
+          ...config.image,
+          extractEmbedded: false,
+          fullsize: { ...config.image.fullsize, format: ImageFormat.Png },
+        },
+      };
+      const generated = await this.generateImageThumbnails(asset, lossless, true, request.requestId);
+      candidates = generated.files.map((file) => file.path);
+      const fullsize = generated.files.find((file) => file.type === AssetFileType.FullSize);
+      if (!fullsize) throw new Error('Full-resolution rendered photo is missing');
+      const output = join(dirname(asset.originalPath), `.immich-edit-${request.requestId}.png`);
+      await this.assetEditRepository.preparePhotoSave(id, request.requestId, output);
+      candidates.push(output);
+      await this.storageRepository.copyFile(fullsize.path, output);
+      if (
+        !(await this.mediaRepository.writeExif(
+          {
+            ...asset.exifInfo,
+            exifImageWidth: generated.fullsizeDimensions.width,
+            exifImageHeight: generated.fullsizeDimensions.height,
+            orientation: '1',
+            dateTimeOriginal: new Date(asset.exifInfo.dateTimeOriginal ?? original.fileCreatedAt),
+            modifyDate: new Date(asset.exifInfo.modifyDate ?? original.fileModifiedAt),
+          },
+          output,
+        ))
+      ) {
+        throw new Error('Could not preserve photo metadata');
+      }
+      await this.storageRepository.utimes(output, new Date(), new Date(original.fileModifiedAt));
+      await this.storageRepository.syncFile(output);
+      const [checksum, stat] = await Promise.all([
+        this.cryptoRepository.hashFile(output),
+        this.storageRepository.stat(output),
+      ]);
+      const sourceAfterRendering = await this.cryptoRepository.hashFile(asset.originalPath);
+      if (sourceAfterRendering.toString('base64') !== request.sourceFileChecksum)
+        throw new Error('Source photo file changed during rendering');
+      const committed = await this.assetEditRepository.commitPhotoSave(id, request.requestId, {
+        path: output,
+        checksum,
+        size: stat.size,
+        ...generated.fullsizeDimensions,
+        thumbhash: generated.thumbhash,
+        files: generated.files,
+      });
+      if (!committed) throw new Error('The photo or edit permission changed before saving');
+      const saved = await this.assetEditRepository.getPhotoSave(id);
+      if (!saved || saved.status !== 'committed') throw new Error('Image save could not be reconciled');
+      await this.cleanupPhotoSave(id, saved);
+      await this.jobRepository.queue({ name: JobName.AssetExtractMetadata, data: { id } });
+      await this.assetEditRepository.finalizePhotoSave(id, request.requestId);
+      this.photoSaveReceipt(id, saved, 'saved');
+      return JobStatus.Success;
+    } catch (error) {
+      const current = await this.assetEditRepository.getPhotoSave(id);
+      if (current?.requestId === request.requestId && current.status === 'committed') {
+        this.logger.warn(`Photo ${id} saved; finalization will resume after restart`);
+        this.photoSaveReceipt(id, current, 'saved');
+        return JobStatus.Success;
+      }
+      await this.assetEditRepository.failPhotoSave(id, request.requestId, candidates);
+      this.photoSaveReceipt(id, request, 'failed');
+      for (const path of candidates) {
+        try {
+          if (!(await this.assetEditRepository.isPhotoPathReferenced(path))) await this.storageRepository.unlink(path);
+        } catch {
+          this.logger.warn(`Deferred photo-save cleanup for ${id}`);
+        }
+      }
+      throw error;
+    }
+  }
+
+  private photoSaveReceipt(id: string, request: PhotoSave, status: 'saved' | 'failed') {
+    this.websocketRepository.clientSend('PhotoSaveReadyV1', request.actorId, {
+      assetId: id,
+      requestId: request.requestId,
+      status,
+    });
+  }
+
+  private async cleanupPhotoSave(id: string, request: PhotoSave) {
+    for (const path of request.cleanup) {
+      if (!(await this.assetEditRepository.isPhotoPathReferenced(path))) await this.storageRepository.unlink(path);
+    }
+    await this.assetEditRepository.completePhotoSaveCleanup(id, request.requestId);
+  }
+
   @OnJob({ name: JobName.AssetGenerateThumbnails, queue: QueueName.ThumbnailGeneration })
   async handleGenerateThumbnails({ id }: JobOf<JobName.AssetGenerateThumbnails>): Promise<JobStatus> {
+    const save = await this.assetEditRepository.getPhotoSave(id);
+    if (
+      save &&
+      (save.status === 'requested' || save.cleanup.length > 0 || (save.status === 'committed' && !save.finalized))
+    )
+      return this.assetEditRepository.withPhotoSaveLock(id, () => this.saveAnnotatedOriginal(id));
     const asset = await this.assetJobRepository.getForGenerateThumbnailJob(id);
     const config = await this.getConfig({ withCache: true });
 
@@ -288,7 +425,17 @@ export class MediaService extends BaseService {
     };
   }
 
-  private async generateImageThumbnails(asset: ThumbnailAsset, { image }: SystemConfig, useEdits: boolean = false) {
+  private async generateImageThumbnails(
+    asset: ThumbnailAsset,
+    { image }: SystemConfig,
+    useEdits: boolean = false,
+    producerId?: string,
+  ) {
+    const candidate = (options: ImagePathOptions & { isProgressive: boolean; isTransparent: boolean }) => {
+      const file = this.getImageFile(asset, options);
+      if (producerId) file.path = generationPath(file.path, mediaProof(asset).generation, producerId);
+      return file;
+    };
     // Handle embedded preview extraction for RAW files
     const { info, data, colorspace, generateFullsize, convertFullsize, extracted, isTransparent } =
       await this.extractOriginalImage(asset, image, useEdits);
@@ -299,14 +446,14 @@ export class MediaService extends BaseService {
     const thumbnailFormat = image.thumbnail.format;
     this.warnOnTransparencyLoss(isTransparent, thumbnailFormat, asset.id);
 
-    const previewFile = this.getImageFile(asset, {
+    const previewFile = candidate({
       fileType: AssetFileType.Preview,
       format: previewFormat,
       isEdited: useEdits,
       isProgressive: !!image.preview.progressive && previewFormat === ImageFormat.Jpeg,
       isTransparent,
     });
-    const thumbnailFile = this.getImageFile(asset, {
+    const thumbnailFile = candidate({
       fileType: AssetFileType.Thumbnail,
       format: thumbnailFormat,
       isEdited: useEdits,
@@ -336,7 +483,7 @@ export class MediaService extends BaseService {
       const fullsizeFormat = image.fullsize.format;
       this.warnOnTransparencyLoss(isTransparent, fullsizeFormat, asset.id);
       // convert a new fullsize image from the same source as the thumbnail
-      fullsizeFile = this.getImageFile(asset, {
+      fullsizeFile = candidate({
         fileType: AssetFileType.FullSize,
         format: fullsizeFormat,
         isEdited: useEdits,
@@ -353,7 +500,7 @@ export class MediaService extends BaseService {
       } as const;
       promises.push(this.mediaRepository.generateThumbnail(decoded, fullsizeOptions, fullsizeFile.path));
     } else if (generateFullsize && extracted && extracted.format === RawExtractedFormat.Jpeg) {
-      fullsizeFile = this.getImageFile(asset, {
+      fullsizeFile = candidate({
         fileType: AssetFileType.FullSize,
         format: extracted.format,
         isEdited: false,
@@ -373,7 +520,21 @@ export class MediaService extends BaseService {
       );
     }
 
-    const outputs = await Promise.all(promises);
+    const completed = await Promise.allSettled(promises);
+    const failed = completed.find((result) => result.status === 'rejected');
+    if (failed?.status === 'rejected') {
+      if (producerId)
+        await Promise.allSettled(
+          [previewFile, thumbnailFile, ...(fullsizeFile ? [fullsizeFile] : [])].map((file) =>
+            this.storageRepository.unlink(file.path),
+          ),
+        );
+      throw failed.reason;
+    }
+    const outputs = completed.map((result) => {
+      if (result.status === 'fulfilled') return result.value;
+      throw result.reason;
+    });
 
     if (asset.exifInfo.projectionType === 'EQUIRECTANGULAR') {
       const promises = [

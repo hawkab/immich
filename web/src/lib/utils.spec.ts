@@ -18,8 +18,9 @@ describe('utils', () => {
       duration: 2000,
     };
     const video = { originalPath: 'video.mp4', originalMimeType: 'video/mp4', type: AssetTypeEnum.Video };
-    const preview = (id: string) => `/api/assets/${id}/thumbnail?size=preview&c=${validThumbhash}&edited=true`;
-    const original = (id: string) => `/api/assets/${id}/original?c=${validThumbhash}&edited=true`;
+    const preview = (id: string) =>
+      `/api/assets/${id}/thumbnail?size=preview&c=revision-1%3A${validThumbhash}&edited=true`;
+    const original = (id: string) => `/api/assets/${id}/original?c=revision-1%3A${validThumbhash}&edited=true`;
 
     it.each([
       { name: 'a static image', overrides: image, expected: preview },
@@ -29,13 +30,13 @@ describe('utils', () => {
       { name: 'an animated webp', overrides: animatedWebp, expected: original },
       { name: 'a video', overrides: video, expected: preview },
     ])('serves the preview or the original for $name', ({ overrides, expected }) => {
-      const asset = factory.asset(overrides);
+      const asset = factory.asset({ ...overrides, mediaVersion: 'revision-1' });
 
       expect(getAssetUrl({ asset })).toBe(expected(asset.id));
     });
 
     it('serves the original for a video when forced', () => {
-      const asset = factory.asset(video);
+      const asset = factory.asset({ ...video, mediaVersion: 'revision-1' });
 
       expect(getAssetUrl({ asset, forceOriginal: true })).toBe(original(asset.id));
     });
@@ -61,7 +62,7 @@ describe('utils', () => {
         expected: preview,
       },
     ])('on a shared link serves the preview or the original for $name', ({ overrides, link, expected }) => {
-      const asset = factory.asset(overrides);
+      const asset = factory.asset({ ...overrides, mediaVersion: 'revision-1' });
       const sharedLink = factory.sharedLink({ ...link, assets: [asset] });
 
       expect(getAssetUrl({ asset, sharedLink })).toBe(expected(asset.id));
@@ -103,5 +104,17 @@ describe('utils', () => {
     it('should fall back when the person has no name', () => {
       expect(birthday({ personName: undefined })).toBe('Unknown');
     });
+  });
+});
+
+describe('media cache revisions', () => {
+  it('changes URLs after a save even when the visual thumbhash remains unchanged', async () => {
+    const { getAssetCacheKey, getAssetMediaUrl } = await import('#lib/utils.ts');
+    const original = { id: 'test-asset', thumbhash: 'identical-low-resolution-hash', mediaVersion: 'revision-before' };
+    const saved = { ...original, mediaVersion: 'revision-after' };
+    expect(getAssetMediaUrl({ id: original.id, cacheKey: getAssetCacheKey(original) })).not.toBe(
+      getAssetMediaUrl({ id: saved.id, cacheKey: getAssetCacheKey(saved) }),
+    );
+    expect(getAssetCacheKey({ thumbhash: 'legacy' })).toBe('legacy');
   });
 });

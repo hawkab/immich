@@ -164,6 +164,7 @@ export const getForMetadataExtraction = (
 });
 
 export const getForGenerateThumbnail = (asset: ReturnType<AssetFactory['build']>) => ({
+  checksum: asset.checksum,
   id: asset.id,
   visibility: asset.visibility,
   originalFileName: asset.originalFileName,

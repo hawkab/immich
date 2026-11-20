@@ -119,6 +119,7 @@ export class AssetJobRepository {
       .selectFrom('asset')
       .select([
         'asset.id',
+        'asset.checksum',
         'asset.visibility',
         'asset.originalFileName',
         'asset.originalPath',

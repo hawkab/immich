@@ -5,7 +5,16 @@ import { transformManager } from '#lib/managers/edit/transform-manager.svelte.ts
 import { eventManager } from '#lib/managers/event-manager.svelte.ts';
 import { waitForWebsocketEvent } from '#lib/stores/websocket.ts';
 import { getFormatter } from '#lib/utils/i18n.ts';
-import { editAsset, removeAssetEdits, type AssetEditsCreateDto, type AssetResponseDto } from '@immich/sdk';
+import { waitForPhotoSave } from '#lib/utils/photo-save.ts';
+import {
+  editAsset,
+  getAssetInfo,
+  getPhotoSaveStatus,
+  isHttpError,
+  removeAssetEdits,
+  type AssetEditsCreateDto,
+  type AssetResponseDto,
+} from '@immich/sdk';
 import { ConfirmModal, modalManager, toastManager } from '@immich/ui';
 import { mdiCropRotate, mdiDraw } from '@mdi/js';
 import type { Component } from 'svelte';
@@ -35,6 +44,7 @@ export interface EditTool {
 }
 
 export class EditManager {
+  private pendingOriginalSaveId?: string;
   private saveController?: AbortController;
   private toolDefinitions?: EditTool[];
 
@@ -121,6 +131,7 @@ export class EditManager {
       tool.manager.onDeactivate?.();
     }
     this.currentAsset = null;
+    this.pendingOriginalSaveId = undefined;
     this.selectedTool = null;
   }
 
@@ -148,30 +159,50 @@ export class EditManager {
     try {
       // Setup the websocket listener before sending the edit request
       this.saveController = new AbortController();
-      const editCompleted = waitForWebsocketEvent(
-        'AssetEditReadyV2',
-        (event) => event.asset.id === assetId,
-        null,
-        this.saveController.signal,
-      );
+      const replaceOriginal = edits.some((edit) => edit.action === 'annotate');
+      const saveRequestId = replaceOriginal ? (this.pendingOriginalSaveId ??= crypto.randomUUID()) : undefined;
+      const editCompleted = replaceOriginal
+        ? waitForWebsocketEvent(
+            'PhotoSaveReadyV1',
+            (event) => event.assetId === assetId && event.requestId === saveRequestId,
+            null,
+            this.saveController.signal,
+          ).then(([event]) => {
+            if (event.status !== 'saved') throw new Error('Photo save failed');
+          })
+        : waitForWebsocketEvent(
+            'AssetEditReadyV2',
+            (event) => event.asset.id === assetId,
+            null,
+            this.saveController.signal,
+          );
 
-      await Promise.all([
-        editCompleted,
+      const check = () =>
+        getPhotoSaveStatus({ id: assetId, requestId: saveRequestId! }, { signal: this.saveController!.signal });
+      const reconcile = () => waitForPhotoSave(check, this.saveController!.signal);
+      const write = (
         edits.length === 0
           ? removeAssetEdits({ id: assetId, includeAnnotations: true })
           : editAsset({
               id: assetId,
               includeAnnotations: true,
-              assetEditsCreateDto: {
-                edits,
-              },
-            }),
+              assetEditsCreateDto: { edits, ...(replaceOriginal && { replaceOriginal: true, saveRequestId }) },
+            })
+      ).catch(async (error) => {
+        if (!replaceOriginal || (isHttpError(error) && error.status < 500)) throw error;
+        await reconcile();
+      });
+      await Promise.all([
+        write,
+        replaceOriginal ? Promise.race([editCompleted, write.then(reconcile)]) : editCompleted,
       ]);
 
       eventManager.emit('AssetEditsApplied', assetId);
+      eventManager.emit('AssetUpdate', await getAssetInfo({ id: assetId }));
 
       toastManager.primary(t('editor_edits_applied_success'));
       this.hasAppliedEdits = true;
+      this.pendingOriginalSaveId = undefined;
 
       return true;
     } catch {

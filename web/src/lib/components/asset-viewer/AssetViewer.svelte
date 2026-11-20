@@ -25,7 +25,7 @@
   import { ocrManager } from '#lib/stores/ocr.svelte.ts';
   import { alwaysLoadOriginalVideo } from '#lib/stores/preferences.store.ts';
   import { SlideshowNavigation, SlideshowState, slideshowStore } from '#lib/stores/slideshow.store.ts';
-  import { getAssetMediaUrl, getSharedLink, handlePromiseError } from '#lib/utils.ts';
+  import { getAssetCacheKey, getAssetMediaUrl, getSharedLink, handlePromiseError } from '#lib/utils.ts';
   import type { OnUndoDelete } from '#lib/utils/actions.ts';
   import { navigateToAsset } from '#lib/utils/asset-utils.ts';
   import { handleError } from '#lib/utils/handle-error.ts';
@@ -580,7 +580,12 @@
     {:else if viewerKind === 'AnnotationCanvas'}
       <AnnotationCanvas
         {asset}
-        src={getAssetMediaUrl({ id: asset.id, cacheKey: asset.thumbhash, edited: false, size: AssetMediaSize.Preview })}
+        src={getAssetMediaUrl({
+          id: asset.id,
+          cacheKey: getAssetCacheKey(asset),
+          edited: false,
+          size: AssetMediaSize.Preview,
+        })}
       />
     {:else if viewerKind === 'PhotoViewer'}
       <PhotoViewer cursor={{ ...cursor, current: asset }} {sharedLink} {onSwipe} />

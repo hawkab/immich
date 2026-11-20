@@ -71,6 +71,21 @@ export class StorageRepository {
     return fs.copyFile(source, target);
   }
 
+  async syncFile(filepath: string) {
+    const file = await fs.open(filepath, 'r');
+    try {
+      await file.sync();
+    } finally {
+      await file.close();
+    }
+    const folder = await fs.open(path.dirname(filepath), 'r');
+    try {
+      await folder.sync();
+    } finally {
+      await folder.close();
+    }
+  }
+
   stat(filepath: string) {
     return fs.stat(filepath);
   }

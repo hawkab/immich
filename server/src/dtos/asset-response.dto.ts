@@ -26,6 +26,7 @@ const SanitizedAssetResponseSchema = z
   .object({
     id: z.uuidv4().describe('Asset ID'),
     type: AssetTypeSchema,
+    mediaVersion: z.string().optional().describe('Opaque media revision for cache invalidation'),
     thumbhash: z
       .string()
       .describe(
@@ -197,6 +198,7 @@ export function mapAsset(entity: MaybeDehydrated<MapAsset>, options: AssetMapOpt
       id: entity.id,
       type: entity.type,
       originalMimeType: mimeTypes.lookup(entity.originalFileName),
+      mediaVersion: entity.updateId,
       thumbhash: entity.thumbhash ? hexOrBufferToBase64(entity.thumbhash) : null,
       localDateTime: asDateTimeString(entity.localDateTime),
       duration: entity.duration,
@@ -218,6 +220,7 @@ export function mapAsset(entity: MaybeDehydrated<MapAsset>, options: AssetMapOpt
     originalPath: entity.originalPath,
     originalFileName: entity.originalFileName,
     originalMimeType: mimeTypes.lookup(entity.originalFileName),
+    mediaVersion: entity.updateId,
     thumbhash: entity.thumbhash ? hexOrBufferToBase64(entity.thumbhash) : null,
     fileCreatedAt: asDateTimeString(entity.fileCreatedAt),
     fileModifiedAt: asDateTimeString(entity.fileModifiedAt),

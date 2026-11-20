@@ -188,6 +188,7 @@ export class TimelineMonth {
         country: bucketAssets.country?.[i] ?? null,
         duration: bucketAssets.duration[i],
         id: bucketAssets.id[i],
+        mediaVersion: bucketAssets.mediaVersion?.[i],
         visibility: bucketAssets.visibility[i],
         isFavorite: bucketAssets.isFavorite[i],
         isImage: bucketAssets.isImage[i],

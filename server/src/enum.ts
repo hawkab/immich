@@ -608,6 +608,7 @@ export enum Colorspace {
 export const ColorspaceSchema = z.enum(Colorspace).describe('Colorspace').meta({ id: 'Colorspace' });
 
 export enum ImageFormat {
+  Png = 'png',
   Jpeg = 'jpeg',
   Jxl = 'jxl',
   Webp = 'webp',
