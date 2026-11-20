@@ -50,6 +50,7 @@ export interface ClientEventMap {
 
   AssetUploadReadyV2: [{ asset: SyncAssetV2; exif: SyncAssetExifV1 }];
   AppRestartV1: [AppRestartEvent];
+  PhotoSaveReadyV1: [{ assetId: string; requestId: string; status: 'saved' | 'failed' }];
   AssetEditReadyV2: [{ asset: SyncAssetV2; edit: SyncAssetEditV1[] }];
 }
 

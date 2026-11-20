@@ -20,15 +20,17 @@ import {
   TranscodePolicy,
   VideoCodec,
 } from 'src/enum.js';
+import type { PhotoSave } from 'src/repositories/photo-save.store.js';
 import { MediaService } from 'src/services/media.service.js';
 import type { AudioStreamInfo, JobCounts, RawImageInfo, VideoFormat, VideoStreamInfo } from 'src/types.js';
+import { mediaProof } from 'src/utils/media-generation.js';
 import { AssetFaceFactory } from 'test/factories/asset-face.factory.js';
 import { AssetFactory } from 'test/factories/asset.factory.js';
 import { PersonFactory } from 'test/factories/person.factory.js';
 import { probeStub } from 'test/fixtures/media.stub.js';
 import { personThumbnailStub } from 'test/fixtures/person.stub.js';
 import { systemConfigStub } from 'test/fixtures/system-config.stub.js';
-import { getForGenerateThumbnail } from 'test/mappers.js';
+import { getForAsset, getForGenerateThumbnail } from 'test/mappers.js';
 import { factory, newUuid } from 'test/small.factory.js';
 import { ServiceMocks, makeStream, newTestService } from 'test/utils.js';
 
@@ -42,6 +44,8 @@ describe(MediaService.name, () => {
 
   beforeEach(() => {
     ({ sut, mocks } = newTestService(MediaService));
+    mocks.assetEdit.pendingPhotoSaves.mockResolvedValue([]);
+    mocks.assetEdit.getPhotoSave.mockResolvedValue(undefined);
     mocks.asset.replaceEditedFiles.mockResolvedValue({ applied: true, obsoletePaths: [] });
   });
 
@@ -1464,6 +1468,8 @@ describe(MediaService.name, () => {
     it('should not publish or update metadata from a stale edited generation and should queue the current job', async () => {
       const asset = AssetFactory.from().exif().edit().build();
       mocks.assetJob.getForGenerateThumbnailJob.mockResolvedValue(getForGenerateThumbnail(asset));
+      mocks.assetEdit.pendingPhotoSaves.mockResolvedValue([]);
+      mocks.assetEdit.getPhotoSave.mockResolvedValue(undefined);
       mocks.asset.replaceEditedFiles.mockResolvedValue({ applied: false, obsoletePaths: [] });
 
       await expect(sut.handleAssetEditThumbnailGeneration({ id: asset.id })).resolves.toBe(JobStatus.Skipped);
@@ -1553,6 +1559,8 @@ describe(MediaService.name, () => {
         ])
         .build();
       mocks.assetJob.getForGenerateThumbnailJob.mockResolvedValue(getForGenerateThumbnail(asset));
+      mocks.assetEdit.pendingPhotoSaves.mockResolvedValue([]);
+      mocks.assetEdit.getPhotoSave.mockResolvedValue(undefined);
       mocks.asset.replaceEditedFiles.mockResolvedValue({
         applied: true,
         obsoletePaths: ['edited1.jpg', 'edited2.jpg', 'edited3.jpg'],
@@ -4525,6 +4533,113 @@ describe(MediaService.name, () => {
       ]);
       expect(mocks.asset.deleteFiles).not.toHaveBeenCalled();
       expect(mocks.job.queue).not.toHaveBeenCalled();
+    });
+  });
+});
+
+const setupPhotoSave = () => {
+  const { sut, mocks } = newTestService(MediaService);
+  const asset = AssetFactory.from().exif().build();
+  const published = getForGenerateThumbnail(asset);
+  const request: PhotoSave = {
+    requestId: newUuid(),
+    actorId: asset.ownerId,
+    sourcePath: asset.originalPath,
+    sourceChecksum: asset.checksum.toString('base64'),
+    sourceFileChecksum: asset.checksum.toString('base64'),
+    baseGeneration: mediaProof(published).generation,
+    generation: 'requested-render',
+    status: 'requested' as 'requested' | 'committed' | 'failed',
+    cleanup: [] as string[],
+    edits: [
+      {
+        action: AssetEditAction.Annotate,
+        parameters: { layers: [{ type: 'emoji' as const, emoji: '1f600', x: 0.5, y: 0.5, size: 0.2 }] },
+      },
+    ],
+  };
+  mocks.assetEdit.getPhotoSave.mockImplementation(() => Promise.resolve(structuredClone(request)));
+  mocks.assetEdit.withPhotoSaveLock.mockImplementation((_, callback) => callback());
+  mocks.assetJob.getForGenerateThumbnailJob.mockResolvedValue(published);
+  mocks.asset.getById.mockResolvedValue(getForAsset(asset));
+  mocks.crypto.hashFile.mockImplementation((path) =>
+    Promise.resolve(path === asset.originalPath ? asset.checksum : Buffer.from('new-file-checksum')),
+  );
+  mocks.media.decodeImage.mockResolvedValue({
+    data: Buffer.alloc(100 * 80 * 4),
+    info: { width: 100, height: 80, channels: 4 },
+  });
+  mocks.media.generateThumbhash.mockResolvedValue(Buffer.from('visual-hash'));
+  mocks.media.generateThumbnail.mockResolvedValue();
+  mocks.media.getImageMetadata.mockResolvedValue({ width: 100, height: 80, isTransparent: false });
+  mocks.media.writeExif.mockResolvedValue(true);
+  mocks.storage.mkdirSync.mockReturnValue(undefined);
+  mocks.storage.rename.mockResolvedValue();
+  mocks.storage.copyFile.mockResolvedValue();
+  mocks.storage.utimes.mockResolvedValue();
+  mocks.storage.syncFile.mockResolvedValue();
+  mocks.storage.stat.mockResolvedValue({ size: 200 } as Awaited<ReturnType<typeof mocks.storage.stat>>);
+  mocks.storage.unlink.mockResolvedValue();
+  mocks.assetEdit.preparePhotoSave.mockResolvedValue();
+  mocks.assetEdit.isPhotoPathReferenced.mockResolvedValue(false);
+  mocks.assetEdit.completePhotoSaveCleanup.mockResolvedValue();
+  mocks.assetEdit.finalizePhotoSave.mockResolvedValue();
+  mocks.assetEdit.failPhotoSave.mockImplementation(() => {
+    request.status = 'failed';
+    return Promise.resolve();
+  });
+  mocks.assetEdit.commitPhotoSave.mockImplementation(() => {
+    request.status = 'committed';
+    request.cleanup = [asset.originalPath];
+    return Promise.resolve(true);
+  });
+  mocks.job.queue.mockResolvedValue();
+  mocks.websocket.clientSend.mockReturnValue(undefined);
+  return { sut, mocks, asset, request };
+};
+
+describe('full-resolution annotation save worker', () => {
+  it('publishes a durable lossless original before acknowledging the matching request', async () => {
+    const { sut, mocks, asset, request } = setupPhotoSave();
+    await expect(sut.handleAssetEditThumbnailGeneration({ id: asset.id })).resolves.toBe(JobStatus.Success);
+    expect(mocks.storage.syncFile).toHaveBeenCalledWith(expect.stringMatching(/\.png$/));
+    expect(mocks.assetEdit.commitPhotoSave).toHaveBeenCalledWith(
+      asset.id,
+      request.requestId,
+      expect.objectContaining({ width: 100, height: 80, size: 200, path: expect.stringMatching(/\.png$/) }),
+    );
+    expect(mocks.websocket.clientSend).toHaveBeenCalledExactlyOnceWith('PhotoSaveReadyV1', asset.ownerId, {
+      assetId: asset.id,
+      requestId: request.requestId,
+      status: 'saved',
+    });
+    expect(mocks.assetEdit.finalizePhotoSave).toHaveBeenCalledWith(asset.id, request.requestId);
+    expect(mocks.job.queue).toHaveBeenCalledWith({ name: JobName.AssetExtractMetadata, data: { id: asset.id } });
+  });
+  it('reports a disk failure without committing or acknowledging success', async () => {
+    const { sut, mocks, asset, request } = setupPhotoSave();
+    mocks.storage.syncFile.mockRejectedValue(new Error('disk failure'));
+    await expect(sut.handleAssetEditThumbnailGeneration({ id: asset.id })).rejects.toThrow('disk failure');
+    expect(mocks.assetEdit.commitPhotoSave).not.toHaveBeenCalled();
+    expect(mocks.websocket.clientSend).toHaveBeenCalledExactlyOnceWith('PhotoSaveReadyV1', asset.ownerId, {
+      assetId: asset.id,
+      requestId: request.requestId,
+      status: 'failed',
+    });
+    expect(mocks.storage.unlink).not.toHaveBeenCalledWith(asset.originalPath);
+  });
+  it('resumes finalization after a crash after commit, without rendering or replacing the photo again', async () => {
+    const { sut, mocks, asset, request } = setupPhotoSave();
+    request.status = 'committed';
+    request.cleanup = [asset.originalPath];
+    await expect(sut.handleAssetEditThumbnailGeneration({ id: asset.id })).resolves.toBe(JobStatus.Success);
+    expect(mocks.media.generateThumbnail).not.toHaveBeenCalled();
+    expect(mocks.assetEdit.commitPhotoSave).not.toHaveBeenCalled();
+    expect(mocks.assetEdit.finalizePhotoSave).toHaveBeenCalledWith(asset.id, request.requestId);
+    expect(mocks.websocket.clientSend).toHaveBeenCalledWith('PhotoSaveReadyV1', asset.ownerId, {
+      assetId: asset.id,
+      requestId: request.requestId,
+      status: 'saved',
     });
   });
 });

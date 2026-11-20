@@ -842,6 +842,7 @@ export class AssetRepository {
             'asset.status',
             sql`asset."fileCreatedAt" at time zone 'utc'`.as('fileCreatedAt'),
             sql`asset."createdAt" at time zone 'utc'`.as('createdAt'),
+            'asset.updateId as mediaVersion',
             eb.fn('encode', ['asset.thumbhash', sql.lit('base64')]).as('thumbhash'),
             'asset_exif.projectionType',
             eb.fn
@@ -959,6 +960,7 @@ export class AssetRepository {
             eb.fn.coalesce(eb.fn('array_agg', ['projectionType']), sql.lit('{}')).as('projectionType'),
             eb.fn.coalesce(eb.fn('array_agg', ['ratio']), sql.lit('{}')).as('ratio'),
             eb.fn.coalesce(eb.fn('array_agg', ['status']), sql.lit('{}')).as('status'),
+            eb.fn.coalesce(eb.fn('array_agg', ['mediaVersion']), sql.lit('{}')).as('mediaVersion'),
             eb.fn.coalesce(eb.fn('array_agg', ['thumbhash']), sql.lit('{}')).as('thumbhash'),
           ])
           .$if(!isMetadataHidden(auth), (qb) =>

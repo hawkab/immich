@@ -57,7 +57,7 @@
   import BrokenAsset from '#lib/components/assets/BrokenAsset.svelte';
   import { assetViewerManager } from '#lib/managers/asset-viewer-manager.svelte.ts';
   import { languageManager } from '#lib/managers/language-manager.svelte.ts';
-  import { getAssetUrls } from '#lib/utils.ts';
+  import { getAssetCacheKey, getAssetUrls } from '#lib/utils.ts';
   import { AdaptiveImageLoader, type QualityList } from '#lib/utils/adaptive-image-loader.svelte.ts';
   import { scaleToCover, scaleToFit, type Size } from '#lib/utils/container-utils.ts';
   import { getAltText } from '#lib/utils/thumbnail-util.ts';
@@ -121,7 +121,7 @@
     return qualityList;
   };
 
-  const loaderKey = $derived(`${asset.id}:${asset.thumbhash}:${sharedLink?.id}`);
+  const loaderKey = $derived(`${asset.id}:${getAssetCacheKey(asset)}:${sharedLink?.id}`);
 
   const adaptiveImageLoader = $derived.by(() => {
     void loaderKey;

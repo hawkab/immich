@@ -101,6 +101,8 @@ export class MediaRepository {
   async writeExif(tags: Partial<Exif>, output: string): Promise<boolean> {
     try {
       const tagsToWrite: WriteTags = {
+        Description: tags.description,
+        Keywords: tags.tags ?? undefined,
         ExifImageWidth: tags.exifImageWidth,
         ExifImageHeight: tags.exifImageHeight,
         DateTimeOriginal: tags.dateTimeOriginal && ExifDateTime.fromMillis(tags.dateTimeOriginal.getTime()),

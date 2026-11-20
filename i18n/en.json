@@ -999,7 +999,7 @@
   "editor_add_emoji": "Add emoji",
   "editor_annotation_brush": "Brush",
   "editor_annotation_canvas": "Draw blur regions or move emoji on the photo",
-  "editor_annotation_hint": "Draw on the photo to blur it. Select Move emoji to drag a sticker. Save applies your edits; Reset restores the original.",
+  "editor_annotation_hint": "Draw blur and move emoji. Save writes the edits into the photo itself. Undo and reset apply before saving.",
   "editor_annotation_layers": "Layers",
   "editor_annotation_load_error": "Unable to load editor resources. Try opening the editor again.",
   "editor_annotation_move": "Move emoji",

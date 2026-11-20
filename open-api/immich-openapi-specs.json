@@ -4933,6 +4933,61 @@
         "x-immich-state": "Beta"
       }
     },
+    "/assets/{id}/edits/save/{requestId}": {
+      "get": {
+        "operationId": "getPhotoSaveStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoSaveStatusDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Read a durable photo-save result",
+        "tags": [
+          "Assets"
+        ],
+        "x-immich-permission": "asset.edit.get"
+      }
+    },
     "/assets/{id}/metadata": {
       "get": {
         "description": "Retrieve all metadata key-value pairs associated with the specified asset.",
@@ -21941,6 +21996,16 @@
             "format": "base64",
             "pattern": "^$|^(?:[0-9a-zA-Z+/]{4})*(?:(?:[0-9a-zA-Z+/]{2}==)|(?:[0-9a-zA-Z+/]{3}=))?$",
             "type": "string"
+          },
+          "replaceOriginal": {
+            "description": "Bake blur/emoji into the original image, preserving the asset ID",
+            "type": "boolean"
+          },
+          "saveRequestId": {
+            "description": "Idempotent image-save request ID",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+            "type": "string"
           }
         },
         "required": [
@@ -22800,6 +22865,10 @@
           "localDateTime": {
             "description": "The local date and time when the photo/video was taken, derived from EXIF metadata. This represents the photographer's local time regardless of timezone, stored as a timezone-agnostic timestamp. Used for timeline grouping by \"local\" days and months.",
             "format": "date-time",
+            "type": "string"
+          },
+          "mediaVersion": {
+            "description": "Opaque media revision for cache invalidation",
             "type": "string"
           },
           "originalFileName": {
@@ -24263,6 +24332,7 @@
       "ImageFormat": {
         "description": "Image format",
         "enum": [
+          "png",
           "jpeg",
           "jxl",
           "webp"
@@ -27444,6 +27514,28 @@
           "type": "object"
         },
         "type": "array"
+      },
+      "PhotoSaveStatusDto": {
+        "properties": {
+          "requestId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "processing",
+              "saved",
+              "failed"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "requestId",
+          "status"
+        ],
+        "type": "object"
       },
       "PinCodeChangeDto": {
         "properties": {
@@ -34456,6 +34548,13 @@
               "format": "double",
               "nullable": true,
               "type": "number"
+            },
+            "type": "array"
+          },
+          "mediaVersion": {
+            "description": "Media revisions used to invalidate cached images",
+            "items": {
+              "type": "string"
             },
             "type": "array"
           },

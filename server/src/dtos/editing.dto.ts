@@ -116,6 +116,11 @@ function uniqueEditActions(edits: z.infer<typeof AssetEditActionItemSchema>[]): 
 
 const AssetEditsCreateSchema = z
   .object({
+    replaceOriginal: z
+      .boolean()
+      .optional()
+      .describe('Bake blur/emoji into the original image, preserving the asset ID'),
+    saveRequestId: z.uuidv4().optional().describe('Idempotent image-save request ID'),
     ifUneditedChecksum: z
       .base64()
       .refine((value) => [20, 32].includes(Buffer.from(value, 'base64').length), {

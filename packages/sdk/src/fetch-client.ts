@@ -1375,6 +1375,8 @@ export type AssetResponseDto = {
     livePhotoVideoId?: string | null;
     /** The local date and time when the photo/video was taken, derived from EXIF metadata. This represents the photographer's local time regardless of timezone, stored as a timezone-agnostic timestamp. Used for timeline grouping by "local" days and months. */
     localDateTime: string;
+    /** Opaque media revision for cache invalidation */
+    mediaVersion?: string;
     /** Original file name */
     originalFileName: string;
     /** Original MIME type */
@@ -1520,6 +1522,14 @@ export type AssetEditsCreateDto = {
     edits: AssetEditActionItemDto[];
     /** Apply only if the original checksum matches and there are no existing edits; otherwise return 412 */
     ifUneditedChecksum?: string;
+    /** Bake blur/emoji into the original image, preserving the asset ID */
+    replaceOriginal?: boolean;
+    /** Idempotent image-save request ID */
+    saveRequestId?: string;
+};
+export type PhotoSaveStatusDto = {
+    requestId: string;
+    status: Status2;
 };
 export type AssetMetadataResponseDto = {
     /** Metadata key */
@@ -3427,6 +3437,8 @@ export type TimeBucketAssetResponseDto = {
     localOffsetHours: number[];
     /** Array of longitude coordinates extracted from EXIF GPS data */
     longitude?: (number | null)[];
+    /** Media revisions used to invalidate cached images */
+    mediaVersion?: string[];
     /** Array of owner IDs for each asset */
     ownerId: string[];
     /** Array of projection types for 360° content (e.g., "EQUIRECTANGULAR", "CUBEFACE", "CYLINDRICAL") */
@@ -5281,6 +5293,20 @@ export function editAsset({ id, includeAnnotations, assetEditsCreateDto }: {
         method: "PUT",
         body: assetEditsCreateDto
     })));
+}
+/**
+ * Read a durable photo-save result
+ */
+export function getPhotoSaveStatus({ id, requestId }: {
+    id: string;
+    requestId: string;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchJson<{
+        status: 200;
+        data: PhotoSaveStatusDto;
+    }>(`/assets/${encodeURIComponent(id)}/edits/save/${encodeURIComponent(requestId)}`, {
+        ...opts
+    }));
 }
 /**
  * Get asset metadata
@@ -8607,6 +8633,7 @@ export enum Colorspace {
     P3 = "p3"
 }
 export enum ImageFormat {
+    Png = "png",
     Jpeg = "jpeg",
     Jxl = "jxl",
     Webp = "webp"
@@ -8962,6 +8989,11 @@ export enum AnnotationBrushShape {
 }
 export enum AnnotationEmojiType {
     Emoji = "emoji"
+}
+export enum Status2 {
+    Processing = "processing",
+    Saved = "saved",
+    Failed = "failed"
 }
 export enum AssetMediaSize {
     Original = "original",

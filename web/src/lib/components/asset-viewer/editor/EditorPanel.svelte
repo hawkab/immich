@@ -50,7 +50,14 @@
 <svelte:document
   use:shortcuts={[
     { shortcut: { key: 'Escape' }, onShortcut: closeEditor },
-    { shortcut: { key: 'Enter' }, onShortcut: applyEdits },
+    {
+      shortcut: { key: 'Enter' },
+      onShortcut: (event) => {
+        if (event.target instanceof HTMLElement && event.target.closest('input, select, textarea, [contenteditable]'))
+          return;
+        void applyEdits();
+      },
+    },
   ]}
 />
 

@@ -20,6 +20,7 @@ import {
 import type { AuthDto } from 'src/dtos/auth.dto.js';
 import { AssetEditOptionsDto, AssetEditsCreateDto, AssetEditsResponseDto } from 'src/dtos/editing.dto.js';
 import { AssetOcrResponseDto } from 'src/dtos/ocr.dto.js';
+import { PhotoSaveParams, PhotoSaveStatusDto } from 'src/dtos/photo-save.dto.js';
 import { ApiTag, Permission, RouteKey } from 'src/enum.js';
 import { Auth, Authenticated } from 'src/middleware/auth.guard.js';
 import { AssetService } from 'src/services/asset.service.js';
@@ -221,6 +222,13 @@ export class AssetController {
   })
   deleteAssetMetadata(@Auth() auth: AuthDto, @Param() { id, key }: AssetMetadataRouteParams): Promise<void> {
     return this.service.deleteMetadataByKey(auth, id, key);
+  }
+
+  @Get(':id/edits/save/:requestId')
+  @Authenticated({ permission: Permission.AssetEditGet })
+  @Endpoint({ summary: 'Read a durable photo-save result' })
+  getPhotoSaveStatus(@Auth() auth: AuthDto, @Param() { id, requestId }: PhotoSaveParams): Promise<PhotoSaveStatusDto> {
+    return this.service.getPhotoSaveStatus(auth, id, requestId);
   }
 
   @Get(':id/edits')

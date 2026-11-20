@@ -187,6 +187,9 @@ const createUrl = (path: string, parameters?: Record<string, unknown>) => {
   return getBaseUrl() + url.pathname + url.search + url.hash;
 };
 
+export const getAssetCacheKey = (asset: { thumbhash: string | null; mediaVersion?: string; checksum?: string }) =>
+  [asset.mediaVersion ?? asset.checksum, asset.thumbhash].filter(Boolean).join(':');
+
 type AssetUrlOptions = { id: string; cacheKey?: string | null; edited?: boolean; size?: AssetMediaSize };
 
 export const getAssetUrl = ({
@@ -202,7 +205,7 @@ export const getAssetUrl = ({
     return;
   }
   const id = asset.id;
-  const cacheKey = asset.thumbhash;
+  const cacheKey = getAssetCacheKey(asset);
   if (sharedLink && (!sharedLink.allowDownload || !sharedLink.showMetadata)) {
     return getAssetMediaUrl({ id, size: AssetMediaSize.Preview, cacheKey });
   }
@@ -212,7 +215,7 @@ export const getAssetUrl = ({
 
 export function getAssetUrls(asset: AssetResponseDto, sharedLink?: SharedLinkResponseDto) {
   return {
-    thumbnail: getAssetMediaUrl({ id: asset.id, cacheKey: asset.thumbhash, size: AssetMediaSize.Thumbnail }),
+    thumbnail: getAssetMediaUrl({ id: asset.id, cacheKey: getAssetCacheKey(asset), size: AssetMediaSize.Thumbnail }),
     preview: getAssetUrl({ asset, sharedLink })!,
     original: getAssetUrl({ asset, sharedLink, forceOriginal: true })!,
   };
