@@ -101,13 +101,20 @@ export class MediaRepository {
 
   async writeExif(tags: Partial<Exif>, output: string): Promise<boolean> {
     try {
+      const zone = tags.timeZone ?? 'UTC';
+      const original = tags.dateTimeOriginal && ExifDateTime.fromMillis(tags.dateTimeOriginal.getTime(), { zone });
+      const modified = tags.modifyDate && ExifDateTime.fromMillis(tags.modifyDate.getTime(), { zone });
       const tagsToWrite: WriteTags = {
         Description: tags.description,
         Keywords: tags.tags ?? undefined,
         ExifImageWidth: tags.exifImageWidth,
         ExifImageHeight: tags.exifImageHeight,
-        DateTimeOriginal: tags.dateTimeOriginal && ExifDateTime.fromMillis(tags.dateTimeOriginal.getTime()),
-        ModifyDate: tags.modifyDate && ExifDateTime.fromMillis(tags.modifyDate.getTime()),
+        DateTimeOriginal: original,
+        OffsetTimeOriginal: original?.toDateTime().toFormat('ZZ'),
+        SubSecTimeOriginal: tags.dateTimeOriginal?.getUTCMilliseconds().toString().padStart(3, '0'),
+        ModifyDate: modified,
+        OffsetTime: modified?.toDateTime().toFormat('ZZ'),
+        SubSecTime: tags.modifyDate?.getUTCMilliseconds().toString().padStart(3, '0'),
         TimeZone: tags.timeZone,
         GPSLatitude: tags.latitude,
         GPSLongitude: tags.longitude,
