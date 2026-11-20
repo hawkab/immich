@@ -14,3 +14,7 @@ packages/sdk/fetch-client.ts -diff -merge
 packages/sdk/fetch-client.ts linguist-generated=true
 
 *.sh text eol=lf
+
+web/static/editor-emoji/** linguist-vendored=true
+server/src/data/editor-emoji-*.json linguist-generated=true
+web/static/editor-emoji/LICENSE-GRAPHICS whitespace=-blank-at-eol
