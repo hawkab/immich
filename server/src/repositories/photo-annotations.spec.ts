@@ -129,7 +129,7 @@ it.each([null, 'Europe/Moscow', 'America/New_York'])(
       );
       expect(dates.dateTimeOriginal.getTime()).toBe(created.getTime());
       expect(dates.localDateTime.getTime()).toBe(
-        created.getTime() + (timeZone === 'Europe/Moscow' ? 3 : timeZone === 'America/New_York' ? -4 : 0) * 3600000,
+        created.getTime() + (timeZone === 'Europe/Moscow' ? 3 : timeZone === 'America/New_York' ? -4 : 0) * 3_600_000,
       );
       const original = tags.SubSecDateTimeOriginal as ExifDateTime;
       const modification = tags.SubSecModifyDate as ExifDateTime;
