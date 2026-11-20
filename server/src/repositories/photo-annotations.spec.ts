@@ -1,4 +1,5 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { ExifDateTime, exiftool } from 'exiftool-vendored';
+import { mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import sharp from 'sharp';
@@ -6,6 +7,8 @@ import { AssetEditAction, type AssetEditActionItem } from 'src/dtos/editing.dto.
 import { Colorspace, ImageEffort, ImageFormat } from 'src/enum.js';
 import { LoggingRepository } from 'src/repositories/logging.repository.js';
 import { MediaRepository } from 'src/repositories/media.repository.js';
+import { MetadataRepository } from 'src/repositories/metadata.repository.js';
+import { MetadataService } from 'src/services/metadata.service.js';
 import { automock } from 'test/utils.js';
 
 it('renders annotations after crop and rotation and carries them into preview and thumbhash', async () => {
@@ -94,3 +97,49 @@ it('keeps full-resolution PNG pixels and transparency lossless instead of quanti
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+afterAll(async () => {
+  await exiftool.end();
+});
+
+it.each([null, 'Europe/Moscow', 'America/New_York'])(
+  'preserves photo instants and EXIF offsets independently of the server timezone (%s)',
+  async (timeZone) => {
+    const logger = automock(LoggingRepository, { args: [undefined, { getEnv: () => ({}) }], strict: false });
+    const repository = new MediaRepository(logger);
+    const directory = await mkdtemp(join(tmpdir(), 'immich-exif-save-'));
+    const created = new Date('2016-05-06T07:08:09.123Z');
+    const modified = new Date('2017-08-09T10:11:12.456Z');
+    try {
+      const output = join(directory, 'saved.png');
+      await sharp({ create: { width: 16, height: 16, channels: 3, background: 'blue' } })
+        .png()
+        .toFile(output);
+      expect(await repository.writeExif({ dateTimeOriginal: created, modifyDate: modified, timeZone }, output)).toBe(
+        true,
+      );
+      const reader = new MetadataRepository(logger);
+      const tags = await reader.readTags(output);
+      await reader.teardown();
+      const extractor = Object.assign(Object.create(MetadataService.prototype), { logger }) as MetadataService;
+      const dates = extractor['getDates'](
+        { id: 'synthetic', originalPath: output, fileCreatedAt: created },
+        tags,
+        await stat(output),
+      );
+      expect(dates.dateTimeOriginal.getTime()).toBe(created.getTime());
+      expect(dates.localDateTime.getTime()).toBe(
+        created.getTime() + (timeZone === 'Europe/Moscow' ? 3 : timeZone === 'America/New_York' ? -4 : 0) * 3600000,
+      );
+      const original = tags.SubSecDateTimeOriginal as ExifDateTime;
+      const modification = tags.SubSecModifyDate as ExifDateTime;
+      expect(original.toMillis()).toBe(created.getTime());
+      expect(modification.toMillis()).toBe(modified.getTime());
+      expect(tags.OffsetTimeOriginal).toBe(
+        timeZone === 'Europe/Moscow' ? '+03:00' : timeZone === 'America/New_York' ? '-04:00' : '+00:00',
+      );
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);
