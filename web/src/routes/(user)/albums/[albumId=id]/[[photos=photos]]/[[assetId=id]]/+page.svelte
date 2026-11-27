@@ -404,6 +404,7 @@
         <CommandPaletteDefaultProvider name={$t('assets')} actions={Object.values(Actions)} />
         <ActionButton action={Actions.CreateSharedLink} />
 
+        <DeleteAssets onAssetDelete={handleRemoveAssets} onUndoDelete={handleUndoRemoveAssets} />
         <SelectAllAssets {timelineManager} assetInteraction={assetMultiSelectManager} />
 
         <ActionButton action={Actions.AddToAlbum} />
@@ -433,9 +434,6 @@
 
           <ActionMenuItem action={Actions.Tag} />
           <ActionMenuItem action={Actions.RemoveFromAlbum} />
-          {#if assetMultiSelectManager.isAllUserOwned}
-            <DeleteAssets menuItem onAssetDelete={handleRemoveAssets} onUndoDelete={handleUndoRemoveAssets} />
-          {/if}
         </ButtonContextMenu>
       </AssetSelectControlBar>
     {:else}

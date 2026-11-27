@@ -5,12 +5,15 @@
   } from '#lib/components/timeline/actions/focus-actions.ts';
   import type { AssetMultiSelectManager } from '#lib/managers/asset-multi-select-manager.svelte.ts';
   import { assetViewerManager } from '#lib/managers/asset-viewer-manager.svelte.ts';
+  import { authManager } from '#lib/managers/auth-manager.svelte.ts';
   import { featureFlagsManager } from '#lib/managers/feature-flags-manager.svelte.ts';
   import { TimelineManager } from '#lib/managers/timeline-manager/timeline-manager.svelte.ts';
   import type { TimelineAsset } from '#lib/managers/timeline-manager/types.ts';
   import AssetDeleteConfirmModal from '#lib/modals/AssetDeleteConfirmModal.svelte';
   import NavigateToDateModal from '#lib/modals/NavigateToDateModal.svelte';
   import ShortcutsModal from '#lib/modals/ShortcutsModal.svelte';
+  import { queryClient } from '#lib/queries/client.ts';
+  import { getIncomingPartnersQuery } from '#lib/queries/partner.query.ts';
   import { Route } from '#lib/route.ts';
   import { toggleFavoriteAssets } from '#lib/services/asset.service.ts';
   import { handleStack } from '#lib/services/stack.service.ts';
@@ -19,6 +22,7 @@
   import { searchStore } from '#lib/stores/search.svelte.ts';
   import { handlePromiseError } from '#lib/utils.ts';
   import { deleteAssets } from '#lib/utils/actions.ts';
+  import { getAssetDeletionPlan } from '#lib/utils/asset-deletion.ts';
   import { selectAllAssets } from '#lib/utils/asset-utils.ts';
   import { isModalOpen, modalManager, shortcuts, type ShortcutOptions } from '@immich/ui';
   import { goto } from '$app/navigation';
@@ -33,8 +37,28 @@
   let { timelineManager = $bindable(), assetInteraction, onEscape, scrollToAsset }: Props = $props();
 
   const trashOrDelete = async (forceRequested?: boolean) => {
-    const force = forceRequested || !featureFlagsManager.value.trash;
     const selectedAssets = assetInteraction.assets;
+    const userId = authManager.authenticated ? authManager.user.id : undefined;
+    if (!userId || authManager.isSharedLink) {
+      return;
+    }
+    const partners = selectedAssets.some((asset) => asset.ownerId !== userId)
+      ? await queryClient.query(getIncomingPartnersQuery(userId))
+      : [];
+    if (selectedAssets !== assetInteraction.assets || !authManager.authenticated || authManager.user.id !== userId) {
+      return;
+    }
+    const plan = getAssetDeletionPlan(
+      selectedAssets,
+      userId,
+      partners,
+      featureFlagsManager.value.trash,
+      forceRequested,
+    );
+    if (!plan) {
+      return;
+    }
+    const { force } = plan;
 
     if ($showDeleteModal && force) {
       const confirmed = await modalManager.show(AssetDeleteConfirmModal, { size: selectedAssets.length });
@@ -45,11 +69,13 @@
 
     await deleteAssets(
       force,
-      (assetIds) => timelineManager.removeAssets(assetIds),
+      (assetIds) => {
+        timelineManager.removeAssets(assetIds);
+        assetInteraction.clear();
+      },
       selectedAssets,
       force ? undefined : (assets) => timelineManager.upsertAssets(assets),
     );
-    assetInteraction.clear();
   };
 
   const onDelete = () => {

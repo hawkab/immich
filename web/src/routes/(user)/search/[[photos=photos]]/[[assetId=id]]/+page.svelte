@@ -372,6 +372,7 @@
             onclick={handleSelectAll}
           />
           <ActionButton action={Actions.AddToAlbum} />
+          <DeleteAssets {onAssetDelete} onUndoDelete={onSearchQueryUpdate} />
           {#if assetMultiSelectManager.isAllUserOwned}
             <FavoriteAction
               removeFavorite={assetMultiSelectManager.isAllFavorite}
@@ -395,8 +396,6 @@
               <ActionMenuItem action={Actions.Unarchive} />
               <SetVisibilityAction menuItem onVisibilitySet={handleSetVisibility} />
               <ActionMenuItem action={Actions.Tag} />
-
-              <DeleteAssets menuItem {onAssetDelete} onUndoDelete={onSearchQueryUpdate} />
 
               <hr />
               <ActionMenuItem action={Actions.RegenerateThumbnailJob} />

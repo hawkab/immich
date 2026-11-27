@@ -5,7 +5,6 @@
   import DeleteAssets from '#lib/components/timeline/actions/DeleteAssetsAction.svelte';
   import DownloadAction from '#lib/components/timeline/actions/DownloadAction.svelte';
   import { assetMultiSelectManager } from '#lib/managers/asset-multi-select-manager.svelte.ts';
-  import { featureFlagsManager } from '#lib/managers/feature-flags-manager.svelte.ts';
   import type { TimelineManager } from '#lib/managers/timeline-manager/timeline-manager.svelte.ts';
   import { Route } from '#lib/route.ts';
   import { getAssetBulkActions } from '#lib/services/asset.service.ts';
@@ -57,13 +56,10 @@
     <ActionButton action={Actions.CreateSharedLink} />
     <ActionButton action={Actions.AddToAlbum} />
     <DownloadAction />
-    {#if data.canDelete && featureFlagsManager.value.trash}
-      <DeleteAssets
-        partnerOwnerId={data.partner.id}
-        onAssetDelete={(ids) => timelineManager.removeAssets(ids)}
-        onUndoDelete={(assets) => timelineManager.upsertAssets(assets)}
-      />
-    {/if}
+    <DeleteAssets
+      onAssetDelete={(ids) => timelineManager.removeAssets(ids)}
+      onUndoDelete={(assets) => timelineManager.upsertAssets(assets)}
+    />
   </AssetSelectControlBar>
 {:else}
   <ControlAppBar backIcon={mdiArrowLeft} onClose={() => goto(Route.sharing())}>

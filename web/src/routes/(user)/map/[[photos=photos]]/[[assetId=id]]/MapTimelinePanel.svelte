@@ -124,6 +124,10 @@
       <SelectAllAssets {timelineManager} assetInteraction={assetMultiSelectManager} />
       <ActionButton action={Actions.AddToAlbum} />
 
+      <DeleteAssets
+        onAssetDelete={(assetIds) => timelineManager.removeAssets(assetIds)}
+        onUndoDelete={(assets) => timelineManager.upsertAssets(assets)}
+      />
       {#if assetMultiSelectManager.isAllUserOwned}
         <FavoriteAction
           removeFavorite={assetMultiSelectManager.isAllFavorite}
@@ -148,11 +152,7 @@
           <ActionMenuItem action={Actions.Archive} />
           <ActionMenuItem action={Actions.Unarchive} />
           <ActionMenuItem action={Actions.Tag} />
-          <DeleteAssets
-            menuItem
-            onAssetDelete={(assetIds) => timelineManager.removeAssets(assetIds)}
-            onUndoDelete={(assets) => timelineManager.upsertAssets(assets)}
-          />
+
           <SetVisibilityAction menuItem onVisibilitySet={handleSetVisibility} />
           <hr />
           <ActionMenuItem action={Actions.RegenerateThumbnailJob} />
